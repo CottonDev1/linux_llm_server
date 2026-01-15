@@ -10,6 +10,11 @@ Provides:
 - Audio file fixtures (WAV, MP3 simulation)
 - Emotion/event tag test data
 - Speaker diarization test data
+
+Prefect Variables (configurable in Prefect UI):
+    - audio_file_path: Path to audio file for analysis tests
+    - audio_support_name: Customer support personnel name for records
+    - audio_customer_name: Customer name for records
 """
 
 import os
@@ -26,6 +31,32 @@ from dataclasses import dataclass, field
 # Add python_services to path for imports
 PYTHON_SERVICES = Path(__file__).parent.parent.parent.parent / "python_services"
 sys.path.insert(0, str(PYTHON_SERVICES))
+
+# Try to import Prefect variables, fall back to defaults if not available
+try:
+    from prefect.variables import Variable
+    PREFECT_AVAILABLE = True
+except ImportError:
+    PREFECT_AVAILABLE = False
+
+
+def get_prefect_variable(name: str, default: str) -> str:
+    """Get a Prefect variable value, falling back to default if not available."""
+    if not PREFECT_AVAILABLE:
+        return default
+    try:
+        value = Variable.get(name)
+        return value if value is not None else default
+    except Exception:
+        return default
+
+
+# Prefect variable defaults
+PREFECT_DEFAULTS = {
+    "audio_file_path": "/data/projects/llm_website/testing_data/audio/sample.wav",
+    "audio_support_name": "John Smith",
+    "audio_customer_name": "Jane Doe",
+}
 
 
 # =============================================================================
@@ -535,4 +566,109 @@ def sample_error_result() -> Dict[str, Any]:
             "analysis_model": ""
         },
         "customer_lookup": {"found": False}
+    }
+
+
+# =============================================================================
+# Prefect Variable-Based Fixtures
+# =============================================================================
+
+
+@dataclass
+class AudioTestConfig:
+    """Audio test configuration from Prefect variables."""
+    file_path: str
+    support_name: str
+    customer_name: str
+
+    def get_analysis_request(self, include_transcription: bool = True) -> Dict[str, Any]:
+        """Get an audio analysis request dictionary."""
+        return {
+            "filePath": self.file_path,
+            "metadata": {
+                "supportPersonnel": self.support_name,
+                "customerName": self.customer_name,
+            },
+            "options": {
+                "includeTranscription": include_transcription,
+                "includeDiarization": True,
+                "includeEmotionAnalysis": True,
+                "includeSentiment": True,
+            }
+        }
+
+
+@pytest.fixture(scope="session")
+def audio_test_config() -> AudioTestConfig:
+    """
+    Get audio test configuration from Prefect variables.
+
+    These values can be changed in the Prefect UI under Variables:
+    - audio_file_path: Path to the audio file to analyze
+    - audio_support_name: Support personnel name
+    - audio_customer_name: Customer name
+
+    Falls back to default test values if Prefect is not available.
+    """
+    return AudioTestConfig(
+        file_path=get_prefect_variable("audio_file_path", PREFECT_DEFAULTS["audio_file_path"]),
+        support_name=get_prefect_variable("audio_support_name", PREFECT_DEFAULTS["audio_support_name"]),
+        customer_name=get_prefect_variable("audio_customer_name", PREFECT_DEFAULTS["audio_customer_name"]),
+    )
+
+
+@pytest.fixture
+def audio_file_path(audio_test_config: AudioTestConfig) -> str:
+    """Get audio file path from Prefect variables."""
+    return audio_test_config.file_path
+
+
+@pytest.fixture
+def audio_support_name(audio_test_config: AudioTestConfig) -> str:
+    """Get support personnel name from Prefect variables."""
+    return audio_test_config.support_name
+
+
+@pytest.fixture
+def audio_customer_name(audio_test_config: AudioTestConfig) -> str:
+    """Get customer name from Prefect variables."""
+    return audio_test_config.customer_name
+
+
+@pytest.fixture
+def valid_audio_analysis_request(audio_test_config: AudioTestConfig) -> Dict[str, Any]:
+    """Standard valid audio analysis request using Prefect variables."""
+    return audio_test_config.get_analysis_request()
+
+
+@pytest.fixture
+def prefect_transcription_request(audio_test_config: AudioTestConfig) -> Dict[str, Any]:
+    """Transcription-only request using Prefect variables."""
+    return {
+        "filePath": audio_test_config.file_path,
+        "metadata": {
+            "supportPersonnel": audio_test_config.support_name,
+            "customerName": audio_test_config.customer_name,
+        },
+        "options": {
+            "includeTranscription": True,
+            "includeDiarization": False,
+            "includeEmotionAnalysis": False,
+        }
+    }
+
+
+@pytest.fixture
+def prefect_diarization_request(audio_test_config: AudioTestConfig) -> Dict[str, Any]:
+    """Diarization request using Prefect variables."""
+    return {
+        "filePath": audio_test_config.file_path,
+        "metadata": {
+            "supportPersonnel": audio_test_config.support_name,
+            "customerName": audio_test_config.customer_name,
+        },
+        "options": {
+            "includeDiarization": True,
+            "speakerLabels": ["Support", "Customer"],
+        }
     }
