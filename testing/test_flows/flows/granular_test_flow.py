@@ -1,7 +1,7 @@
-"""Prefect flow for granular test execution with fine-grained control.
+"""Custom test flow for fine-grained test execution.
 
-This flow allows running specific tests with pytest patterns, markers, and paths.
-Provides detailed output parsing and artifact creation for test results.
+This flow provides flexible test selection using pytest patterns, markers, and paths.
+Use this when you need more control than the standard pipeline flows offer.
 """
 import subprocess
 import time
@@ -21,8 +21,8 @@ from config.settings import settings
 
 
 @dataclass
-class GranularTestResult:
-    """Result from a granular test execution."""
+class CustomTestResult:
+    """Result from a custom test execution."""
     test_path: Optional[str] = None
     test_pattern: Optional[str] = None
     marker: Optional[str] = None
@@ -39,7 +39,7 @@ class GranularTestResult:
     passed_tests: List[str] = field(default_factory=list)
 
 
-@task(name="build_pytest_command", tags=["pytest", "command"])
+@task(name="build_pytest_command", tags=["pytest"])
 def build_pytest_command(
     test_path: Optional[str] = None,
     test_pattern: Optional[str] = None,
@@ -47,48 +47,26 @@ def build_pytest_command(
     verbose: bool = True,
     timeout: int = 300,
 ) -> List[str]:
-    """
-    Build the pytest command with all specified options.
-
-    Args:
-        test_path: Test file/directory relative to testing/pipelines/
-        test_pattern: pytest -k pattern for test selection
-        marker: pytest -m marker expression
-        verbose: Whether to use verbose output
-        timeout: Timeout for each test in seconds
-
-    Returns:
-        List of command arguments for subprocess
-    """
+    """Build the pytest command with specified options."""
     logger = get_run_logger()
 
     cmd = ["python", "-m", "pytest"]
 
-    # Determine test path
     if test_path:
         full_path = TESTING_ROOT / "pipelines" / test_path
         if not full_path.exists():
             logger.warning(f"Test path does not exist: {full_path}")
         cmd.append(str(full_path))
     else:
-        # Default to all pipeline tests
         cmd.append(str(TESTING_ROOT / "pipelines"))
 
-    # Add verbosity
     if verbose:
         cmd.append("-v")
-
-    # Add short traceback
     cmd.append("--tb=short")
-
-    # Add timeout
     cmd.append(f"--timeout={timeout}")
 
-    # Add pattern filter (-k)
     if test_pattern:
         cmd.extend(["-k", test_pattern])
-
-    # Add marker filter (-m)
     if marker:
         cmd.extend(["-m", marker])
 
@@ -96,19 +74,9 @@ def build_pytest_command(
     return cmd
 
 
-@task(name="parse_pytest_output", tags=["pytest", "parsing"])
+@task(name="parse_pytest_output", tags=["pytest"])
 def parse_pytest_output(stdout: str, stderr: str) -> Dict[str, Any]:
-    """
-    Parse pytest output to extract test counts and individual test results.
-
-    Args:
-        stdout: Standard output from pytest
-        stderr: Standard error from pytest
-
-    Returns:
-        Dictionary with parsed test results
-    """
-    logger = get_run_logger()
+    """Parse pytest output to extract test counts and results."""
     output = stdout + stderr
 
     result = {
@@ -118,74 +86,33 @@ def parse_pytest_output(stdout: str, stderr: str) -> Dict[str, Any]:
         "errors": 0,
         "passed_tests": [],
         "failed_tests": [],
-        "skipped_tests": [],
-        "error_tests": [],
     }
 
-    # Parse summary line (e.g., "5 passed, 2 failed, 1 skipped in 10.5s")
-    summary_match = re.search(
-        r'=+\s*(.*?)\s*=+\s*$',
-        output,
-        re.MULTILINE
-    )
+    # Parse summary line
+    summary_match = re.search(r'=+\s*(.*?)\s*=+\s*$', output, re.MULTILINE)
     if summary_match:
         summary = summary_match.group(1)
+        for metric, pattern in [("passed", r'(\d+)\s+passed'),
+                                 ("failed", r'(\d+)\s+failed'),
+                                 ("skipped", r'(\d+)\s+skipped'),
+                                 ("errors", r'(\d+)\s+error')]:
+            match = re.search(pattern, summary)
+            if match:
+                result[metric] = int(match.group(1))
 
-        passed_match = re.search(r'(\d+)\s+passed', summary)
-        if passed_match:
-            result["passed"] = int(passed_match.group(1))
-
-        failed_match = re.search(r'(\d+)\s+failed', summary)
-        if failed_match:
-            result["failed"] = int(failed_match.group(1))
-
-        skipped_match = re.search(r'(\d+)\s+skipped', summary)
-        if skipped_match:
-            result["skipped"] = int(skipped_match.group(1))
-
-        error_match = re.search(r'(\d+)\s+error', summary)
-        if error_match:
-            result["errors"] = int(error_match.group(1))
-
-    # Parse individual test results from verbose output
-    # Pattern: test_file.py::test_name PASSED/FAILED/SKIPPED
-    test_patterns = [
-        (r'(\S+::\S+)\s+PASSED', "passed_tests"),
-        (r'(\S+::\S+)\s+FAILED', "failed_tests"),
-        (r'(\S+::\S+)\s+SKIPPED', "skipped_tests"),
-        (r'(\S+::\S+)\s+ERROR', "error_tests"),
-    ]
-
-    for pattern, key in test_patterns:
-        matches = re.findall(pattern, output)
-        result[key] = matches
-
-    logger.info(
-        f"Parsed results: {result['passed']} passed, "
-        f"{result['failed']} failed, {result['skipped']} skipped"
-    )
+    # Parse individual test results
+    result["passed_tests"] = re.findall(r'(\S+::\S+)\s+PASSED', output)
+    result["failed_tests"] = re.findall(r'(\S+::\S+)\s+FAILED', output)
 
     return result
 
 
-@task(name="create_granular_test_artifact", tags=["artifact", "report"])
-async def create_granular_test_artifact(
-    result: GranularTestResult,
-    title: str = "Granular Test Results",
-) -> None:
-    """
-    Create a markdown artifact with detailed test results.
-
-    Args:
-        result: GranularTestResult from the test run
-        title: Title for the artifact
-    """
+@task(name="create_custom_test_artifact", tags=["artifact"])
+async def create_custom_test_artifact(result: CustomTestResult, title: str = "Custom Test Results"):
+    """Create a markdown artifact with detailed test results."""
     total_tests = result.passed + result.failed + result.skipped + result.errors
-    success_rate = (
-        (result.passed / total_tests * 100) if total_tests > 0 else 0
-    )
+    success_rate = (result.passed / total_tests * 100) if total_tests > 0 else 0
 
-    # Build filter description
     filters = []
     if result.test_path:
         filters.append(f"Path: `{result.test_path}`")
@@ -211,77 +138,48 @@ async def create_granular_test_artifact(
 | Errors | {result.errors} |
 | Success Rate | {success_rate:.1f}% |
 | Duration | {result.duration_seconds:.2f}s |
-| Exit Code | {result.exit_code} |
 
 ## Status
 {"PASSED" if result.exit_code == 0 else "FAILED"}
 """
 
-    # Add failed tests section if any
     if result.failed_tests:
         markdown += "\n## Failed Tests\n"
-        for test in result.failed_tests[:20]:  # Limit to 20
+        for test in result.failed_tests[:20]:
             markdown += f"- `{test}`\n"
         if len(result.failed_tests) > 20:
             markdown += f"\n... and {len(result.failed_tests) - 20} more\n"
 
-    # Add passed tests section (collapsed by default in many viewers)
-    if result.passed_tests and len(result.passed_tests) <= 50:
-        markdown += "\n## Passed Tests\n"
-        for test in result.passed_tests:
-            markdown += f"- `{test}`\n"
-    elif result.passed_tests:
-        markdown += f"\n## Passed Tests\n{len(result.passed_tests)} tests passed (list truncated)\n"
-
-    # Add error message if present
     if result.error_message:
         markdown += f"\n## Error\n```\n{result.error_message}\n```\n"
 
     await create_markdown_artifact(
-        key="granular-test-results",
+        key="custom-test-results",
         markdown=markdown,
         description=f"Test results: {result.passed} passed, {result.failed} failed",
     )
 
 
-@task(name="execute_pytest", retries=1, tags=["pytest", "execution"])
-def execute_pytest(
-    cmd: List[str],
-    timeout: int = 300,
-) -> GranularTestResult:
-    """
-    Execute the pytest command and capture results.
-
-    Args:
-        cmd: List of command arguments
-        timeout: Maximum execution time in seconds
-
-    Returns:
-        GranularTestResult with execution details
-    """
+@task(name="execute_pytest", retries=1, tags=["pytest"])
+def execute_pytest(cmd: List[str], timeout: int = 300) -> CustomTestResult:
+    """Execute the pytest command and capture results."""
     logger = get_run_logger()
     start_time = time.time()
 
     try:
         logger.info(f"Executing: {' '.join(cmd)}")
-
         process_result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=timeout + 60,  # Buffer for cleanup
+            timeout=timeout + 60,
             cwd=str(TESTING_ROOT),
         )
 
         duration = time.time() - start_time
+        parsed = parse_pytest_output(process_result.stdout, process_result.stderr)
 
-        # Parse the output
-        parsed = parse_pytest_output(
-            process_result.stdout,
-            process_result.stderr
-        )
-
-        result = GranularTestResult(
+        result = CustomTestResult(
             passed=parsed["passed"],
             failed=parsed["failed"],
             skipped=parsed["skipped"],
@@ -294,130 +192,95 @@ def execute_pytest(
             failed_tests=parsed["failed_tests"],
         )
 
-        logger.info(
-            f"Test execution completed: {result.passed} passed, "
-            f"{result.failed} failed in {duration:.2f}s"
-        )
-
+        logger.info(f"Completed: {result.passed} passed, {result.failed} failed in {duration:.2f}s")
         return result
 
     except subprocess.TimeoutExpired as e:
-        duration = time.time() - start_time
-        logger.error(f"Test execution timed out after {timeout}s")
-        return GranularTestResult(
+        return CustomTestResult(
             failed=1,
             error_message=f"Timeout after {timeout} seconds",
             exit_code=124,
-            duration_seconds=duration,
+            duration_seconds=time.time() - start_time,
             stdout=e.stdout or "",
             stderr=e.stderr or "",
         )
-
     except Exception as e:
-        duration = time.time() - start_time
-        logger.error(f"Test execution failed: {e}")
-        return GranularTestResult(
+        return CustomTestResult(
             failed=1,
             error_message=str(e),
             exit_code=1,
-            duration_seconds=duration,
+            duration_seconds=time.time() - start_time,
         )
 
 
-@flow(name="run-specific-tests", log_prints=True)
-def run_specific_tests(
+@flow(name="custom-tests", log_prints=True)
+def custom_test_flow(
     test_path: Optional[str] = None,
-    test_pattern: Optional[str] = None,
+    pattern: Optional[str] = None,
     marker: Optional[str] = None,
-    verbose: bool = True,
     timeout: int = 300,
 ) -> Dict[str, Any]:
     """
-    Run specific tests with granular control over test selection.
+    Run tests with custom filters for fine-grained control.
 
-    This flow provides fine-grained control over which tests to run,
-    supporting path-based selection, pattern matching (-k), and
-    marker filtering (-m).
+    Use this flow when you need to run a specific subset of tests that
+    doesn't fit the standard pipeline groupings.
 
     Args:
         test_path: Test file/directory relative to testing/pipelines/
-                   Example: "sql/test_query.py" or "audio"
-        test_pattern: pytest -k pattern for test selection
-                      Example: "test_query and not slow"
+                   Example: "sql/test_sql_generation.py" or "audio"
+        pattern: pytest -k pattern for test name filtering
+                 Example: "test_query and not slow"
         marker: pytest -m marker expression
                 Example: "smoke" or "not integration"
-        verbose: Whether to use verbose output (default: True)
-        timeout: Timeout for test execution in seconds (default: 300)
+        timeout: Timeout per test in seconds (default: 300)
 
     Returns:
-        Dict containing:
-            - success: bool indicating if all tests passed
-            - passed: number of passed tests
-            - failed: number of failed tests
-            - skipped: number of skipped tests
-            - duration: execution time in seconds
-            - result: GranularTestResult object with full details
+        Dict with success status and detailed results
 
     Examples:
         # Run a specific test file
-        run_specific_tests(test_path="sql/test_rules.py")
+        custom_test_flow(test_path="sql/test_sql_generation.py")
 
-        # Run tests matching a pattern
-        run_specific_tests(test_pattern="test_query")
+        # Run tests matching a name pattern
+        custom_test_flow(pattern="test_embedding")
 
-        # Run tests with a marker
-        run_specific_tests(marker="smoke")
+        # Run tests with a specific marker
+        custom_test_flow(marker="smoke")
 
         # Combine filters
-        run_specific_tests(
-            test_path="sql",
-            test_pattern="test_query",
-            marker="not slow"
-        )
+        custom_test_flow(test_path="sql", pattern="test_query", marker="not slow")
     """
     logger = get_run_logger()
 
     logger.info("=" * 60)
-    logger.info("Starting Granular Test Execution")
+    logger.info("Starting Custom Test Execution")
+    if test_path:
+        logger.info(f"  Path: {test_path}")
+    if pattern:
+        logger.info(f"  Pattern (-k): {pattern}")
+    if marker:
+        logger.info(f"  Marker (-m): {marker}")
     logger.info("=" * 60)
 
-    if test_path:
-        logger.info(f"Test path: {test_path}")
-    if test_pattern:
-        logger.info(f"Test pattern (-k): {test_pattern}")
-    if marker:
-        logger.info(f"Marker (-m): {marker}")
-    logger.info(f"Timeout: {timeout}s")
-
-    # Build the pytest command
     cmd = build_pytest_command(
         test_path=test_path,
-        test_pattern=test_pattern,
+        test_pattern=pattern,
         marker=marker,
-        verbose=verbose,
+        verbose=True,
         timeout=timeout,
     )
 
-    # Execute pytest
     result = execute_pytest(cmd, timeout=timeout)
-
-    # Store filter info in result for artifact creation
     result.test_path = test_path
-    result.test_pattern = test_pattern
+    result.test_pattern = pattern
     result.marker = marker
 
-    # Create artifact
     import asyncio
-    asyncio.run(create_granular_test_artifact(result))
+    asyncio.run(create_custom_test_artifact(result))
 
-    # Log final summary
     logger.info("=" * 60)
-    logger.info("Test Execution Complete")
-    logger.info(f"Passed: {result.passed}")
-    logger.info(f"Failed: {result.failed}")
-    logger.info(f"Skipped: {result.skipped}")
-    logger.info(f"Duration: {result.duration_seconds:.2f}s")
-    logger.info(f"Exit code: {result.exit_code}")
+    logger.info(f"Complete: {result.passed} passed, {result.failed} failed")
     logger.info("=" * 60)
 
     return {
@@ -427,61 +290,11 @@ def run_specific_tests(
         "skipped": result.skipped,
         "errors": result.errors,
         "duration": result.duration_seconds,
-        "exit_code": result.exit_code,
         "failed_tests": result.failed_tests,
-        "result": result,
     }
 
 
-@flow(name="run-tests-by-marker", log_prints=True)
-def run_tests_by_marker(
-    marker: str,
-    timeout: int = 300,
-) -> Dict[str, Any]:
-    """
-    Convenience flow to run tests filtered by a specific marker.
-
-    Args:
-        marker: pytest marker expression (e.g., "smoke", "integration", "slow")
-        timeout: Timeout for test execution in seconds
-
-    Returns:
-        Dict with test results
-    """
-    return run_specific_tests(marker=marker, timeout=timeout)
-
-
-@flow(name="run-tests-by-pattern", log_prints=True)
-def run_tests_by_pattern(
-    pattern: str,
-    test_path: Optional[str] = None,
-    timeout: int = 300,
-) -> Dict[str, Any]:
-    """
-    Convenience flow to run tests filtered by a name pattern.
-
-    Args:
-        pattern: pytest -k pattern (e.g., "test_query", "test_audio and not slow")
-        test_path: Optional path to narrow scope
-        timeout: Timeout for test execution in seconds
-
-    Returns:
-        Dict with test results
-    """
-    return run_specific_tests(
-        test_path=test_path,
-        test_pattern=pattern,
-        timeout=timeout,
-    )
-
-
 __all__ = [
-    "run_specific_tests",
-    "run_tests_by_marker",
-    "run_tests_by_pattern",
-    "GranularTestResult",
-    "build_pytest_command",
-    "parse_pytest_output",
-    "execute_pytest",
-    "create_granular_test_artifact",
+    "custom_test_flow",
+    "CustomTestResult",
 ]

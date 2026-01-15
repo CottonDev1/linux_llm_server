@@ -1,56 +1,46 @@
-"""Prefect test flows for the LLM Website project."""
+"""Consolidated Prefect test flows.
+
+This module provides 4 main flows for testing:
+
+1. pipeline_test_flow - Run tests for any combination of pipelines
+2. full_test_flow - Complete test suite (all pipelines)
+3. smoke_test_flow - Quick validation (SQL + Query only)
+4. custom_test_flow - Fine-grained control with pytest filters
+
+Usage in Prefect UI or code:
+    from testing.test_flows.flows import pipeline_test_flow, full_test_flow
+
+    # Run specific pipelines
+    pipeline_test_flow(pipelines=["sql", "audio"])
+
+    # Run all tests
+    full_test_flow()
+"""
 
 from .pipeline_flows import (
-    sql_pipeline_test_flow,
-    audio_pipeline_test_flow,
-    query_pipeline_test_flow,
-    git_pipeline_test_flow,
-    code_flow_pipeline_test_flow,
-    code_assistance_pipeline_test_flow,
-    document_pipeline_test_flow,
-    all_pipelines_test_flow,
+    pipeline_test_flow,
     run_pipeline_tests,
     PipelineTestResult,
+    PIPELINE_CONFIG,
 )
 from .combined_flow import (
-    api_test_flow,
     full_test_flow,
-    quick_smoke_test_flow,
+    smoke_test_flow,
 )
 from .granular_test_flow import (
-    run_specific_tests,
-    run_tests_by_marker,
-    run_tests_by_pattern,
-    GranularTestResult,
-    build_pytest_command,
-    parse_pytest_output,
-    execute_pytest,
-    create_granular_test_artifact,
+    custom_test_flow,
+    CustomTestResult,
 )
 
 __all__ = [
-    # Pipeline flows
-    "sql_pipeline_test_flow",
-    "audio_pipeline_test_flow",
-    "query_pipeline_test_flow",
-    "git_pipeline_test_flow",
-    "code_flow_pipeline_test_flow",
-    "code_assistance_pipeline_test_flow",
-    "document_pipeline_test_flow",
-    "all_pipelines_test_flow",
-    "run_pipeline_tests",
+    # Main flows (4 total)
+    "pipeline_test_flow",   # Parameterized - any/all pipelines
+    "full_test_flow",       # All pipelines
+    "smoke_test_flow",      # Quick validation
+    "custom_test_flow",     # Fine-grained pytest control
+    # Supporting types
     "PipelineTestResult",
-    # Combined flows
-    "api_test_flow",
-    "full_test_flow",
-    "quick_smoke_test_flow",
-    # Granular test flows
-    "run_specific_tests",
-    "run_tests_by_marker",
-    "run_tests_by_pattern",
-    "GranularTestResult",
-    "build_pytest_command",
-    "parse_pytest_output",
-    "execute_pytest",
-    "create_granular_test_artifact",
+    "CustomTestResult",
+    "PIPELINE_CONFIG",
+    "run_pipeline_tests",
 ]
