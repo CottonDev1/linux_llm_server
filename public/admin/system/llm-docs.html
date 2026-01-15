@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Documentation - RAG Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <script>
+        // Check for embed mode and add class before render
+        if (new URLSearchParams(window.location.search).get('embed') === 'true') {
+            document.documentElement.classList.add('embed-mode');
+        }
+    </script>
+    <style>
+        /* Embed mode - hide sidebar and header */
+        .embed-mode .app-sidebar,
+        .embed-mode .app-header {
+            display: none !important;
+        }
+        .embed-mode .app-main {
+            margin-left: 0 !important;
+        }
+        .embed-mode .app-content {
+            padding-top: 0 !important;
+        }
+        .content-wrapper {
+            max-width: 1200px;
+            padding: 24px;
+        }
+
+        .doc-container {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .doc-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .doc-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 8px 0;
+        }
+
+        .doc-header p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .doc-nav {
+            display: flex;
+            gap: 4px;
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid var(--card-border);
+            overflow-x: auto;
+        }
+
+        .doc-nav-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .doc-nav-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .doc-nav-btn.active {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        .doc-content {
+            padding: 32px;
+        }
+
+        .doc-section {
+            display: none;
+        }
+
+        .doc-section.active {
+            display: block;
+        }
+
+        .doc-section h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 16px 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .doc-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin: 24px 0 12px 0;
+        }
+
+        .doc-section p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin: 0 0 16px 0;
+        }
+
+        .doc-section ul, .doc-section ol {
+            margin: 0 0 16px 0;
+            padding-left: 24px;
+        }
+
+        .doc-section li {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 8px;
+        }
+
+        .doc-section code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            color: var(--accent-cyan);
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            background: none;
+            padding: 0;
+            color: var(--text-secondary);
+            display: block;
+            white-space: pre;
+        }
+
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .info-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .info-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .info-box h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 8px 0;
+        }
+
+        .info-box p {
+            margin: 0;
+            font-size: 13px;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        .param-table th,
+        .param-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--card-border);
+            font-size: 13px;
+        }
+
+        .param-table th {
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .param-table td {
+            color: var(--text-secondary);
+        }
+
+        .param-table td:first-child {
+            font-family: monospace;
+            color: var(--accent-cyan);
+        }
+
+        .quant-table td:nth-child(3),
+        .quant-table td:nth-child(4) {
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-recommended {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .badge-fast {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .badge-quality {
+            background: rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="LLM Documentation" show-refresh="false"></ewr-admin-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <div class="doc-container">
+                        <div class="doc-header">
+                            <h1>llama.cpp Server Administration Guide</h1>
+                            <p>Complete reference for managing and optimizing local LLM inference servers</p>
+                        </div>
+
+                        <nav class="doc-nav">
+                            <button class="doc-nav-btn active" onclick="showSection('overview')">Overview</button>
+                            <button class="doc-nav-btn" onclick="showSection('servers')">Server Management</button>
+                            <button class="doc-nav-btn" onclick="showSection('models')">Models</button>
+                            <button class="doc-nav-btn" onclick="showSection('optimization')">Optimization</button>
+                            <button class="doc-nav-btn" onclick="showSection('quantization')">Quantization</button>
+                            <button class="doc-nav-btn" onclick="showSection('pipelines')">Pipelines</button>
+                            <button class="doc-nav-btn" onclick="showSection('api')">API Reference</button>
+                            <button class="doc-nav-btn" onclick="showSection('troubleshooting')">Troubleshooting</button>
+                        </nav>
+
+                        <div class="doc-content">
+                            <!-- Overview Section -->
+                            <section id="section-overview" class="doc-section active">
+                                <h2>System Overview</h2>
+                                <p>This system uses three separate llama.cpp servers running as Windows services to handle different types of LLM inference tasks:</p>
+
+                                <ul>
+                                    <li><strong>SQL Server (Port 8080)</strong> - Handles text-to-SQL generation for database queries</li>
+                                    <li><strong>General Server (Port 8081)</strong> - Handles document Q&A, summarization, and chat</li>
+                                    <li><strong>Code Server (Port 8082)</strong> - Handles code analysis, review, and generation</li>
+                                </ul>
+
+                                <h3>Architecture</h3>
+                                <p>Each server runs independently, allowing for:</p>
+                                <ul>
+                                    <li>Different models optimized for specific tasks</li>
+                                    <li>Independent scaling and resource allocation</li>
+                                    <li>Fault isolation - one server crash doesn't affect others</li>
+                                    <li>Parallel processing across different workloads</li>
+                                </ul>
+
+                                <div class="info-box">
+                                    <h4>Key Endpoints</h4>
+                                    <p>All servers expose OpenAI-compatible APIs at <code>/v1/chat/completions</code> and <code>/v1/completions</code>, plus llama.cpp specific endpoints for health monitoring and configuration.</p>
+                                </div>
+                            </section>
+
+                            <!-- Server Management Section -->
+                            <section id="section-servers" class="doc-section">
+                                <h2>Server Management</h2>
+
+                                <h3>Service Controls</h3>
+                                <p>The llama.cpp servers run as Windows services. You can control them from the LLM Admin panel or via command line:</p>
+
+                                <div class="code-block">
+                                    <code># Start a service
+sc start LlamaCppSql
+sc start LlamaCppGeneral
+sc start LlamaCppCode
+
+# Stop a service
+sc stop LlamaCppSql
+
+# Check status
+sc query LlamaCppSql</code>
+                                </div>
+
+                                <h3>Health Checks</h3>
+                                <p>Each server exposes a <code>/health</code> endpoint that returns HTTP 200 when operational:</p>
+
+                                <div class="code-block">
+                                    <code>curl http://localhost:8080/health
+curl http://localhost:8081/health
+curl http://localhost:8082/health</code>
+                                </div>
+
+                                <h3>Server Status Information</h3>
+                                <p>Use the <code>/slots</code> endpoint to get detailed status:</p>
+
+                                <div class="code-block">
+                                    <code>curl http://localhost:8080/slots</code>
+                                </div>
+
+                                <p>Returns information about:</p>
+                                <ul>
+                                    <li>Active processing slots</li>
+                                    <li>Context usage per slot</li>
+                                    <li>Token generation speed</li>
+                                    <li>Current request state</li>
+                                </ul>
+                            </section>
+
+                            <!-- Models Section -->
+                            <section id="section-models" class="doc-section">
+                                <h2>Model Management</h2>
+
+                                <h3>GGUF Format</h3>
+                                <p>llama.cpp uses the GGUF (GGML Universal Format) file format. This is a self-contained format that includes:</p>
+                                <ul>
+                                    <li>Model weights (quantized)</li>
+                                    <li>Tokenizer configuration</li>
+                                    <li>Model metadata</li>
+                                    <li>Special tokens</li>
+                                </ul>
+
+                                <h3>Downloading Models</h3>
+                                <p>Models can be downloaded from HuggingFace. Popular sources:</p>
+                                <ul>
+                                    <li><strong>TheBloke</strong> - Wide variety of quantized models</li>
+                                    <li><strong>Qwen</strong> - Official Qwen GGUF releases</li>
+                                    <li><strong>bartowski</strong> - High-quality quantizations</li>
+                                </ul>
+
+                                <div class="code-block">
+                                    <code># Using huggingface-cli
+pip install huggingface-hub
+huggingface-cli download TheBloke/Llama-2-7B-GGUF --local-dir ./models
+
+# Direct download
+curl -L https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q4_K_M.gguf -o llama-2-7b.Q4_K_M.gguf</code>
+                                </div>
+
+                                <h3>Recommended Models by Task</h3>
+                                <table class="param-table">
+                                    <tr>
+                                        <th>Pipeline</th>
+                                        <th>Recommended Models</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                    <tr>
+                                        <td>SQL</td>
+                                        <td>nsql-llama-2-7B, sqlcoder-7b, pip-sql-1.3b</td>
+                                        <td>Fine-tuned for text-to-SQL</td>
+                                    </tr>
+                                    <tr>
+                                        <td>General</td>
+                                        <td>Qwen2.5-7B-Instruct, Llama-3.1-8B-Instruct</td>
+                                        <td>Strong reasoning and instruction following</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Code</td>
+                                        <td>qwen2.5-coder-7b, codellama-7b, deepseek-coder</td>
+                                        <td>Optimized for code understanding</td>
+                                    </tr>
+                                </table>
+                            </section>
+
+                            <!-- Optimization Section -->
+                            <section id="section-optimization" class="doc-section">
+                                <h2>Performance Optimization</h2>
+
+                                <h3>Context Size</h3>
+                                <p>The context window determines how much text the model can process at once. Larger contexts use more memory.</p>
+                                <table class="param-table">
+                                    <tr>
+                                        <th>Size</th>
+                                        <th>Use Case</th>
+                                        <th>Memory Impact</th>
+                                    </tr>
+                                    <tr>
+                                        <td>2048</td>
+                                        <td>Simple chat, short queries</td>
+                                        <td>Low</td>
+                                    </tr>
+                                    <tr>
+                                        <td>4096</td>
+                                        <td>Standard RAG, moderate documents</td>
+                                        <td>Medium</td>
+                                    </tr>
+                                    <tr>
+                                        <td>8192</td>
+                                        <td>Longer documents, complex queries</td>
+                                        <td>High</td>
+                                    </tr>
+                                    <tr>
+                                        <td>16384+</td>
+                                        <td>Very long documents</td>
+                                        <td>Very High</td>
+                                    </tr>
+                                </table>
+
+                                <h3>Flash Attention</h3>
+                                <p>Flash Attention uses optimized CUDA kernels to:</p>
+                                <ul>
+                                    <li>Reduce VRAM usage by 30-40%</li>
+                                    <li>Increase inference speed by 20-30%</li>
+                                    <li>No quality degradation</li>
+                                </ul>
+                                <p>Enable with <code>--flash-attn</code> flag or toggle in the Optimization panel.</p>
+
+                                <h3>KV Cache Quantization</h3>
+                                <p>The KV (Key-Value) cache stores attention context. Quantizing it saves memory:</p>
+                                <ul>
+                                    <li><code>f16</code> - Full precision, maximum quality</li>
+                                    <li><code>q8_0</code> - 50% memory savings, minimal quality loss <span class="badge badge-recommended">Recommended</span></li>
+                                    <li><code>q4_0</code> - 75% memory savings, slight quality loss</li>
+                                </ul>
+
+                                <h3>GPU Offloading</h3>
+                                <p>Control how many model layers run on GPU vs CPU:</p>
+                                <ul>
+                                    <li><code>-1</code> - Auto-detect (recommended)</li>
+                                    <li><code>0</code> - CPU only</li>
+                                    <li><code>999</code> - All layers on GPU</li>
+                                    <li><code>N</code> - Specific number of layers</li>
+                                </ul>
+
+                                <div class="info-box warning">
+                                    <h4>Memory Planning</h4>
+                                    <p>Rule of thumb: Model size + (context_size * 0.5MB per 1K tokens). A 7B Q4 model (~4GB) with 8K context needs ~8GB total.</p>
+                                </div>
+                            </section>
+
+                            <!-- Quantization Section -->
+                            <section id="section-quantization" class="doc-section">
+                                <h2>Quantization Guide</h2>
+
+                                <h3>Understanding Quantization</h3>
+                                <p>Quantization reduces model precision to save memory and increase speed. The format <code>Q4_K_M</code> means:</p>
+                                <ul>
+                                    <li><code>Q4</code> - 4-bit quantization</li>
+                                    <li><code>K</code> - K-quantization (mixed precision)</li>
+                                    <li><code>M</code> - Medium (size/quality trade-off)</li>
+                                </ul>
+
+                                <h3>Quantization Comparison</h3>
+                                <table class="param-table quant-table">
+                                    <tr>
+                                        <th>Method</th>
+                                        <th>Bits</th>
+                                        <th>Quality</th>
+                                        <th>Size (7B)</th>
+                                        <th>Speed</th>
+                                    </tr>
+                                    <tr>
+                                        <td>Q2_K</td>
+                                        <td>~2.5</td>
+                                        <td>Low</td>
+                                        <td>~2.5 GB</td>
+                                        <td><span class="badge badge-fast">Fastest</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Q3_K_M</td>
+                                        <td>~3.5</td>
+                                        <td>Moderate</td>
+                                        <td>~3.0 GB</td>
+                                        <td><span class="badge badge-fast">Fast</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Q4_K_M</td>
+                                        <td>~4.5</td>
+                                        <td>Good</td>
+                                        <td>~4.1 GB</td>
+                                        <td><span class="badge badge-recommended">Recommended</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Q5_K_M</td>
+                                        <td>~5.5</td>
+                                        <td>Very Good</td>
+                                        <td>~4.8 GB</td>
+                                        <td><span class="badge badge-quality">Quality</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Q6_K</td>
+                                        <td>~6.5</td>
+                                        <td>Excellent</td>
+                                        <td>~5.5 GB</td>
+                                        <td><span class="badge badge-quality">Quality</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Q8_0</td>
+                                        <td>8.0</td>
+                                        <td>Near Original</td>
+                                        <td>~7.2 GB</td>
+                                        <td>Slower</td>
+                                    </tr>
+                                </table>
+
+                                <div class="info-box success">
+                                    <h4>Best Practice</h4>
+                                    <p>For most use cases, <strong>Q4_K_M</strong> offers the best balance of quality, speed, and memory usage. Use Q5_K_M or Q6_K for tasks requiring higher accuracy.</p>
+                                </div>
+                            </section>
+
+                            <!-- Pipelines Section -->
+                            <section id="section-pipelines" class="doc-section">
+                                <h2>Pipeline Configuration</h2>
+
+                                <h3>SQL Generation Pipeline</h3>
+                                <p>Port 8080 - Converts natural language to SQL queries.</p>
+                                <ul>
+                                    <li>Uses schema context injection</li>
+                                    <li>Supports auto-correction via rules</li>
+                                    <li>Best with SQL-fine-tuned models</li>
+                                </ul>
+
+                                <h3>General/RAG Pipeline</h3>
+                                <p>Port 8081 - Handles document Q&A and general chat.</p>
+                                <ul>
+                                    <li>Retrieval-augmented generation</li>
+                                    <li>Document summarization</li>
+                                    <li>Audio transcript analysis</li>
+                                </ul>
+
+                                <h3>Code Analysis Pipeline</h3>
+                                <p>Port 8082 - Code understanding and generation.</p>
+                                <ul>
+                                    <li>Code review and analysis</li>
+                                    <li>Bug detection</li>
+                                    <li>Code completion</li>
+                                </ul>
+
+                                <h3>Changing Pipeline Models</h3>
+                                <p>To assign a different model to a pipeline:</p>
+                                <ol>
+                                    <li>Download the desired model</li>
+                                    <li>Go to Pipeline Config tab</li>
+                                    <li>Select the model from the dropdown</li>
+                                    <li>Click Save Configuration</li>
+                                    <li>Restart the affected service</li>
+                                </ol>
+
+                                <div class="info-box warning">
+                                    <h4>Important</h4>
+                                    <p>Changing models requires a service restart. Active requests will be interrupted.</p>
+                                </div>
+                            </section>
+
+                            <!-- API Reference Section -->
+                            <section id="section-api" class="doc-section">
+                                <h2>API Reference</h2>
+
+                                <h3>Health & Status Endpoints</h3>
+                                <table class="param-table">
+                                    <tr>
+                                        <th>Endpoint</th>
+                                        <th>Method</th>
+                                        <th>Description</th>
+                                    </tr>
+                                    <tr>
+                                        <td>/health</td>
+                                        <td>GET</td>
+                                        <td>Returns 200 if server is healthy</td>
+                                    </tr>
+                                    <tr>
+                                        <td>/props</td>
+                                        <td>GET</td>
+                                        <td>Current server configuration</td>
+                                    </tr>
+                                    <tr>
+                                        <td>/slots</td>
+                                        <td>GET</td>
+                                        <td>Processing slot status</td>
+                                    </tr>
+                                    <tr>
+                                        <td>/metrics</td>
+                                        <td>GET</td>
+                                        <td>Prometheus metrics (if enabled)</td>
+                                    </tr>
+                                </table>
+
+                                <h3>Inference Endpoints</h3>
+                                <table class="param-table">
+                                    <tr>
+                                        <th>Endpoint</th>
+                                        <th>Method</th>
+                                        <th>Description</th>
+                                    </tr>
+                                    <tr>
+                                        <td>/v1/chat/completions</td>
+                                        <td>POST</td>
+                                        <td>OpenAI-compatible chat completion</td>
+                                    </tr>
+                                    <tr>
+                                        <td>/v1/completions</td>
+                                        <td>POST</td>
+                                        <td>OpenAI-compatible text completion</td>
+                                    </tr>
+                                    <tr>
+                                        <td>/completion</td>
+                                        <td>POST</td>
+                                        <td>llama.cpp native completion</td>
+                                    </tr>
+                                    <tr>
+                                        <td>/v1/embeddings</td>
+                                        <td>POST</td>
+                                        <td>Generate text embeddings</td>
+                                    </tr>
+                                </table>
+
+                                <h3>Example Request</h3>
+                                <div class="code-block">
+                                    <code>curl http://localhost:8081/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen2.5-coder",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 100
+  }'</code>
+                                </div>
+                            </section>
+
+                            <!-- Troubleshooting Section -->
+                            <section id="section-troubleshooting" class="doc-section">
+                                <h2>Troubleshooting</h2>
+
+                                <h3>Server Won't Start</h3>
+                                <ul>
+                                    <li>Check if the model file exists and is valid GGUF</li>
+                                    <li>Verify the port isn't in use by another process</li>
+                                    <li>Check Windows Event Viewer for service errors</li>
+                                    <li>Ensure adequate RAM/VRAM for the model</li>
+                                </ul>
+
+                                <h3>Slow Generation</h3>
+                                <ul>
+                                    <li>Enable Flash Attention if GPU supports it</li>
+                                    <li>Use more GPU layers (<code>-ngl 999</code>)</li>
+                                    <li>Try a smaller quantization (Q4_K_M vs Q8_0)</li>
+                                    <li>Reduce context size if not needed</li>
+                                    <li>Enable KV cache quantization</li>
+                                </ul>
+
+                                <h3>Out of Memory</h3>
+                                <ul>
+                                    <li>Reduce context size</li>
+                                    <li>Use smaller quantization</li>
+                                    <li>Enable KV cache quantization (q8_0 or q4_0)</li>
+                                    <li>Reduce GPU layers to offload to CPU</li>
+                                    <li>Close other GPU-using applications</li>
+                                </ul>
+
+                                <h3>Poor Output Quality</h3>
+                                <ul>
+                                    <li>Use higher quantization (Q5_K_M, Q6_K)</li>
+                                    <li>Adjust temperature (lower = more focused)</li>
+                                    <li>Check if correct model is loaded for the task</li>
+                                    <li>Verify system prompt is appropriate</li>
+                                </ul>
+
+                                <h3>Connection Refused</h3>
+                                <ul>
+                                    <li>Verify service is running: <code>sc query LlamaCppSql</code></li>
+                                    <li>Check Windows Firewall settings</li>
+                                    <li>Confirm correct port number</li>
+                                    <li>Check for port conflicts</li>
+                                </ul>
+
+                                <div class="info-box">
+                                    <h4>Getting Help</h4>
+                                    <p>Check the llama.cpp GitHub repository for additional documentation and community support. Server logs are available in Windows Event Viewer under the service name.</p>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="/js/sidebar-user.js"></script>
+    <script>
+        // Initialize sidebar
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof initSidebar === 'function') {
+                await initSidebar();
+            }
+        });
+
+        // Section navigation
+        function showSection(sectionId) {
+            // Update nav buttons
+            document.querySelectorAll('.doc-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.onclick.toString().includes(`'${sectionId}'`)) {
+                    btn.classList.add('active');
+                }
+            });
+            event.target.classList.add('active');
+
+            // Update sections
+            document.querySelectorAll('.doc-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(`section-${sectionId}`).classList.add('active');
+        }
+
+        // Logout
+        function logout() {
+            if (typeof AuthClient !== 'undefined') {
+                const auth = new AuthClient();
+                auth.logout();
+            } else {
+                window.location.href = '/';
+            }
+        }
+    </script>
+</body>
+</html>

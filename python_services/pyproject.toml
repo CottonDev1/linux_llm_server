@@ -1,0 +1,127 @@
+[tool.poetry]
+name = "rag-python-services"
+version = "1.0.0"
+description = "MongoDB-based Python data layer for the RAG server with document processing and SQL extraction"
+authors = ["EWR Development Team"]
+license = "MIT"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+# Web Framework
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+pydantic = {extras = ["email"], version = "^2.5.0"}
+email-validator = "^2.0.0"
+python-multipart = "^0.0.6"
+
+# Authentication
+PyJWT = "^2.8.0"
+bcrypt = "^4.1.0"
+
+# SQLite ORM (for user/settings database)
+SQLAlchemy = "^2.0.0"
+alembic = "^1.13.0"
+aiosqlite = "^0.19.0"
+
+# MongoDB
+pymongo = "^4.6.0"
+motor = "^3.3.0"
+
+# Embeddings
+sentence-transformers = "^2.2.0"
+numpy = "^1.24.0"
+
+# SQL Server Connectivity
+pymssql = "^2.2.0"
+
+# SQL Parsing and Validation
+sqlglot = "^20.0.0"
+
+# Utilities
+python-dotenv = "^1.0.0"
+httpx = "^0.25.0"
+aiohttp = "^3.9.0"
+aiofiles = "^23.2.0"
+
+# Document Processing
+pymupdf = "^1.23.0"
+python-docx = "^1.1.0"
+openpyxl = "^3.1.0"
+python-magic-bin = {version = "^0.4.14", markers = "sys_platform == 'win32'"}
+python-magic = {version = "^0.4.27", markers = "sys_platform != 'win32'"}
+
+# Audio Processing
+funasr = "^1.0.0"
+torch = "^2.0.0"
+torchaudio = "^2.0.0"
+mutagen = "^1.47.0"
+pydub = "^0.25.0"
+soundfile = "^0.12.0"
+nest_asyncio = "^1.5.0"
+pyannote-audio = "^3.1.0"  # Speaker diarization
+
+# System Monitoring
+psutil = "^5.9.0"
+
+# Document Retrieval Pipeline (CRAG)
+redis = {extras = ["hiredis"], version = "^5.0.0"}
+rank-bm25 = "^0.2.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.12.0"
+isort = "^5.13.0"
+mypy = "^1.7.0"
+
+# Note: Prefect is installed separately via pip due to Poetry resolver issues
+# Run: pip install prefect>=3.0.0 after poetry install
+
+[tool.poetry.scripts]
+start = "main:run_server"
+extract-schema = "run_schema_extraction:main"
+run-pipeline = "run_rag_pipeline:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests requiring external services",
+    "prefect: marks tests for Prefect pipeline functionality",
+    "sql: marks tests for SQL generation pipeline",
+    "git: marks tests for Git analysis pipeline",
+    "audio: marks tests for audio processing pipeline",
+    "document: marks tests for document processing",
+    "code: marks tests for code assistance pipeline",
+    "knowledge: marks tests for knowledge base retrieval",
+    "semantic: marks tests for semantic ticket matching",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+filterwarnings = [
+    # Suppress audioop deprecation warning from pydub (Python 3.13 deprecation)
+    # pydub hasn't released a fix yet - track at https://github.com/jiaaro/pydub/issues
+    "ignore:'audioop' is deprecated:DeprecationWarning",
+    # Suppress Pydantic V2 deprecation warnings for third-party code
+    "ignore:Support for class-based `config` is deprecated:pydantic.warnings.PydanticDeprecatedSince20",
+]

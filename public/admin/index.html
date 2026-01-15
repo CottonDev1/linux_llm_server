@@ -1,0 +1,3296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - RAG Admin</title>
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        /* ============================================
+           LLM Admin Dashboard - Modern Full-Width Design
+           ============================================ */
+
+        /* Full-width content override */
+        .app-content {
+            padding: 0;
+        }
+
+        .content-wrapper {
+            max-width: 100%;
+            padding: 24px;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        /* Server Cards Row */
+        .servers-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .servers-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .servers-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Server Card */
+        .server-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .server-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .server-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .server-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .server-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .server-icon.sql { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .server-icon.general { background: linear-gradient(135deg, #10b981, #047857); }
+        .server-icon.code { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+
+        .server-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .server-port {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .server-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .server-status.online {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .server-status.offline {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .server-status.loading {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .status-dot.online {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .server-card-body {
+            padding: 10px;
+        }
+
+        /* Metrics Grid - Compact */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .metric-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+
+        .metric-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 2px;
+        }
+
+        .metric-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        }
+
+        .metric-value.cyan { color: var(--accent-cyan); }
+        .metric-value.green { color: #10b981; }
+        .metric-value.yellow { color: #f59e0b; }
+        .metric-value.red { color: #ef4444; }
+        .metric-value.purple { color: #a855f7; }
+
+        .metric-trend {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Model Info - Compact */
+        .model-info-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+
+        .model-name-display {
+            font-weight: 600;
+            color: var(--accent-cyan);
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        .model-details {
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* RAM Usage Display */
+        .ram-usage-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+
+        .ram-usage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .ram-usage-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .ram-usage-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: #a855f7;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        }
+
+        .ram-usage-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .ram-usage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a855f7, #ec4899);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        /* Server Charts */
+        .server-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .mini-chart {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .mini-chart-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+
+        .mini-chart canvas {
+            height: 120px !important;
+        }
+
+        /* Server Actions */
+        .server-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .server-actions .btn {
+            flex: 1;
+            padding: 10px;
+            font-size: 13px;
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .chart-container {
+            height: 200px;
+            position: relative;
+        }
+
+        /* Model Library */
+        .model-library {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            overflow: hidden;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .library-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .library-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .search-input {
+            padding: 8px 12px;
+            background: var(--card-border);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            font-size: 14px;
+            border-radius: 6px;
+            width: 250px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .model-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .model-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--card-border);
+            transition: background 0.2s;
+        }
+
+        .model-item:hover {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .model-item:last-child {
+            border-bottom: none;
+        }
+
+        .model-item-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .model-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .model-item-details h4 {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
+            margin: 0 0 4px 0;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .model-item-details h4:hover {
+            color: var(--accent-cyan);
+        }
+
+        .model-item-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .model-item-meta .file-path {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .model-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .model-item-actions .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .model-in-use-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Optimization Section */
+        .optimization-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 1000px) {
+            .optimization-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .optimization-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .optimization-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .optimization-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .optimization-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .optimization-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Settings Row */
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-info {
+            flex: 1;
+            padding-right: 16px;
+        }
+
+        .setting-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .setting-description {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .setting-control {
+            min-width: 200px;
+        }
+
+        /* Slider */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: var(--card-border);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-value {
+            min-width: 50px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            font-family: monospace;
+            text-align: right;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--card-border);
+            transition: 0.15s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.15s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--accent-cyan);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Select Input */
+        .setting-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--card-border);
+            border: 2px solid var(--card-border);
+            color: var(--text-primary);
+            font-size: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .setting-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        /* Number Input */
+        .setting-input {
+            width: 100%;
+            max-width: 150px;
+            padding: 8px 12px;
+            background: var(--card-border);
+            border: 2px solid var(--card-border);
+            color: var(--text-primary);
+            font-size: 14px;
+            border-radius: 6px;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        /* Section Title */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .section-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+            max-width: 400px;
+        }
+
+        .toast-success {
+            background: #064e3b;
+            border: 1px solid #10b981;
+            color: #6ee7b7;
+        }
+
+        .toast-error {
+            background: #7f1d1d;
+            border: 1px solid #dc2626;
+            color: #fca5a5;
+        }
+
+        .toast-info {
+            background: #0c4a6e;
+            border: 1px solid var(--accent-cyan);
+            color: #7dd3fc;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Button variants */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Collapsible */
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 0;
+        }
+
+        .collapsible-icon {
+            font-size: 18px;
+            transition: transform 0.15s;
+            color: var(--text-muted);
+        }
+
+        .collapsible-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+            padding: 0;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--card-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), #10b981);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Refresh indicator */
+        .refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .refresh-indicator svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            animation: fadeIn 0.2s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            gap: 16px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--card-border);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .model-info-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .model-info-row {
+            display: flex;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .model-info-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 120px;
+        }
+
+        .model-info-value {
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .pipeline-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .pipeline-badge.sql {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .pipeline-badge.general {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .pipeline-badge.code {
+            background: rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+        }
+
+        /* Backend Services Section */
+        .backend-services-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .backend-services-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .backend-service-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            min-height: 140px;
+        }
+
+        .backend-service-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .backend-service-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .backend-service-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .backend-service-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .backend-service-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .backend-service-body {
+            flex: 1;
+            margin-bottom: 12px;
+        }
+
+        .backend-service-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .backend-field-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .backend-field-input {
+            width: 100%;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            font-size: 11px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            border-radius: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .backend-field-input:read-only {
+            cursor: default;
+        }
+
+        .backend-service-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-start;
+            margin-top: auto;
+        }
+
+        .backend-service-actions .btn {
+            padding: 5px 12px;
+            font-size: 11px;
+        }
+
+        /* ============================================
+           LLM Documentation Styles
+           ============================================ */
+        .doc-container {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .doc-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .doc-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 8px 0;
+        }
+
+        .doc-header p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .doc-nav {
+            display: flex;
+            gap: 4px;
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid var(--card-border);
+            overflow-x: auto;
+        }
+
+        .doc-nav-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .doc-nav-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .doc-nav-btn.active {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        .doc-content {
+            padding: 32px;
+        }
+
+        .doc-section {
+            display: none;
+        }
+
+        .doc-section.active {
+            display: block;
+        }
+
+        .doc-section h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 16px 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .doc-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin: 24px 0 12px 0;
+        }
+
+        .doc-section p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin: 0 0 16px 0;
+        }
+
+        .doc-section ul, .doc-section ol {
+            margin: 0 0 16px 0;
+            padding-left: 24px;
+        }
+
+        .doc-section li {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 8px;
+        }
+
+        .doc-section code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            color: var(--accent-cyan);
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            background: none;
+            padding: 0;
+            color: var(--text-secondary);
+            display: block;
+            white-space: pre;
+        }
+
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .info-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .info-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .info-box h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 8px 0;
+        }
+
+        .info-box p {
+            margin: 0;
+            font-size: 13px;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        .param-table th,
+        .param-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--card-border);
+            font-size: 13px;
+        }
+
+        .param-table th {
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .param-table td {
+            color: var(--text-secondary);
+        }
+
+        .param-table td:first-child {
+            font-family: monospace;
+            color: var(--accent-cyan);
+        }
+
+        .quant-table td:nth-child(3),
+        .quant-table td:nth-child(4) {
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-recommended {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .badge-fast {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .badge-quality {
+            background: rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+        }
+
+        /* ============================================
+           System Logs Styles
+           ============================================ */
+        .logs-tabs-container {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: var(--card-bg);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+        }
+
+        .logs-tab-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .logs-tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .logs-tab-btn.active {
+            background: var(--accent-cyan);
+            color: #1a2332;
+        }
+
+        .logs-tab-icon {
+            font-size: 16px;
+        }
+
+        .log-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .log-control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-filter-select {
+            padding: 8px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        .log-filter-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .log-search-input {
+            padding: 8px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .log-search-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .log-search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .log-date-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .log-date-filter-label {
+            color: var(--text-muted);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .log-date-input {
+            padding: 8px 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            width: 130px;
+        }
+
+        .log-date-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .log-date-input::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
+
+        .log-btn-icon {
+            padding: 8px 12px;
+            background: var(--card-border);
+            border: none;
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .log-btn-icon:hover {
+            background: var(--accent-cyan);
+            color: #1a2332;
+        }
+
+        .log-btn-icon.active {
+            background: #10b981;
+            color: white;
+        }
+
+        .log-btn-icon.btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .log-btn-icon.btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .log-viewer {
+            background: #0d1117;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            height: 500px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .log-content {
+            padding: 16px;
+        }
+
+        .log-entry {
+            padding: 4px 8px;
+            margin-bottom: 2px;
+            text-align: left;
+            line-height: 1.5;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-timestamp {
+            color: #8b949e;
+            margin-right: 12px;
+            font-size: 13px;
+        }
+
+        .log-level {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 10px;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .log-level-info {
+            background: rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        .log-level-warning {
+            background: rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+        }
+
+        .log-level-error {
+            background: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .log-level-debug {
+            background: rgba(139, 92, 246, 0.3);
+            color: #a78bfa;
+        }
+
+        .log-message {
+            color: #c9d1d9;
+            font-size: 13px;
+        }
+
+        .log-pipeline {
+            color: #a78bfa;
+            font-size: 13px;
+            margin-right: 6px;
+        }
+
+        .log-user {
+            color: #7ee787;
+            font-size: 13px;
+            margin-right: 8px;
+        }
+
+        .log-status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .log-status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .log-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .log-status-dot.connected {
+            background: #10b981;
+            animation: logPulse 2s infinite;
+        }
+
+        .log-status-dot.disconnected {
+            background: #ef4444;
+        }
+
+        .log-status-dot.connecting {
+            background: #f59e0b;
+            animation: logPulse 1s infinite;
+        }
+
+        @keyframes logPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .log-count-value {
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .log-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: var(--text-muted);
+        }
+
+        .log-empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .log-empty-state-text {
+            font-size: 16px;
+        }
+
+        .log-loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--text-muted);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: logSpin 1s linear infinite;
+        }
+
+        @keyframes logSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .log-auto-refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .log-auto-refresh-indicator.active {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Server Administration"></ewr-admin-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Tab Navigation -->
+                    <div class="tab-nav">
+                        <button class="tab-btn active" onclick="switchTab('servers')">Server Status</button>
+                        <button class="tab-btn" onclick="switchTab('models')">Model Library</button>
+                        <button class="tab-btn" onclick="switchTab('optimization')">Optimization</button>
+                        <button class="tab-btn" onclick="switchTab('docs')">LLM Documentation</button>
+                        <button class="tab-btn" onclick="switchTab('logs')">System Logs</button>
+                    </div>
+
+                    <!-- Tab: Server Status -->
+                    <div id="tab-servers" class="tab-content active">
+                        <!-- Backend Services Section -->
+                        <div class="backend-services-section" style="margin-bottom: 24px;">
+                            <div class="section-header" style="margin-bottom: 16px;">
+                                <div>
+                                    <div class="section-title">Backend Services</div>
+                                    <div class="section-subtitle">Python service and MongoDB connection management</div>
+                                </div>
+                            </div>
+
+                            <div class="backend-services-grid">
+                                <!-- Python Service Card -->
+                                <div class="backend-service-card">
+                                    <div class="backend-service-header">
+                                        <div class="backend-service-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">PY</div>
+                                        <div class="backend-service-info">
+                                            <div class="backend-service-title">Python Service</div>
+                                            <div class="backend-service-subtitle">FastAPI backend (localhost:8001)</div>
+                                        </div>
+                                        <div class="server-status loading" id="pythonServiceStatus">
+                                            <span class="status-dot"></span>
+                                            <span>Checking...</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="backend-service-body">
+                                        <div class="backend-service-field">
+                                            <label class="backend-field-label">Service URL</label>
+                                            <input type="text" class="backend-field-input" id="pythonServiceUrl" value="http://localhost:8001" readonly>
+                                        </div>
+                                    </div>
+
+                                    <div class="backend-service-actions">
+                                        <button class="btn btn-sm btn-primary" onclick="restartPythonService()">Restart</button>
+                                        <button class="btn btn-sm btn-danger" onclick="stopPythonService()">Stop</button>
+                                    </div>
+                                </div>
+
+                                <!-- MongoDB Card -->
+                                <div class="backend-service-card">
+                                    <div class="backend-service-header">
+                                        <div class="backend-service-icon" style="background: linear-gradient(135deg, #10b981, #047857);">DB</div>
+                                        <div class="backend-service-info">
+                                            <div class="backend-service-title">MongoDB</div>
+                                            <div class="backend-service-subtitle">Document database connection</div>
+                                        </div>
+                                        <div class="server-status loading" id="mongodbServiceStatus">
+                                            <span class="status-dot"></span>
+                                            <span>Checking...</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="backend-service-body">
+                                        <div class="backend-service-field">
+                                            <label class="backend-field-label">Connection URI</label>
+                                            <input type="text" class="backend-field-input" id="mongoDBUri" placeholder="mongodb://localhost:27017" readonly>
+                                        </div>
+                                        <div id="mongoTestResult" class="config-result" style="display: none; margin-top: 8px; padding: 8px 12px; border-radius: 6px; font-size: 11px;"></div>
+                                    </div>
+
+                                    <div class="backend-service-actions">
+                                        <button class="btn btn-sm btn-secondary" onclick="testMongoDBConnection()" id="btnTestMongo">Test</button>
+                                        <button class="btn btn-sm btn-primary" onclick="reconnectMongoDB()" id="btnReconnectMongo">Reconnect</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-grid">
+                            <!-- Server Cards -->
+                            <div class="servers-row">
+                                <!-- SQL Server Card -->
+                                <div class="server-card" id="sqlServerCard">
+                                    <div class="server-card-header">
+                                        <div class="server-info">
+                                            <div class="server-icon sql">SQL</div>
+                                            <div>
+                                                <div class="server-name">SQL Model Server</div>
+                                                <div class="server-port">localhost:8080</div>
+                                            </div>
+                                        </div>
+                                        <div class="server-status loading" id="sqlStatus">
+                                            <span class="status-dot"></span>
+                                            <span>Checking...</span>
+                                        </div>
+                                    </div>
+                                    <div class="server-card-body">
+                                        <div class="model-info-section">
+                                            <div class="model-name-display" id="sqlModelName">Loading...</div>
+                                            <div class="model-details">
+                                                <span id="sqlModelSize">--</span>
+                                                <span id="sqlModelQuant">--</span>
+                                            </div>
+                                        </div>
+                                        <div class="ram-usage-section">
+                                            <div class="ram-usage-header">
+                                                <span class="ram-usage-label">RAM Usage</span>
+                                                <span class="ram-usage-value" id="sqlRamUsage">--</span>
+                                            </div>
+                                            <div class="ram-usage-bar">
+                                                <div class="ram-usage-fill" id="sqlRamBar" style="width: 0%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="metrics-grid">
+                                            <div class="metric-item">
+                                                <div class="metric-label">Tokens/sec</div>
+                                                <div class="metric-value cyan" id="sqlTPS">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Context</div>
+                                                <div class="metric-value" id="sqlContext">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Requests</div>
+                                                <div class="metric-value green" id="sqlRequests">--</div>
+                                            </div>
+                                        </div>
+                                        <div class="server-actions">
+                                            <button class="btn btn-sm btn-secondary" onclick="restartAllServers()">Restart</button>
+                                            <button class="btn btn-sm btn-primary" onclick="openServerSettings('sql')">Settings</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- General Server Card -->
+                                <div class="server-card" id="generalServerCard">
+                                    <div class="server-card-header">
+                                        <div class="server-info">
+                                            <div class="server-icon general">GEN</div>
+                                            <div>
+                                                <div class="server-name">General Model Server</div>
+                                                <div class="server-port">localhost:8081</div>
+                                            </div>
+                                        </div>
+                                        <div class="server-status loading" id="generalStatus">
+                                            <span class="status-dot"></span>
+                                            <span>Checking...</span>
+                                        </div>
+                                    </div>
+                                    <div class="server-card-body">
+                                        <div class="model-info-section">
+                                            <div class="model-name-display" id="generalModelName">Loading...</div>
+                                            <div class="model-details">
+                                                <span id="generalModelSize">--</span>
+                                                <span id="generalModelQuant">--</span>
+                                            </div>
+                                        </div>
+                                        <div class="ram-usage-section">
+                                            <div class="ram-usage-header">
+                                                <span class="ram-usage-label">RAM Usage</span>
+                                                <span class="ram-usage-value" id="generalRamUsage">--</span>
+                                            </div>
+                                            <div class="ram-usage-bar">
+                                                <div class="ram-usage-fill" id="generalRamBar" style="width: 0%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="metrics-grid">
+                                            <div class="metric-item">
+                                                <div class="metric-label">Tokens/sec</div>
+                                                <div class="metric-value cyan" id="generalTPS">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Context</div>
+                                                <div class="metric-value" id="generalContext">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Requests</div>
+                                                <div class="metric-value green" id="generalRequests">--</div>
+                                            </div>
+                                        </div>
+                                        <div class="server-actions">
+                                            <button class="btn btn-sm btn-secondary" onclick="restartAllServers()">Restart</button>
+                                            <button class="btn btn-sm btn-primary" onclick="openServerSettings('general')">Settings</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Code Server Card -->
+                                <div class="server-card" id="codeServerCard">
+                                    <div class="server-card-header">
+                                        <div class="server-info">
+                                            <div class="server-icon code">CODE</div>
+                                            <div>
+                                                <div class="server-name">Code Model Server</div>
+                                                <div class="server-port">localhost:8082</div>
+                                            </div>
+                                        </div>
+                                        <div class="server-status loading" id="codeStatus">
+                                            <span class="status-dot"></span>
+                                            <span>Checking...</span>
+                                        </div>
+                                    </div>
+                                    <div class="server-card-body">
+                                        <div class="model-info-section">
+                                            <div class="model-name-display" id="codeModelName">Loading...</div>
+                                            <div class="model-details">
+                                                <span id="codeModelSize">--</span>
+                                                <span id="codeModelQuant">--</span>
+                                            </div>
+                                        </div>
+                                        <div class="ram-usage-section">
+                                            <div class="ram-usage-header">
+                                                <span class="ram-usage-label">RAM Usage</span>
+                                                <span class="ram-usage-value" id="codeRamUsage">--</span>
+                                            </div>
+                                            <div class="ram-usage-bar">
+                                                <div class="ram-usage-fill" id="codeRamBar" style="width: 0%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="metrics-grid">
+                                            <div class="metric-item">
+                                                <div class="metric-label">Tokens/sec</div>
+                                                <div class="metric-value cyan" id="codeTPS">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Context</div>
+                                                <div class="metric-value" id="codeContext">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Requests</div>
+                                                <div class="metric-value green" id="codeRequests">--</div>
+                                            </div>
+                                        </div>
+                                        <div class="server-actions">
+                                            <button class="btn btn-sm btn-secondary" onclick="restartAllServers()">Restart</button>
+                                            <button class="btn btn-sm btn-primary" onclick="openServerSettings('code')">Settings</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Performance Charts -->
+                            <div class="charts-section">
+                                <div class="chart-card">
+                                    <div class="chart-header">
+                                        <div class="chart-title">Tokens Per Second (Last 5 min)</div>
+                                        <div class="chart-legend">
+                                            <div class="legend-item">
+                                                <span class="legend-dot" style="background: #3b82f6;"></span>
+                                                <span>SQL</span>
+                                            </div>
+                                            <div class="legend-item">
+                                                <span class="legend-dot" style="background: #10b981;"></span>
+                                                <span>General</span>
+                                            </div>
+                                            <div class="legend-item">
+                                                <span class="legend-dot" style="background: #8b5cf6;"></span>
+                                                <span>Code</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="chart-container">
+                                        <canvas id="tpsChart"></canvas>
+                                    </div>
+                                </div>
+
+                                <div class="chart-card">
+                                    <div class="chart-header">
+                                        <div class="chart-title">Request Count (Last 5 min)</div>
+                                    </div>
+                                    <div class="chart-container">
+                                        <canvas id="requestsChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Model Library -->
+                    <div id="tab-models" class="tab-content">
+                        <!-- Downloaded Models Section -->
+                        <div class="model-library">
+                            <div class="library-header">
+                                <div class="library-title">Downloaded Models</div>
+                                <div class="library-actions">
+                                    <input type="text" class="search-input" placeholder="Search models..." id="modelSearch" oninput="filterModels()">
+                                    <button class="btn btn-primary" onclick="openDownloadModal()">Download New Model</button>
+                                </div>
+                            </div>
+                            <div class="model-list" id="modelList">
+                                <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                                    Loading models...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hugging Face Model Browser Section -->
+                        <div class="model-library" style="margin-top: 24px;">
+                            <div class="library-header">
+                                <div class="library-title">Browse Hugging Face Models</div>
+                                <div class="library-actions" style="flex-wrap: wrap; gap: 8px;">
+                                    <input type="text" class="search-input" placeholder="Search GGUF models..." id="hfSearchInput" style="width: 180px;">
+                                    <select class="setting-select" id="hfQuantFilter" style="width: 110px; padding: 8px;">
+                                        <option value="">All Quants</option>
+                                        <option value="Q4_K_M">Q4_K_M</option>
+                                        <option value="Q4_K_S">Q4_K_S</option>
+                                        <option value="Q5_K_M">Q5_K_M</option>
+                                        <option value="Q5_K_S">Q5_K_S</option>
+                                        <option value="Q6_K">Q6_K</option>
+                                        <option value="Q8_0">Q8_0</option>
+                                        <option value="IQ4">IQ4</option>
+                                    </select>
+                                    <select class="setting-select" id="hfSortBy" style="width: 120px; padding: 8px;">
+                                        <option value="downloads">Downloads</option>
+                                        <option value="likes">Likes</option>
+                                        <option value="lastModified">Recent</option>
+                                    </select>
+                                    <button class="btn btn-primary" onclick="searchHuggingFaceModels()">Search</button>
+                                </div>
+                            </div>
+                            <div id="hfModelList" class="model-list" style="max-height: 500px;">
+                                <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                                    Search for GGUF models on Hugging Face
+                                </div>
+                            </div>
+                            <div id="hfLoadingIndicator" style="display: none; padding: 20px; text-align: center;">
+                                <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid var(--card-border); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                <span style="margin-left: 12px; color: var(--text-muted);">Searching Hugging Face...</span>
+                            </div>
+                        </div>
+
+                        <!-- Download Progress Section -->
+                        <div id="downloadProgressSection" class="model-library" style="margin-top: 24px; display: none;">
+                            <div class="library-header">
+                                <div class="library-title">Download Progress</div>
+                            </div>
+                            <div id="downloadProgressList" style="padding: 16px;">
+                                <!-- Download progress items will be added here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Optimization -->
+                    <div id="tab-optimization" class="tab-content">
+                        <div class="section-header" style="margin-bottom: 20px;">
+                            <div>
+                                <div class="section-title">Server Configuration</div>
+                                <div class="section-subtitle">Each llama.cpp server runs independently with its own settings</div>
+                            </div>
+                        </div>
+
+                        <!-- Per-Server Configuration Grid -->
+                        <div class="servers-row" style="gap: 16px;">
+                            <!-- SQL Server Configuration -->
+                            <div class="optimization-card" style="border-top: 3px solid #3b82f6;">
+                                <div class="optimization-header">
+                                    <div class="optimization-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">SQL</div>
+                                    <div>
+                                        <div class="optimization-title">SQL Server (Port 8080)</div>
+                                        <div class="optimization-desc">Text-to-SQL Generation</div>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Parallel Slots</div>
+                                        <div class="setting-description">Concurrent requests</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="sqlSlots" value="2" min="1" max="8" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Context Size</div>
+                                        <div class="setting-description">Max tokens</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select class="setting-select" id="sqlContextSize" style="width: 120px;">
+                                            <option value="2048">2,048</option>
+                                            <option value="4096" selected>4,096</option>
+                                            <option value="8192">8,192</option>
+                                            <option value="16384">16,384</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">GPU Layers</div>
+                                        <div class="setting-description">-1 = auto</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="sqlGpuLayers" value="-1" min="-1" max="999" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Flash Attention</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="sqlFlashAttention" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">KV Cache Quant</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select class="setting-select" id="sqlKvCache" style="width: 100px;">
+                                            <option value="f16">f16</option>
+                                            <option value="q8_0" selected>q8_0</option>
+                                            <option value="q4_0">q4_0</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 12px; padding: 8px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-size: 11px; color: var(--text-muted);">
+                                    <strong>Current:</strong> <span id="sqlCurrentSlots">--</span> slots | <span id="sqlCurrentCtx">--</span> ctx
+                                </div>
+                            </div>
+
+                            <!-- General Server Configuration -->
+                            <div class="optimization-card" style="border-top: 3px solid #10b981;">
+                                <div class="optimization-header">
+                                    <div class="optimization-icon" style="background: linear-gradient(135deg, #10b981, #047857);">GEN</div>
+                                    <div>
+                                        <div class="optimization-title">General Server (Port 8081)</div>
+                                        <div class="optimization-desc">Chat & Summarization</div>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Parallel Slots</div>
+                                        <div class="setting-description">Concurrent requests</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="generalSlots" value="2" min="1" max="8" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Context Size</div>
+                                        <div class="setting-description">Max tokens</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select class="setting-select" id="generalContextSize" style="width: 120px;">
+                                            <option value="2048">2,048</option>
+                                            <option value="4096">4,096</option>
+                                            <option value="8192" selected>8,192</option>
+                                            <option value="16384">16,384</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">GPU Layers</div>
+                                        <div class="setting-description">-1 = auto</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="generalGpuLayers" value="-1" min="-1" max="999" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Flash Attention</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="generalFlashAttention" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">KV Cache Quant</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select class="setting-select" id="generalKvCache" style="width: 100px;">
+                                            <option value="f16">f16</option>
+                                            <option value="q8_0" selected>q8_0</option>
+                                            <option value="q4_0">q4_0</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 12px; padding: 8px; background: rgba(16, 185, 129, 0.1); border-radius: 6px; font-size: 11px; color: var(--text-muted);">
+                                    <strong>Current:</strong> <span id="generalCurrentSlots">--</span> slots | <span id="generalCurrentCtx">--</span> ctx
+                                </div>
+                            </div>
+
+                            <!-- Code Server Configuration -->
+                            <div class="optimization-card" style="border-top: 3px solid #8b5cf6;">
+                                <div class="optimization-header">
+                                    <div class="optimization-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">CODE</div>
+                                    <div>
+                                        <div class="optimization-title">Code Server (Port 8082)</div>
+                                        <div class="optimization-desc">Code Analysis</div>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Parallel Slots</div>
+                                        <div class="setting-description">Concurrent requests</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="codeSlots" value="2" min="1" max="8" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Context Size</div>
+                                        <div class="setting-description">Max tokens</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select class="setting-select" id="codeContextSize" style="width: 120px;">
+                                            <option value="2048">2,048</option>
+                                            <option value="4096">4,096</option>
+                                            <option value="8192" selected>8,192</option>
+                                            <option value="16384">16,384</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">GPU Layers</div>
+                                        <div class="setting-description">-1 = auto</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="codeGpuLayers" value="-1" min="-1" max="999" style="width: 80px;">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Flash Attention</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="codeFlashAttention" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">KV Cache Quant</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select class="setting-select" id="codeKvCache" style="width: 100px;">
+                                            <option value="f16">f16</option>
+                                            <option value="q8_0" selected>q8_0</option>
+                                            <option value="q4_0">q4_0</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 12px; padding: 8px; background: rgba(139, 92, 246, 0.1); border-radius: 6px; font-size: 11px; color: var(--text-muted);">
+                                    <strong>Current:</strong> <span id="codeCurrentSlots">--</span> slots | <span id="codeCurrentCtx">--</span> ctx
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Shared Settings -->
+                        <div class="optimization-section" style="margin-top: 24px;">
+                            <div class="optimization-card">
+                                <div class="optimization-header">
+                                    <div class="optimization-icon" style="background: linear-gradient(135deg, #84cc16, #65a30d);">ALL</div>
+                                    <div>
+                                        <div class="optimization-title">Shared Settings</div>
+                                        <div class="optimization-desc">Apply to all servers when restarting</div>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">CPU Threads</div>
+                                        <div class="setting-description">0 = auto-detect. Set to physical core count for best results.</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="cpuThreads" value="0" min="0" max="256">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Batch Size</div>
+                                        <div class="setting-description">Tokens per batch. Higher = better throughput.</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="batchSize" value="2048" min="128" max="4096">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Continuous Batching</div>
+                                        <div class="setting-description">Allow parallel request processing within slots.</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="continuousBatching" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Generation Parameters -->
+                        <div class="optimization-section" style="margin-top: 24px;">
+                            <div class="optimization-card">
+                                <div class="optimization-header">
+                                    <div class="optimization-icon" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">GEN</div>
+                                    <div>
+                                        <div class="optimization-title">Generation Parameters</div>
+                                        <div class="optimization-desc">Default sampling settings for all pipelines</div>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Temperature</div>
+                                        <div class="setting-description">Controls randomness. Lower = focused, Higher = creative.</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <div class="slider-container">
+                                            <input type="range" class="slider" id="temperature" min="0" max="2" step="0.1" value="0.7" oninput="updateSliderValue('temperature')">
+                                            <span class="slider-value" id="temperatureValue">0.7</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Top P (Nucleus Sampling)</div>
+                                        <div class="setting-description">Cumulative probability threshold for token selection.</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <div class="slider-container">
+                                            <input type="range" class="slider" id="topP" min="0" max="1" step="0.05" value="0.9" oninput="updateSliderValue('topP')">
+                                            <span class="slider-value" id="topPValue">0.9</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Top K</div>
+                                        <div class="setting-description">Limit vocabulary to top K tokens.</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" class="setting-input" id="topK" value="40" min="1" max="100">
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-label">Repeat Penalty</div>
+                                        <div class="setting-description">Penalty for repeating tokens (1.0 = no penalty).</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <div class="slider-container">
+                                            <input type="range" class="slider" id="repeatPenalty" min="1" max="2" step="0.05" value="1.1" oninput="updateSliderValue('repeatPenalty')">
+                                            <span class="slider-value" id="repeatPenaltyValue">1.1</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+                            <button class="btn btn-secondary" onclick="resetOptimization()">Reset to Defaults</button>
+                            <button class="btn btn-primary" onclick="applyOptimization()">Apply Changes (Requires Restart)</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab: LLM Documentation -->
+                    <div id="tab-docs" class="tab-content">
+                        <div class="doc-container">
+                            <div class="doc-header">
+                                <h1>llama.cpp Server Administration Guide</h1>
+                                <p>Complete reference for managing and optimizing local LLM inference servers</p>
+                            </div>
+
+                            <nav class="doc-nav">
+                                <button class="doc-nav-btn active" onclick="showDocSection('overview')">Overview</button>
+                                <button class="doc-nav-btn" onclick="showDocSection('servers')">Server Management</button>
+                                <button class="doc-nav-btn" onclick="showDocSection('models')">Models</button>
+                                <button class="doc-nav-btn" onclick="showDocSection('optimization')">Optimization</button>
+                                <button class="doc-nav-btn" onclick="showDocSection('quantization')">Quantization</button>
+                                <button class="doc-nav-btn" onclick="showDocSection('pipelines')">Pipelines</button>
+                                <button class="doc-nav-btn" onclick="showDocSection('api')">API Reference</button>
+                                <button class="doc-nav-btn" onclick="showDocSection('troubleshooting')">Troubleshooting</button>
+                            </nav>
+
+                            <div class="doc-content">
+                                <!-- Overview Section -->
+                                <section id="doc-section-overview" class="doc-section active">
+                                    <h2>System Overview</h2>
+                                    <p>This system uses three separate llama.cpp servers running as Windows services to handle different types of LLM inference tasks:</p>
+
+                                    <ul>
+                                        <li><strong>SQL Server (Port 8080)</strong> - Handles text-to-SQL generation for database queries</li>
+                                        <li><strong>General Server (Port 8081)</strong> - Handles document Q&A, summarization, and chat</li>
+                                        <li><strong>Code Server (Port 8082)</strong> - Handles code analysis, review, and generation</li>
+                                    </ul>
+
+                                    <h3>Architecture</h3>
+                                    <p>Each server runs independently, allowing for:</p>
+                                    <ul>
+                                        <li>Different models optimized for specific tasks</li>
+                                        <li>Independent scaling and resource allocation</li>
+                                        <li>Fault isolation - one server crash doesn't affect others</li>
+                                        <li>Parallel processing across different workloads</li>
+                                    </ul>
+
+                                    <div class="info-box">
+                                        <h4>Key Endpoints</h4>
+                                        <p>All servers expose OpenAI-compatible APIs at <code>/v1/chat/completions</code> and <code>/v1/completions</code>, plus llama.cpp specific endpoints for health monitoring and configuration.</p>
+                                    </div>
+                                </section>
+
+                                <!-- Server Management Section -->
+                                <section id="doc-section-servers" class="doc-section">
+                                    <h2>Server Management</h2>
+
+                                    <h3>Service Controls</h3>
+                                    <p>The llama.cpp servers run as Windows services. You can control them from the LLM Admin panel or via command line:</p>
+
+                                    <div class="code-block">
+                                        <code># Start a service
+sc start LlamaCppSql
+sc start LlamaCppGeneral
+sc start LlamaCppCode
+
+# Stop a service
+sc stop LlamaCppSql
+
+# Check status
+sc query LlamaCppSql</code>
+                                    </div>
+
+                                    <h3>Health Checks</h3>
+                                    <p>Each server exposes a <code>/health</code> endpoint that returns HTTP 200 when operational:</p>
+
+                                    <div class="code-block">
+                                        <code>curl http://localhost:8080/health
+curl http://localhost:8081/health
+curl http://localhost:8082/health</code>
+                                    </div>
+
+                                    <h3>Server Status Information</h3>
+                                    <p>Use the <code>/slots</code> endpoint to get detailed status:</p>
+
+                                    <div class="code-block">
+                                        <code>curl http://localhost:8080/slots</code>
+                                    </div>
+
+                                    <p>Returns information about:</p>
+                                    <ul>
+                                        <li>Active processing slots</li>
+                                        <li>Context usage per slot</li>
+                                        <li>Token generation speed</li>
+                                        <li>Current request state</li>
+                                    </ul>
+                                </section>
+
+                                <!-- Models Section -->
+                                <section id="doc-section-models" class="doc-section">
+                                    <h2>Model Management</h2>
+
+                                    <h3>GGUF Format</h3>
+                                    <p>llama.cpp uses the GGUF (GGML Universal Format) file format. This is a self-contained format that includes:</p>
+                                    <ul>
+                                        <li>Model weights (quantized)</li>
+                                        <li>Tokenizer configuration</li>
+                                        <li>Model metadata</li>
+                                        <li>Special tokens</li>
+                                    </ul>
+
+                                    <h3>Downloading Models</h3>
+                                    <p>Models can be downloaded from HuggingFace. Popular sources:</p>
+                                    <ul>
+                                        <li><strong>TheBloke</strong> - Wide variety of quantized models</li>
+                                        <li><strong>Qwen</strong> - Official Qwen GGUF releases</li>
+                                        <li><strong>bartowski</strong> - High-quality quantizations</li>
+                                    </ul>
+
+                                    <div class="code-block">
+                                        <code># Using huggingface-cli
+pip install huggingface-hub
+huggingface-cli download TheBloke/Llama-2-7B-GGUF --local-dir ./models
+
+# Direct download
+curl -L https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q4_K_M.gguf -o llama-2-7b.Q4_K_M.gguf</code>
+                                    </div>
+
+                                    <h3>Recommended Models by Task</h3>
+                                    <table class="param-table">
+                                        <tr>
+                                            <th>Pipeline</th>
+                                            <th>Recommended Models</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                        <tr>
+                                            <td>SQL</td>
+                                            <td>nsql-llama-2-7B, sqlcoder-7b, pip-sql-1.3b</td>
+                                            <td>Fine-tuned for text-to-SQL</td>
+                                        </tr>
+                                        <tr>
+                                            <td>General</td>
+                                            <td>Qwen2.5-7B-Instruct, Llama-3.1-8B-Instruct</td>
+                                            <td>Strong reasoning and instruction following</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Code</td>
+                                            <td>qwen2.5-coder-7b, codellama-7b, deepseek-coder</td>
+                                            <td>Optimized for code understanding</td>
+                                        </tr>
+                                    </table>
+                                </section>
+
+                                <!-- Optimization Section -->
+                                <section id="doc-section-optimization" class="doc-section">
+                                    <h2>Performance Optimization</h2>
+
+                                    <h3>Context Size</h3>
+                                    <p>The context window determines how much text the model can process at once. Larger contexts use more memory.</p>
+                                    <table class="param-table">
+                                        <tr>
+                                            <th>Size</th>
+                                            <th>Use Case</th>
+                                            <th>Memory Impact</th>
+                                        </tr>
+                                        <tr>
+                                            <td>2048</td>
+                                            <td>Simple chat, short queries</td>
+                                            <td>Low</td>
+                                        </tr>
+                                        <tr>
+                                            <td>4096</td>
+                                            <td>Standard RAG, moderate documents</td>
+                                            <td>Medium</td>
+                                        </tr>
+                                        <tr>
+                                            <td>8192</td>
+                                            <td>Longer documents, complex queries</td>
+                                            <td>High</td>
+                                        </tr>
+                                        <tr>
+                                            <td>16384+</td>
+                                            <td>Very long documents</td>
+                                            <td>Very High</td>
+                                        </tr>
+                                    </table>
+
+                                    <h3>Flash Attention</h3>
+                                    <p>Flash Attention uses optimized CUDA kernels to:</p>
+                                    <ul>
+                                        <li>Reduce VRAM usage by 30-40%</li>
+                                        <li>Increase inference speed by 20-30%</li>
+                                        <li>No quality degradation</li>
+                                    </ul>
+                                    <p>Enable with <code>--flash-attn</code> flag or toggle in the Optimization panel.</p>
+
+                                    <h3>KV Cache Quantization</h3>
+                                    <p>The KV (Key-Value) cache stores attention context. Quantizing it saves memory:</p>
+                                    <ul>
+                                        <li><code>f16</code> - Full precision, maximum quality</li>
+                                        <li><code>q8_0</code> - 50% memory savings, minimal quality loss <span class="badge badge-recommended">Recommended</span></li>
+                                        <li><code>q4_0</code> - 75% memory savings, slight quality loss</li>
+                                    </ul>
+
+                                    <h3>GPU Offloading</h3>
+                                    <p>Control how many model layers run on GPU vs CPU:</p>
+                                    <ul>
+                                        <li><code>-1</code> - Auto-detect (recommended)</li>
+                                        <li><code>0</code> - CPU only</li>
+                                        <li><code>999</code> - All layers on GPU</li>
+                                        <li><code>N</code> - Specific number of layers</li>
+                                    </ul>
+
+                                    <div class="info-box warning">
+                                        <h4>Memory Planning</h4>
+                                        <p>Rule of thumb: Model size + (context_size * 0.5MB per 1K tokens). A 7B Q4 model (~4GB) with 8K context needs ~8GB total.</p>
+                                    </div>
+                                </section>
+
+                                <!-- Quantization Section -->
+                                <section id="doc-section-quantization" class="doc-section">
+                                    <h2>Quantization Guide</h2>
+
+                                    <h3>Understanding Quantization</h3>
+                                    <p>Quantization reduces model precision to save memory and increase speed. The format <code>Q4_K_M</code> means:</p>
+                                    <ul>
+                                        <li><code>Q4</code> - 4-bit quantization</li>
+                                        <li><code>K</code> - K-quantization (mixed precision)</li>
+                                        <li><code>M</code> - Medium (size/quality trade-off)</li>
+                                    </ul>
+
+                                    <h3>Quantization Comparison</h3>
+                                    <table class="param-table quant-table">
+                                        <tr>
+                                            <th>Method</th>
+                                            <th>Bits</th>
+                                            <th>Quality</th>
+                                            <th>Size (7B)</th>
+                                            <th>Speed</th>
+                                        </tr>
+                                        <tr>
+                                            <td>Q2_K</td>
+                                            <td>~2.5</td>
+                                            <td>Low</td>
+                                            <td>~2.5 GB</td>
+                                            <td><span class="badge badge-fast">Fastest</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Q3_K_M</td>
+                                            <td>~3.5</td>
+                                            <td>Moderate</td>
+                                            <td>~3.0 GB</td>
+                                            <td><span class="badge badge-fast">Fast</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Q4_K_M</td>
+                                            <td>~4.5</td>
+                                            <td>Good</td>
+                                            <td>~4.1 GB</td>
+                                            <td><span class="badge badge-recommended">Recommended</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Q5_K_M</td>
+                                            <td>~5.5</td>
+                                            <td>Very Good</td>
+                                            <td>~4.8 GB</td>
+                                            <td><span class="badge badge-quality">Quality</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Q6_K</td>
+                                            <td>~6.5</td>
+                                            <td>Excellent</td>
+                                            <td>~5.5 GB</td>
+                                            <td><span class="badge badge-quality">Quality</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Q8_0</td>
+                                            <td>8.0</td>
+                                            <td>Near Original</td>
+                                            <td>~7.2 GB</td>
+                                            <td>Slower</td>
+                                        </tr>
+                                    </table>
+
+                                    <div class="info-box success">
+                                        <h4>Best Practice</h4>
+                                        <p>For most use cases, <strong>Q4_K_M</strong> offers the best balance of quality, speed, and memory usage. Use Q5_K_M or Q6_K for tasks requiring higher accuracy.</p>
+                                    </div>
+                                </section>
+
+                                <!-- Pipelines Section -->
+                                <section id="doc-section-pipelines" class="doc-section">
+                                    <h2>Pipeline Configuration</h2>
+
+                                    <h3>SQL Generation Pipeline</h3>
+                                    <p>Port 8080 - Converts natural language to SQL queries.</p>
+                                    <ul>
+                                        <li>Uses schema context injection</li>
+                                        <li>Supports auto-correction via rules</li>
+                                        <li>Best with SQL-fine-tuned models</li>
+                                    </ul>
+
+                                    <h3>General/RAG Pipeline</h3>
+                                    <p>Port 8081 - Handles document Q&A and general chat.</p>
+                                    <ul>
+                                        <li>Retrieval-augmented generation</li>
+                                        <li>Document summarization</li>
+                                        <li>Audio transcript analysis</li>
+                                    </ul>
+
+                                    <h3>Code Analysis Pipeline</h3>
+                                    <p>Port 8082 - Code understanding and generation.</p>
+                                    <ul>
+                                        <li>Code review and analysis</li>
+                                        <li>Bug detection</li>
+                                        <li>Code completion</li>
+                                    </ul>
+
+                                    <h3>Changing Pipeline Models</h3>
+                                    <p>To assign a different model to a pipeline:</p>
+                                    <ol>
+                                        <li>Download the desired model</li>
+                                        <li>Go to Pipeline Config tab</li>
+                                        <li>Select the model from the dropdown</li>
+                                        <li>Click Save Configuration</li>
+                                        <li>Restart the affected service</li>
+                                    </ol>
+
+                                    <div class="info-box warning">
+                                        <h4>Important</h4>
+                                        <p>Changing models requires a service restart. Active requests will be interrupted.</p>
+                                    </div>
+                                </section>
+
+                                <!-- API Reference Section -->
+                                <section id="doc-section-api" class="doc-section">
+                                    <h2>API Reference</h2>
+
+                                    <h3>Health & Status Endpoints</h3>
+                                    <table class="param-table">
+                                        <tr>
+                                            <th>Endpoint</th>
+                                            <th>Method</th>
+                                            <th>Description</th>
+                                        </tr>
+                                        <tr>
+                                            <td>/health</td>
+                                            <td>GET</td>
+                                            <td>Returns 200 if server is healthy</td>
+                                        </tr>
+                                        <tr>
+                                            <td>/props</td>
+                                            <td>GET</td>
+                                            <td>Current server configuration</td>
+                                        </tr>
+                                        <tr>
+                                            <td>/slots</td>
+                                            <td>GET</td>
+                                            <td>Processing slot status</td>
+                                        </tr>
+                                        <tr>
+                                            <td>/metrics</td>
+                                            <td>GET</td>
+                                            <td>Prometheus metrics (if enabled)</td>
+                                        </tr>
+                                    </table>
+
+                                    <h3>Inference Endpoints</h3>
+                                    <table class="param-table">
+                                        <tr>
+                                            <th>Endpoint</th>
+                                            <th>Method</th>
+                                            <th>Description</th>
+                                        </tr>
+                                        <tr>
+                                            <td>/v1/chat/completions</td>
+                                            <td>POST</td>
+                                            <td>OpenAI-compatible chat completion</td>
+                                        </tr>
+                                        <tr>
+                                            <td>/v1/completions</td>
+                                            <td>POST</td>
+                                            <td>OpenAI-compatible text completion</td>
+                                        </tr>
+                                        <tr>
+                                            <td>/completion</td>
+                                            <td>POST</td>
+                                            <td>llama.cpp native completion</td>
+                                        </tr>
+                                        <tr>
+                                            <td>/v1/embeddings</td>
+                                            <td>POST</td>
+                                            <td>Generate text embeddings</td>
+                                        </tr>
+                                    </table>
+
+                                    <h3>Example Request</h3>
+                                    <div class="code-block">
+                                        <code>curl http://localhost:8081/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen2.5-coder",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 100
+  }'</code>
+                                    </div>
+                                </section>
+
+                                <!-- Troubleshooting Section -->
+                                <section id="doc-section-troubleshooting" class="doc-section">
+                                    <h2>Troubleshooting</h2>
+
+                                    <h3>Server Won't Start</h3>
+                                    <ul>
+                                        <li>Check if the model file exists and is valid GGUF</li>
+                                        <li>Verify the port isn't in use by another process</li>
+                                        <li>Check Windows Event Viewer for service errors</li>
+                                        <li>Ensure adequate RAM/VRAM for the model</li>
+                                    </ul>
+
+                                    <h3>Slow Generation</h3>
+                                    <ul>
+                                        <li>Enable Flash Attention if GPU supports it</li>
+                                        <li>Use more GPU layers (<code>-ngl 999</code>)</li>
+                                        <li>Try a smaller quantization (Q4_K_M vs Q8_0)</li>
+                                        <li>Reduce context size if not needed</li>
+                                        <li>Enable KV cache quantization</li>
+                                    </ul>
+
+                                    <h3>Out of Memory</h3>
+                                    <ul>
+                                        <li>Reduce context size</li>
+                                        <li>Use smaller quantization</li>
+                                        <li>Enable KV cache quantization (q8_0 or q4_0)</li>
+                                        <li>Reduce GPU layers to offload to CPU</li>
+                                        <li>Close other GPU-using applications</li>
+                                    </ul>
+
+                                    <h3>Poor Output Quality</h3>
+                                    <ul>
+                                        <li>Use higher quantization (Q5_K_M, Q6_K)</li>
+                                        <li>Adjust temperature (lower = more focused)</li>
+                                        <li>Check if correct model is loaded for the task</li>
+                                        <li>Verify system prompt is appropriate</li>
+                                    </ul>
+
+                                    <h3>Connection Refused</h3>
+                                    <ul>
+                                        <li>Verify service is running: <code>sc query LlamaCppSql</code></li>
+                                        <li>Check Windows Firewall settings</li>
+                                        <li>Confirm correct port number</li>
+                                        <li>Check for port conflicts</li>
+                                    </ul>
+
+                                    <div class="info-box">
+                                        <h4>Getting Help</h4>
+                                        <p>Check the llama.cpp GitHub repository for additional documentation and community support. Server logs are available in Windows Event Viewer under the service name.</p>
+                                    </div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: System Logs -->
+                    <div id="tab-logs" class="tab-content">
+                        <!-- Log Type Navigation -->
+                        <div class="logs-tabs-container">
+                            <button class="logs-tab-btn active" data-logtab="pipeline" onclick="switchLogTab('pipeline')">
+                                <span class="logs-tab-icon">&#9881;</span>
+                                <span>Pipeline</span>
+                            </button>
+                            <button class="logs-tab-btn" data-logtab="webserver" onclick="switchLogTab('webserver')">
+                                <span class="logs-tab-icon">&#127760;</span>
+                                <span>Web Server</span>
+                            </button>
+                            <button class="logs-tab-btn" data-logtab="python-service" onclick="switchLogTab('python-service')">
+                                <span class="logs-tab-icon">&#128013;</span>
+                                <span>Python</span>
+                            </button>
+                            <button class="logs-tab-btn" data-logtab="api-access" onclick="switchLogTab('api-access')">
+                                <span class="logs-tab-icon">&#128279;</span>
+                                <span>API</span>
+                            </button>
+                            <button class="logs-tab-btn" data-logtab="error" onclick="switchLogTab('error')">
+                                <span class="logs-tab-icon">&#9888;</span>
+                                <span>Errors</span>
+                            </button>
+                            <button class="logs-tab-btn" data-logtab="system" onclick="switchLogTab('system')">
+                                <span class="logs-tab-icon">&#128187;</span>
+                                <span>System</span>
+                            </button>
+                        </div>
+
+                        <!-- Status Bar -->
+                        <div class="log-status-bar">
+                            <div class="log-status-item">
+                                <span class="log-status-dot connecting" id="logConnectionStatus"></span>
+                                <span id="logConnectionText">Connecting...</span>
+                            </div>
+                            <div class="log-status-item">
+                                <span>Entries:</span>
+                                <span class="log-count-value" id="logCount">0</span>
+                            </div>
+                            <div class="log-auto-refresh-indicator" id="logAutoRefreshIndicator">
+                                <span class="log-loading-spinner" id="logRefreshSpinner" style="display: none;"></span>
+                                <span id="logAutoRefreshText">Auto-refresh: OFF</span>
+                            </div>
+                        </div>
+
+                        <!-- Log Controls -->
+                        <div class="log-controls">
+                            <div class="log-control-group">
+                                <select class="log-filter-select" id="logLevelFilter" onchange="applyLogFilters()">
+                                    <option value="all">All Levels</option>
+                                    <option value="error">Error</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="info">Info</option>
+                                    <option value="debug">Debug</option>
+                                </select>
+                                <div class="log-date-filter-group">
+                                    <span class="log-date-filter-label">From:</span>
+                                    <input type="date" class="log-date-input" id="logDateFrom" onchange="applyLogFilters()">
+                                    <span class="log-date-filter-label">To:</span>
+                                    <input type="date" class="log-date-input" id="logDateTo" onchange="applyLogFilters()">
+                                </div>
+                                <input type="text" class="log-search-input" id="logSearchInput" placeholder="Search logs..." oninput="applyLogFilters()">
+                            </div>
+                            <div class="log-control-group">
+                                <button class="log-btn-icon" id="logAutoRefreshBtn" onclick="toggleLogAutoRefresh()">
+                                    <span>&#8635;</span>
+                                    <span>Auto-refresh</span>
+                                </button>
+                                <button class="log-btn-icon" onclick="refreshLogs()">
+                                    <span>&#8634;</span>
+                                    <span>Refresh</span>
+                                </button>
+                                <button class="log-btn-icon btn-danger" onclick="clearLogs()">
+                                    <span>&#128465;</span>
+                                    <span>Clear</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Log Viewer -->
+                        <div class="log-viewer" id="log-viewer">
+                            <div class="log-content" id="log-content">
+                                <div class="log-empty-state">
+                                    <div class="log-empty-state-icon">&#128196;</div>
+                                    <div class="log-empty-state-text">Loading logs...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/auth-client.js"></script>
+    <script src="../js/ewr-components.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/llm-admin.js"></script>
+    <script src="/js/sidebar-user.js"></script>
+    <script>
+        // ============================================
+        // Documentation Section Navigation
+        // ============================================
+        function showDocSection(sectionId) {
+            // Update nav buttons
+            document.querySelectorAll('.doc-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update sections
+            document.querySelectorAll('.doc-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(`doc-section-${sectionId}`).classList.add('active');
+        }
+
+        // ============================================
+        // System Logs Management
+        // ============================================
+        let currentLogTab = 'pipeline';
+        let logAutoRefreshEnabled = false;
+        let logAutoRefreshInterval = null;
+        const LOG_AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
+        let currentLogData = [];
+
+        // Switch log tab
+        function switchLogTab(tabName) {
+            currentLogTab = tabName;
+
+            // Update tab buttons
+            document.querySelectorAll('.logs-tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.logtab === tabName);
+            });
+
+            // Reload logs for new tab
+            refreshLogs();
+        }
+
+        // Fetch logs from API
+        async function fetchLogData(category) {
+            const levelFilter = document.getElementById('logLevelFilter').value;
+            const searchQuery = document.getElementById('logSearchInput').value;
+
+            try {
+                const params = new URLSearchParams({
+                    lines: '500',
+                    search: searchQuery || '',
+                    level: levelFilter !== 'all' ? levelFilter.toUpperCase() : ''
+                });
+
+                const response = await fetch(`/api/logs/${category}?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.success) {
+                    return {
+                        lines: data.lines || [],
+                        totalLines: data.totalLines || 0,
+                        returnedLines: data.returnedLines || 0
+                    };
+                }
+                return { lines: [], totalLines: 0, returnedLines: 0 };
+            } catch (error) {
+                console.error(`Failed to fetch ${category} logs:`, error);
+                return { lines: [], totalLines: 0, returnedLines: 0 };
+            }
+        }
+
+        // Refresh logs for current tab
+        async function refreshLogs() {
+            showLogRefreshSpinner(true);
+
+            try {
+                const result = await fetchLogData(currentLogTab);
+                currentLogData = result.lines;
+
+                renderLogEntries(currentLogData);
+                updateLogConnectionStatus('connected');
+            } catch (error) {
+                console.error('Failed to refresh logs:', error);
+                updateLogConnectionStatus('disconnected');
+            } finally {
+                showLogRefreshSpinner(false);
+            }
+        }
+
+        // Apply filters (re-fetch from server)
+        function applyLogFilters() {
+            refreshLogs();
+        }
+
+        // Filter logs by date range
+        function filterLogsByDateRange(lines) {
+            const dateFrom = document.getElementById('logDateFrom').value;
+            const dateTo = document.getElementById('logDateTo').value;
+
+            if (!dateFrom && !dateTo) {
+                return lines;
+            }
+
+            return lines.filter(line => {
+                const match = line.match(/^(\d{4}-\d{2}-\d{2})/);
+                if (!match) return true;
+
+                const lineDate = match[1];
+
+                if (dateFrom && lineDate < dateFrom) return false;
+                if (dateTo && lineDate > dateTo) return false;
+
+                return true;
+            });
+        }
+
+        // Render logs to the viewer
+        function renderLogEntries(lines) {
+            const contentEl = document.getElementById('log-content');
+
+            // Apply date filtering
+            const filteredLines = filterLogsByDateRange(lines);
+
+            if (!filteredLines || filteredLines.length === 0) {
+                contentEl.innerHTML = `
+                    <div class="log-empty-state">
+                        <div class="log-empty-state-icon">&#128196;</div>
+                        <div class="log-empty-state-text">No logs found for ${currentLogTab}</div>
+                    </div>
+                `;
+                updateLogCount(0, lines ? lines.length : 0);
+                return;
+            }
+
+            const logsHtml = filteredLines.map(line => {
+                const parsed = parseLogLine(line);
+                const levelClass = getLogLevelClass(parsed.level);
+
+                let entryHtml = '<div class="log-entry">';
+                if (parsed.timestamp) {
+                    entryHtml += `<span class="log-timestamp">${escapeLogHtml(parsed.timestamp)}</span>`;
+                }
+                entryHtml += `<span class="log-level ${levelClass}">${parsed.level}</span>`;
+                if (parsed.pipeline) {
+                    entryHtml += `<span class="log-pipeline">${escapeLogHtml(parsed.pipeline)}</span>`;
+                }
+                if (parsed.user) {
+                    entryHtml += `<span class="log-user">${escapeLogHtml(parsed.user)}</span>`;
+                }
+                entryHtml += `<span class="log-message">${escapeLogHtml(parsed.message)}</span>`;
+                entryHtml += '</div>';
+                return entryHtml;
+            }).join('');
+
+            contentEl.innerHTML = logsHtml;
+            updateLogCount(filteredLines.length, lines.length);
+
+            // Auto-scroll to bottom
+            const viewer = document.getElementById('log-viewer');
+            viewer.scrollTop = viewer.scrollHeight;
+        }
+
+        // Parse a log line
+        function parseLogLine(line) {
+            const match = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*\[([^\]]+)\]\[([^\]]+)\]\s*:\s*(.*)$/);
+
+            if (match) {
+                const message = match[4];
+                let level = 'INFO';
+
+                if (message.startsWith('ERROR:')) {
+                    level = 'ERROR';
+                } else if (message.startsWith('WARN:')) {
+                    level = 'WARN';
+                }
+
+                return {
+                    timestamp: match[1],
+                    pipeline: `[${match[2]}]`,
+                    user: `[${match[3]}]`,
+                    message: message,
+                    level: level
+                };
+            }
+
+            const apiMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*\[API\]\[([^\]]+)\]\s*:\s*(\w+)\s+(\S+)\s+(\d+)\s+(\d+)ms$/);
+            if (apiMatch) {
+                return {
+                    timestamp: apiMatch[1],
+                    pipeline: '[API]',
+                    user: `[${apiMatch[2]}]`,
+                    message: `${apiMatch[3]} ${apiMatch[4]} ${apiMatch[5]} ${apiMatch[6]}ms`,
+                    level: parseInt(apiMatch[5]) >= 400 ? 'ERROR' : 'INFO'
+                };
+            }
+
+            const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*(.*)$/);
+            if (timestampMatch) {
+                return {
+                    timestamp: timestampMatch[1],
+                    pipeline: '',
+                    user: '',
+                    message: timestampMatch[2],
+                    level: line.includes('ERROR') ? 'ERROR' : (line.includes('WARN') ? 'WARN' : 'INFO')
+                };
+            }
+
+            return {
+                timestamp: '',
+                pipeline: '',
+                user: '',
+                message: line,
+                level: 'INFO'
+            };
+        }
+
+        // Get CSS class for log level
+        function getLogLevelClass(level) {
+            const levelUpper = (level || 'INFO').toUpperCase();
+            switch (levelUpper) {
+                case 'ERROR':
+                    return 'log-level-error';
+                case 'WARN':
+                case 'WARNING':
+                    return 'log-level-warning';
+                case 'DEBUG':
+                    return 'log-level-debug';
+                case 'INFO':
+                default:
+                    return 'log-level-info';
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeLogHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Update log count display
+        function updateLogCount(showing, total) {
+            const countEl = document.getElementById('logCount');
+            if (total !== undefined) {
+                countEl.textContent = `${showing.toLocaleString()} / ${total.toLocaleString()}`;
+            } else {
+                countEl.textContent = showing ? showing.toLocaleString() : '0';
+            }
+        }
+
+        // Update connection status indicator
+        function updateLogConnectionStatus(status) {
+            const dot = document.getElementById('logConnectionStatus');
+            const text = document.getElementById('logConnectionText');
+
+            dot.className = 'log-status-dot ' + status;
+
+            switch (status) {
+                case 'connected':
+                    text.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    text.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    text.textContent = 'Connecting...';
+                    break;
+            }
+        }
+
+        // Show/hide refresh spinner
+        function showLogRefreshSpinner(show) {
+            const spinner = document.getElementById('logRefreshSpinner');
+            spinner.style.display = show ? 'inline-block' : 'none';
+        }
+
+        // Toggle auto-refresh
+        function toggleLogAutoRefresh() {
+            logAutoRefreshEnabled = !logAutoRefreshEnabled;
+            const btn = document.getElementById('logAutoRefreshBtn');
+            const indicator = document.getElementById('logAutoRefreshIndicator');
+            const text = document.getElementById('logAutoRefreshText');
+
+            if (logAutoRefreshEnabled) {
+                btn.classList.add('active');
+                indicator.classList.add('active');
+                text.textContent = 'Auto-refresh: ON (5s)';
+                logAutoRefreshInterval = setInterval(refreshLogs, LOG_AUTO_REFRESH_INTERVAL);
+            } else {
+                btn.classList.remove('active');
+                indicator.classList.remove('active');
+                text.textContent = 'Auto-refresh: OFF';
+
+                if (logAutoRefreshInterval) {
+                    clearInterval(logAutoRefreshInterval);
+                    logAutoRefreshInterval = null;
+                }
+            }
+        }
+
+        // Clear logs on server
+        async function clearLogs() {
+            if (!confirm(`Are you sure you want to clear the ${currentLogTab} logs? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/logs/${currentLogTab}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    await refreshLogs();
+                } else {
+                    alert('Failed to clear logs: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to clear logs: ' + error.message);
+            }
+        }
+
+        // Initialize logs when switching to logs tab
+        const originalSwitchTab = window.switchTab;
+        window.switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'logs') {
+                // Initialize logs on first view
+                refreshLogs();
+                updateLogConnectionStatus('connected');
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Repository Monitor - RAG Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        /* Page-specific styles */
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: #f1f5f9;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: #334155;
+            border: 1px solid #475569;
+            color: #f1f5f9;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: #475569;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #64748b;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .repo-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .repo-card {
+            background: #334155;
+            border: 1px solid #475569;
+            padding: 20px;
+        }
+
+        .repo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .repo-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .repo-path {
+            font-size: 13px;
+            color: #94a3b8;
+            font-family: 'Courier New', monospace;
+        }
+
+        .repo-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .repo-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #f1f5f9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 12px;
+        }
+
+        .status-active {
+            background: #10b98144;
+            color: #10b981;
+        }
+
+        .status-syncing {
+            background: #3b82f644;
+            color: #3b82f6;
+        }
+
+        .status-error {
+            background: #ef444444;
+            color: #ef4444;
+        }
+
+        .status-missing {
+            background: #f59e0b44;
+            color: #f59e0b;
+        }
+
+        .commits-list {
+            margin-top: 16px;
+        }
+
+        .commits-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+
+        .commit-item {
+            display: flex;
+            gap: 12px;
+            padding: 10px;
+            background: #1e293b;
+            border-left: 3px solid #3b82f6;
+            margin-bottom: 8px;
+        }
+
+        .commit-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #94a3b8;
+            min-width: 70px;
+        }
+
+        .commit-details {
+            flex: 1;
+        }
+
+        .commit-message {
+            font-size: 13px;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .commit-meta {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border-radius: 4px;
+        }
+
+        .alert-success {
+            background: #10b98144;
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+
+        .alert-error {
+            background: #ef444444;
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+
+        .alert-info {
+            background: #3b82f644;
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #334155;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .analysis-status {
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .analysis-status.has-data {
+            background: #052e16;
+            border: 1px solid #22c55e;
+        }
+
+        .analysis-status.no-data {
+            background: #451a03;
+            border: 1px solid #f59e0b;
+        }
+
+        .analysis-status-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+        }
+
+        .analysis-status-stats {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Git Repository Monitor" show-refresh="false"></ewr-admin-header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <div id="alertContainer"></div>
+
+                    <!-- Monitored Repositories (moved to top) -->
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h2>Monitored Repositories</h2>
+                            <button class="btn btn-secondary" onclick="loadRepositories()">Refresh</button>
+                        </div>
+
+                        <div id="repoList" class="repo-grid">
+                            <div class="loading">Loading repositories...</div>
+                        </div>
+                    </div>
+
+                    <!-- Add New Local Repository -->
+                    <div class="card">
+                        <h2>Add New Local Repository</h2>
+                        <form id="addRepoForm" onsubmit="addRepository(event)">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Project Name *</label>
+                                    <input type="text" id="projectName" placeholder="Gin" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Repository Name *</label>
+                                    <input type="text" id="repoName" placeholder="my-project" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Repository Path *</label>
+                                    <input type="text" id="repoPath" placeholder="C:\Projects\Git\my-project" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Branch (optional)</label>
+                                    <input type="text" id="repoBranch" placeholder="main" value="main">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Access Token (optional)</label>
+                                    <input type="password" id="accessToken" placeholder="Personal access token for private repos (optional)">
+                                </div>
+                                <div class="form-group">
+                                    <label>Auto-sync Interval (minutes)</label>
+                                    <input type="number" id="syncInterval" placeholder="60" value="60" min="0">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Repository</button>
+                        </form>
+                    </div>
+
+                    <!-- Code Analysis Section -->
+                    <div class="card">
+                        <h2>Code Analysis (Roslyn)</h2>
+                        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 16px;">
+                            Build call graph data for code impact analysis. Required for the Code Changes page to show caller information.
+                        </p>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Select Repository</label>
+                                <select id="analysisRepoSelect">
+                                    <option value="">Loading repositories...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Analysis Type</label>
+                                <select id="analysisType">
+                                    <option value="full">Full Repository Analysis</option>
+                                    <option value="incremental">Incremental (Changed Files Only)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="analysisStatusContainer" class="hidden" style="margin-bottom: 16px;"></div>
+
+                        <div style="display: flex; gap: 12px;">
+                            <button class="btn btn-primary" onclick="runCodeAnalysis()">Run Analysis</button>
+                            <button class="btn btn-secondary" onclick="checkAnalysisStatus()">Check Status</button>
+                        </div>
+
+                        <div id="analysisProgress" class="hidden" style="margin-top: 16px; padding: 16px; background: #0f172a; border-radius: 4px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="spinner"></div>
+                                <span id="analysisProgressText">Running analysis...</span>
+                            </div>
+                        </div>
+
+                        <div id="analysisResult" class="hidden" style="margin-top: 16px;"></div>
+                    </div>
+
+                    <!-- Sync Configuration Section -->
+                    <div class="card">
+                        <h2>Sync Configuration</h2>
+                        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 16px;">
+                            Configure automatic synchronization and polling for repositories.
+                        </p>
+
+                        <!-- Global Polling Controls -->
+                        <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center;">
+                            <button class="btn btn-success" onclick="startPolling()">Start Polling</button>
+                            <button class="btn btn-danger" onclick="stopPolling()">Stop Polling</button>
+                            <span id="pollingStatus" style="color: #94a3b8; margin-left: 12px;">Status: Unknown</span>
+                        </div>
+
+                        <!-- Registry Stats -->
+                        <div id="registryStats" style="margin-bottom: 20px; padding: 12px; background: #0f172a; border-radius: 4px;">
+                            <span style="color: #94a3b8;">Loading registry stats...</span>
+                        </div>
+
+                        <!-- Per-Repository Sync Configuration -->
+                        <div class="form-group">
+                            <label>Select Repository for Sync Configuration</label>
+                            <select id="syncConfigRepoSelect" onchange="loadRepoSyncConfig()">
+                                <option value="">Select a repository...</option>
+                            </select>
+                        </div>
+
+                        <div id="repoSyncConfigPanel" class="hidden" style="padding: 16px; background: #0f172a; border-radius: 4px; margin-top: 12px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Sync Interval (minutes)</label>
+                                    <select id="syncInterval">
+                                        <option value="60000">1 minute</option>
+                                        <option value="300000" selected>5 minutes</option>
+                                        <option value="600000">10 minutes</option>
+                                        <option value="1800000">30 minutes</option>
+                                        <option value="3600000">1 hour</option>
+                                        <option value="86400000">24 hours</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Auto-Sync Enabled</label>
+                                    <select id="autoSync">
+                                        <option value="0">No</option>
+                                        <option value="1">Yes</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="repoSyncStatus" style="margin-bottom: 16px; padding: 12px; background: #1e293b; border-radius: 4px;">
+                                <div style="color: #94a3b8; font-size: 13px;">
+                                    <div>Last Sync: <span id="lastSyncTime">--</span></div>
+                                    <div>Last Analysis: <span id="lastAnalysisTime">--</span></div>
+                                    <div>Sync Status: <span id="syncStatusText">--</span></div>
+                                    <div>Needs Analysis: <span id="needsAnalysisText">--</span></div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 12px;">
+                                <button class="btn btn-primary" onclick="saveRepoSyncConfig()">Save Configuration</button>
+                                <button class="btn btn-secondary" onclick="refreshRepoSyncStatus()">Refresh Status</button>
+                            </div>
+                        </div>
+
+                        <!-- Repositories Needing Sync -->
+                        <div style="margin-top: 20px;">
+                            <h3 style="color: #f1f5f9; font-size: 16px; margin-bottom: 12px;">Repositories Needing Attention</h3>
+                            <div id="reposNeedingSync" style="padding: 12px; background: #0f172a; border-radius: 4px;">
+                                <span style="color: #94a3b8;">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Monitor Existing Repository -->
+                    <div class="card">
+                        <h2>Monitor Existing Repository</h2>
+                        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 16px;">Add an existing local repository for monitoring and pulling</p>
+                        <form id="addExistingRepoForm" onsubmit="addExistingRepository(event)">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Project Name *</label>
+                                    <input type="text" id="existingProjectName" placeholder="Warehouse" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Repository Name *</label>
+                                    <input type="text" id="existingRepoName" placeholder="warehouse" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Repository Path *</label>
+                                    <input type="text" id="existingRepoPath" placeholder="C:\Projects\Git\Warehouse" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Branch</label>
+                                    <input type="text" id="existingRepoBranch" placeholder="master" value="master">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Access Token (optional)</label>
+                                <input type="password" id="existingAccessToken" placeholder="Personal access token (optional)">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Repository</button>
+                        </form>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        const auth = new AuthClient();
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+            loadRepositories();
+        });
+
+        function logout() {
+            auth.logout();
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertContainer.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        async function addRepository(event) {
+            event.preventDefault();
+
+            const projectName = document.getElementById('projectName').value.trim();
+            const name = document.getElementById('repoName').value.trim();
+            const path = document.getElementById('repoPath').value.trim();
+            const branch = document.getElementById('repoBranch').value.trim() || 'main';
+            const accessToken = document.getElementById('accessToken').value.trim();
+            const syncInterval = parseInt(document.getElementById('syncInterval').value) || 60;
+
+            try {
+                const requestBody = {
+                    projectName,
+                    name,
+                    path,
+                    branch,
+                    syncInterval
+                };
+
+                // Only include accessToken if provided
+                if (accessToken) {
+                    requestBody.accessToken = accessToken;
+                }
+
+                const response = await fetch('/api/admin/git/repositories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert(`Repository "${name}" added successfully!`, 'success');
+                    document.getElementById('addRepoForm').reset();
+                    document.getElementById('repoBranch').value = 'main';
+                    document.getElementById('syncInterval').value = '60';
+                    loadRepositories();
+                } else {
+                    showAlert(data.error || 'Failed to add repository', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function addExistingRepository(event) {
+            event.preventDefault();
+
+            const projectName = document.getElementById('existingProjectName').value.trim();
+            const name = document.getElementById('existingRepoName').value.trim();
+            const path = document.getElementById('existingRepoPath').value.trim();
+            const branch = document.getElementById('existingRepoBranch').value.trim() || 'master';
+            const accessToken = document.getElementById('existingAccessToken').value.trim();
+
+            if (!projectName || !name || !path) {
+                showAlert('Please fill in all required fields', 'error');
+                return;
+            }
+
+            try {
+                const requestBody = {
+                    projectName,
+                    name,
+                    path,
+                    branch
+                };
+
+                // Only include accessToken if provided
+                if (accessToken) {
+                    requestBody.accessToken = accessToken;
+                }
+
+                const response = await fetch('/api/admin/git/repositories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert(`Repository "${name}" added successfully!`, 'success');
+                    document.getElementById('addExistingRepoForm').reset();
+                    document.getElementById('existingRepoBranch').value = 'master';
+                    loadRepositories();
+                } else {
+                    showAlert(data.error || 'Failed to add repository', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadRepositories() {
+            const repoList = document.getElementById('repoList');
+            repoList.innerHTML = '<div class="loading">Loading repositories...</div>';
+
+            try {
+                const response = await fetch('/api/admin/git/repositories', {
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load repositories');
+                }
+
+                if (!data.repositories || data.repositories.length === 0) {
+                    repoList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📦</div>
+                            <p>No repositories configured yet</p>
+                            <p style="margin-top: 8px; font-size: 14px;">Add a repository above to start monitoring</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                repoList.innerHTML = data.repositories.map(repo => renderRepository(repo)).join('');
+
+            } catch (error) {
+                repoList.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function renderRepository(repo) {
+            const lastSync = repo.lastSync ? new Date(repo.lastSync).toLocaleString() : 'Never';
+            const status = repo.status || 'active';
+            const statusClass = `status-${status}`;
+
+            const commitsHtml = repo.recentCommits && repo.recentCommits.length > 0
+                ? `
+                    <div class="commits-list">
+                        <div class="commits-header">Recent Commits (Last 5, excluding merges)</div>
+                        ${repo.recentCommits.map(commit => `
+                            <div class="commit-item">
+                                <div class="commit-hash">${commit.hash.substring(0, 7)}</div>
+                                <div class="commit-details">
+                                    <div class="commit-message">${escapeHtml(commit.message)}</div>
+                                    <div class="commit-meta">
+                                        ${escapeHtml(commit.author)} • ${new Date(commit.date).toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `
+                : '<p style="color: #64748b; font-size: 13px; margin-top: 12px;">No recent commits</p>';
+
+            const sourceLabel = repo.source === 'database'
+                ? '<span style="background: #8b5cf644; color: #8b5cf6; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 8px;">Admin Added</span>'
+                : '';
+
+            return `
+                <div class="repo-card">
+                    <div class="repo-header">
+                        <div>
+                            <div class="repo-title">${escapeHtml(repo.name)}${sourceLabel}</div>
+                            <div class="repo-path">${escapeHtml(repo.path)}</div>
+                        </div>
+                        <div class="repo-actions">
+                            <button class="btn btn-success" onclick="pullRepository('${repo.id}', '${escapeHtml(repo.name)}')" title="Pull Latest">
+                                ⬇️ Pull
+                            </button>
+                            <button class="btn btn-success" onclick="syncRepository('${repo.id}')" title="Sync Now">
+                                🔄 Sync
+                            </button>
+                            <button class="btn btn-danger" onclick="removeRepository('${repo.id}', '${escapeHtml(repo.name)}', ${repo.source === 'filesystem'})" title="${repo.source === 'filesystem' ? 'Delete Code Data' : 'Remove'}">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="repo-info">
+                        <div class="info-item">
+                            <div class="info-label">Status</div>
+                            <div class="info-value">
+                                <span class="status-badge ${statusClass}">${status}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Branch</div>
+                            <div class="info-value">${escapeHtml(repo.branch || 'main')}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Last Synced</div>
+                            <div class="info-value">${lastSync}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Auto-Sync</div>
+                            <div class="info-value">${repo.syncInterval || 60} minutes</div>
+                        </div>
+                    </div>
+
+                    ${commitsHtml}
+                </div>
+            `;
+        }
+
+        async function pullRepository(repoId, repoName) {
+            if (!confirm(`Pull latest changes for "${repoName}"?`)) {
+                return;
+            }
+
+            showAlert('Pulling latest changes...', 'info');
+
+            try {
+                const response = await fetch(`/api/admin/git/repositories/${repoId}/pull`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const message = data.changes
+                        ? `Repository pulled successfully! Changes detected.`
+                        : `Repository pulled successfully! Already up to date.`;
+                    showAlert(message, 'success');
+                    loadRepositories();
+                } else {
+                    showAlert(data.error || 'Failed to pull repository', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function syncRepository(repoId) {
+            if (!confirm('Sync this repository now? This may take a few minutes.')) {
+                return;
+            }
+
+            showAlert('Syncing repository...', 'info');
+
+            try {
+                const response = await fetch(`/api/admin/git/repositories/${repoId}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('Repository synced successfully!', 'success');
+                    loadRepositories();
+                } else {
+                    showAlert(data.error || 'Failed to sync repository', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function removeRepository(repoId, repoName, isFilesystemRepo) {
+            // Different message for filesystem vs admin-added repos
+            const confirmMessage = isFilesystemRepo
+                ? `Delete code analysis data for "${repoName || repoId}"?\n\n` +
+                  `This is a standard repository in GIT_ROOT and will remain in the list.\n` +
+                  `This will DELETE all code analysis data (methods, classes, call graphs).\n\n` +
+                  `Click OK to delete code data, or Cancel to keep it.`
+                : `Remove repository "${repoName || repoId}"?\n\n` +
+                  `This will:\n` +
+                  `• Stop monitoring this repository\n` +
+                  `• DELETE all code analysis data (methods, classes, call graphs)\n\n` +
+                  `Click OK to proceed, or Cancel to keep the data.`;
+
+            const deleteData = confirm(confirmMessage);
+
+            if (!deleteData && !confirm('Keep the indexed code data?')) {
+                return;
+            }
+
+            const queryParam = deleteData ? '' : '?deleteCodeData=false';
+
+            try {
+                showAlert('Processing...', 'info');
+
+                const response = await fetch(`/api/admin/git/repositories/${repoId}${queryParam}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert(data.message || 'Operation completed', 'success');
+                    loadRepositories();
+                } else {
+                    showAlert(data.error || 'Failed to remove repository', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================================
+        // Code Analysis Functions
+        // ============================================================================
+
+        // Populate the analysis repo dropdown when repos are loaded
+        async function populateAnalysisRepoSelect() {
+            const select = document.getElementById('analysisRepoSelect');
+            try {
+                const response = await fetch('/api/git/repositories');
+                if (response.ok) {
+                    const repos = await response.json();
+                    select.innerHTML = '<option value="">Select Repository...</option>';
+                    repos.forEach(repo => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({ name: repo.name, path: repo.path });
+                        option.textContent = repo.displayName || repo.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load repos for analysis:', error);
+            }
+        }
+
+        // Check analysis status when repo is selected
+        document.getElementById('analysisRepoSelect')?.addEventListener('change', async function() {
+            if (!this.value) {
+                document.getElementById('analysisStatusContainer').classList.add('hidden');
+                return;
+            }
+            await checkAnalysisStatus();
+        });
+
+        async function checkAnalysisStatus() {
+            const selectValue = document.getElementById('analysisRepoSelect').value;
+            if (!selectValue) {
+                showAlert('Please select a repository first', 'error');
+                return;
+            }
+
+            const repo = JSON.parse(selectValue);
+            const container = document.getElementById('analysisStatusContainer');
+
+            try {
+                const response = await fetch(`/api/roslyn/callgraph-status/${encodeURIComponent(repo.name)}`);
+                if (!response.ok) {
+                    container.classList.add('hidden');
+                    return;
+                }
+
+                const status = await response.json();
+
+                if (status.has_callgraph) {
+                    const lastUpdated = status.last_updated ? new Date(status.last_updated).toLocaleString() : 'Unknown';
+                    container.innerHTML = `
+                        <div class="analysis-status has-data">
+                            <div class="analysis-status-header">
+                                <span>&#10003;</span> Call Graph Available
+                            </div>
+                            <div class="analysis-status-stats">
+                                ${status.callgraph_entries.toLocaleString()} call relationships |
+                                ${status.methods_indexed.toLocaleString()} methods indexed |
+                                Last updated: ${lastUpdated}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="analysis-status no-data">
+                            <div class="analysis-status-header">
+                                <span>&#9888;</span> No Call Graph Data
+                            </div>
+                            <div class="analysis-status-stats">
+                                The call graph for this repository has not been built yet.
+                                Run a full analysis to enable impact analysis features.
+                            </div>
+                        </div>
+                    `;
+                }
+
+                container.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Failed to check analysis status:', error);
+                container.classList.add('hidden');
+            }
+        }
+
+        async function runCodeAnalysis() {
+            const selectValue = document.getElementById('analysisRepoSelect').value;
+            const analysisType = document.getElementById('analysisType').value;
+
+            if (!selectValue) {
+                showAlert('Please select a repository first', 'error');
+                return;
+            }
+
+            const repo = JSON.parse(selectValue);
+            const progressDiv = document.getElementById('analysisProgress');
+            const progressText = document.getElementById('analysisProgressText');
+            const resultDiv = document.getElementById('analysisResult');
+
+            // Show progress
+            progressText.textContent = analysisType === 'full'
+                ? `Running full analysis of ${repo.name}... This may take several minutes.`
+                : `Running incremental analysis of ${repo.name}...`;
+            progressDiv.classList.remove('hidden');
+            resultDiv.classList.add('hidden');
+
+            try {
+                const endpoint = analysisType === 'full' ? '/api/roslyn/analyze-full' : '/api/roslyn/analyze-targeted';
+                const body = analysisType === 'full'
+                    ? { repoPath: repo.path, project: repo.name, generateEmbeddings: true }
+                    : { methods: [], repoPath: repo.path, project: repo.name };
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const result = await response.json();
+                progressDiv.classList.add('hidden');
+
+                if (result.success) {
+                    const summary = result.data_summary || {};
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Analysis Complete!</strong><br>
+                            Project: ${escapeHtml(repo.name)}<br>
+                            Files Analyzed: ${result.total_files || result.files_found || 'N/A'}<br>
+                            Classes: ${summary.classes || 0}<br>
+                            Methods: ${summary.methods || 0}<br>
+                            Call Graph Entries: ${summary.call_graph || 0}<br>
+                            Event Handlers: ${summary.event_handlers || 0}<br>
+                            DB Operations: ${summary.db_operations || 0}
+                        </div>
+                    `;
+                    resultDiv.classList.remove('hidden');
+
+                    // Refresh status
+                    await checkAnalysisStatus();
+                    showAlert('Code analysis completed successfully!', 'success');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-error">
+                            <strong>Analysis Failed</strong><br>
+                            ${escapeHtml(result.error || result.detail || 'Unknown error')}
+                        </div>
+                    `;
+                    resultDiv.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                progressDiv.classList.add('hidden');
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Analysis Failed</strong><br>
+                        ${escapeHtml(error.message)}
+                    </div>
+                `;
+                resultDiv.classList.remove('hidden');
+            }
+        }
+
+        // Initialize analysis repo dropdown when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(populateAnalysisRepoSelect, 500);
+        });
+
+        // ============================================================================
+        // Sync Configuration Functions
+        // ============================================================================
+
+        // Populate sync config repo dropdown
+        async function populateSyncConfigRepoSelect() {
+            const select = document.getElementById('syncConfigRepoSelect');
+            try {
+                const response = await fetch('/api/git/repositories');
+                if (response.ok) {
+                    const repos = await response.json();
+                    select.innerHTML = '<option value="">Select a repository...</option>';
+                    repos.forEach(repo => {
+                        const option = document.createElement('option');
+                        option.value = repo.name;
+                        option.textContent = repo.displayName || repo.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load repos for sync config:', error);
+            }
+        }
+
+        // Load registry stats
+        async function loadRegistryStats() {
+            const statsDiv = document.getElementById('registryStats');
+            try {
+                const response = await fetch('/api/git/registry/stats');
+                if (response.ok) {
+                    const data = await response.json();
+                    const stats = data.stats;
+                    statsDiv.innerHTML = `
+                        <div style="display: flex; gap: 24px; flex-wrap: wrap; color: #94a3b8; font-size: 13px;">
+                            <span>Total: <strong style="color: #f1f5f9;">${stats.total}</strong></span>
+                            <span>Filesystem: <strong style="color: #22c55e;">${stats.bySource.filesystem}</strong></span>
+                            <span>Database: <strong style="color: #3b82f6;">${stats.bySource.database}</strong></span>
+                            <span>Merged: <strong style="color: #a855f7;">${stats.bySource.merged}</strong></span>
+                            <span>Needing Analysis: <strong style="color: ${stats.needingAnalysis > 0 ? '#f59e0b' : '#22c55e'};">${stats.needingAnalysis}</strong></span>
+                        </div>
+                    `;
+                } else {
+                    statsDiv.innerHTML = '<span style="color: #ef4444;">Failed to load stats</span>';
+                }
+            } catch (error) {
+                statsDiv.innerHTML = `<span style="color: #ef4444;">Error: ${error.message}</span>`;
+            }
+        }
+
+        // Load repos needing sync and analysis
+        async function loadReposNeedingAttention() {
+            const container = document.getElementById('reposNeedingSync');
+            try {
+                const [syncResponse, analysisResponse] = await Promise.all([
+                    fetch('/api/git/registry/needs-sync'),
+                    fetch('/api/git/registry/needs-analysis')
+                ]);
+
+                const syncData = await syncResponse.json();
+                const analysisData = await analysisResponse.json();
+
+                const needingSync = syncData.repositories || [];
+                const needingAnalysis = analysisData.repositories || [];
+
+                if (needingSync.length === 0 && needingAnalysis.length === 0) {
+                    container.innerHTML = '<span style="color: #22c55e;">All repositories are up to date!</span>';
+                    return;
+                }
+
+                let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+
+                if (needingSync.length > 0) {
+                    html += '<div style="color: #f59e0b;"><strong>Needs Sync:</strong></div>';
+                    html += '<ul style="margin: 0; padding-left: 20px; color: #94a3b8;">';
+                    needingSync.forEach(repo => {
+                        html += `<li>${escapeHtml(repo.name)}: ${escapeHtml(repo.reason || 'Update available')}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                if (needingAnalysis.length > 0) {
+                    html += '<div style="color: #3b82f6; margin-top: 8px;"><strong>Needs Analysis:</strong></div>';
+                    html += '<ul style="margin: 0; padding-left: 20px; color: #94a3b8;">';
+                    needingAnalysis.forEach(repo => {
+                        html += `<li>${escapeHtml(repo.name || repo.displayName)}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = `<span style="color: #ef4444;">Error: ${error.message}</span>`;
+            }
+        }
+
+        // Load repo sync config
+        async function loadRepoSyncConfig() {
+            const repoName = document.getElementById('syncConfigRepoSelect').value;
+            const panel = document.getElementById('repoSyncConfigPanel');
+
+            if (!repoName) {
+                panel.classList.add('hidden');
+                return;
+            }
+
+            panel.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`/api/git/repositories/${encodeURIComponent(repoName)}/sync-status`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Set form values
+                    document.getElementById('syncInterval').value = data.syncInterval || 300000;
+                    document.getElementById('autoSync').value = data.autoSync ? '1' : '0';
+
+                    // Update status display
+                    document.getElementById('lastSyncTime').textContent =
+                        data.lastSync ? new Date(data.lastSync).toLocaleString() : 'Never';
+                    document.getElementById('lastAnalysisTime').textContent =
+                        data.lastAnalysisDate ? new Date(data.lastAnalysisDate).toLocaleString() : 'Never';
+                    document.getElementById('syncStatusText').textContent =
+                        data.syncStatus?.needsSync ? `Needs sync: ${data.syncStatus.reason}` : 'Up to date';
+                    document.getElementById('syncStatusText').style.color =
+                        data.syncStatus?.needsSync ? '#f59e0b' : '#22c55e';
+                    document.getElementById('needsAnalysisText').textContent = data.needsAnalysis ? 'Yes' : 'No';
+                    document.getElementById('needsAnalysisText').style.color =
+                        data.needsAnalysis ? '#f59e0b' : '#22c55e';
+                } else {
+                    showAlert('Failed to load sync configuration', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Save repo sync config
+        async function saveRepoSyncConfig() {
+            const repoName = document.getElementById('syncConfigRepoSelect').value;
+            if (!repoName) {
+                showAlert('Please select a repository first', 'error');
+                return;
+            }
+
+            const syncInterval = parseInt(document.getElementById('syncInterval').value);
+            const autoSync = document.getElementById('autoSync').value === '1';
+
+            try {
+                const response = await fetch(`/api/git/repositories/${encodeURIComponent(repoName)}/sync-config`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify({ syncInterval, autoSync })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert(`Sync configuration saved for ${repoName}`, 'success');
+                    loadRegistryStats();
+                } else {
+                    showAlert(data.error || 'Failed to save configuration', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Refresh repo sync status
+        async function refreshRepoSyncStatus() {
+            await loadRepoSyncConfig();
+            showAlert('Status refreshed', 'info');
+        }
+
+        // Start global polling
+        async function startPolling() {
+            try {
+                const response = await fetch('/api/git/registry/polling/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('pollingStatus').textContent =
+                        `Status: Active (every ${Math.round(data.interval / 60000)} min)`;
+                    document.getElementById('pollingStatus').style.color = '#22c55e';
+                    showAlert('Polling started', 'success');
+                } else {
+                    showAlert(data.error || 'Failed to start polling', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Stop global polling
+        async function stopPolling() {
+            try {
+                const response = await fetch('/api/git/registry/polling/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('pollingStatus').textContent = 'Status: Stopped';
+                    document.getElementById('pollingStatus').style.color = '#ef4444';
+                    showAlert('Polling stopped', 'success');
+                } else {
+                    showAlert(data.error || 'Failed to stop polling', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize sync configuration on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                populateSyncConfigRepoSelect();
+                loadRegistryStats();
+                loadReposNeedingAttention();
+            }, 600);
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

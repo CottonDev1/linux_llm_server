@@ -1,0 +1,128 @@
+/**
+ * EWR Audio Component
+ * Audio player card styles
+ */
+
+/* ============================================
+   EWR Audio Player Card Component
+   ============================================ */
+
+/* Audio player card - styled container for audio playback */
+.ewr-audio-player-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+/* Audio player card header with filename and info */
+.ewr-audio-player-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.ewr-audio-player-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin: 0;
+}
+
+.ewr-audio-player-card-info {
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+/* Audio player element */
+.ewr-audio-player-card audio {
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+/* Audio player card footer with action button */
+.ewr-audio-player-card-footer {
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+}
+
+/* Compact variant - no analyze button, used in table rows */
+.ewr-audio-player-card.compact {
+    padding: 16px;
+    margin-bottom: 0;
+}
+
+.ewr-audio-player-card.compact .ewr-audio-player-card-footer {
+    display: none;
+}
+
+/* Expandable row variant - hidden by default */
+.ewr-audio-player-card.expandable {
+    display: none;
+    margin: 0;
+    border-radius: 0 0 8px 8px;
+    border-top: none;
+}
+
+.ewr-audio-player-card.expandable.expanded {
+    display: block;
+}
+
+/* Expandable table row - hidden by default, shown when expanded class is added */
+.ewr-expandable-row {
+    display: none;
+}
+
+.ewr-expandable-row.expanded {
+    display: table-row;
+}
+
+.ewr-expandable-row-content {
+    padding: 16px;
+    background: #0f172a;
+}
+
+/* Expand indicator arrow rotation */
+tr .expand-indicator {
+    display: inline-block;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    color: #64748b;
+    font-size: 12px;
+}
+
+tr.expanded .expand-indicator {
+    transform: rotate(90deg);
+}
+
+/* Metadata grid inside audio player card */
+.ewr-audio-player-card-metadata {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #0f172a;
+    border-radius: 6px;
+}
+
+.ewr-audio-player-card-metadata-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ewr-audio-player-card-metadata-label {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.ewr-audio-player-card-metadata-value {
+    font-size: 14px;
+    color: #f1f5f9;
+}

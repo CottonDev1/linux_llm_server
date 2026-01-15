@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Management - RAG Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/layout.css">
+    <link rel="stylesheet" href="../../css/ewr-classes.css">
+    <script src="../../js/ewr-components.js"></script>
+    <style>
+        /* Dark Blue Theme - Always Dark (matching SQL chat) */
+        :root {
+            --bg-primary: #0c1929;
+            --bg-secondary: #142338;
+            --bg-tertiary: #1e3a5f;
+            --bg-card: #142338;
+            --bg-input: #142338;
+            --text-primary: #e8f2ff;
+            --text-secondary: #b8d4f0;
+            --text-muted: #6b8cae;
+            --border-primary: #1e3a5f;
+            --border-secondary: #2d5a8a;
+            --accent-primary: #5a9fe6;
+            --accent-secondary: #7ab8f5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --glow-accent: rgba(90, 159, 230, 0.3);
+        }
+
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        body {
+            background: var(--bg-primary);
+            line-height: 1.6;
+        }
+
+        /* Single column layout */
+        .documents-layout {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 150px);
+            position: relative;
+        }
+
+        /* Message styles */
+        .message {
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+        }
+
+        .message.success {
+            background: #064e3b;
+            color: #6ee7b7;
+            border: 1px solid #047857;
+        }
+
+        .message.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: 1px solid #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Document Management" show-refresh="false"></ewr-admin-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Message Area -->
+                    <div id="messageArea"></div>
+
+                    <div class="documents-layout">
+                        <!-- Full Width Card -->
+                        <div class="card ewr_chat-card-full">
+                            <!-- Collapsible Filter Settings -->
+                            <div class="ewr-collapsible no-margin" id="filterCollapsible">
+                                <div class="ewr-collapsible-header" onclick="toggleCollapsible('filterCollapsible')">
+                                    <span class="ewr-collapsible-title">Filter Settings</span>
+                                    <button class="ewr-collapse-toggle">
+                                        <span class="toggle-icon">▼</span>
+                                    </button>
+                                </div>
+                                <div class="ewr-collapsible-content">
+                                    <div class="ewr-edit-filters-horizontal">
+                                        <ewr-edit-div-vert
+                                            label="Department"
+                                            type="select"
+                                            id="browserDepartmentFilter"
+                                            default-text="All Departments">
+                                        </ewr-edit-div-vert>
+
+                                        <ewr-edit-div-vert
+                                            label="Doc Type"
+                                            type="select"
+                                            id="categoryFilter"
+                                            default-text="All Types">
+                                        </ewr-edit-div-vert>
+
+                                        <ewr-edit-div-vert
+                                            label="Subject"
+                                            type="select"
+                                            id="browserSubjectFilter"
+                                            default-text="All Subjects">
+                                        </ewr-edit-div-vert>
+
+                                        <ewr-edit-div-vert
+                                            label="Search"
+                                            type="input"
+                                            id="searchFilter"
+                                            placeholder="Search documents...">
+                                        </ewr-edit-div-vert>
+                                    </div>
+                                </div>
+                                <!-- Footer with Action Buttons -->
+                                <div class="ewr-collapsible-footer">
+                                    <button class="ewr-button-action-green-gradient" id="loadDocsBtn" onclick="loadDocuments()">Load Documents</button>
+                                </div>
+                            </div>
+
+                            <!-- Document List Section -->
+                            <ewr-document-list
+                                id="documentList"
+                                title="Matching Documents"
+                                empty-message="Select filters and click &quot;Load Documents&quot; to see matching documents"
+                                on-item-click="openDocumentPreview">
+                            </ewr-document-list>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Document Preview Modal Component (with delete for admin) -->
+    <ewr-document-preview-modal
+        id="documentPreviewModal"
+        show-delete="true">
+    </ewr-document-preview-modal>
+
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../../js/system-status.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        } else {
+            // Initialize sidebar and display user info
+            initSidebar();
+            displayUserInfo();
+        }
+
+        async function displayUserInfo() {
+            try {
+                const user = await auth.getUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+
+                    if (userNameEl) userNameEl.textContent = user.username;
+                    if (userRoleEl) userRoleEl.textContent = user.role || 'User';
+
+                    // Add admin class to body if user is admin
+                    if (user.role === 'admin' || user.role === 'Admin') {
+                        document.body.classList.add('user-is-admin');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to get user info:', error);
+            }
+        }
+
+        function logout() {
+            auth.logout();
+        }
+
+        // Toggle collapsible container
+        function toggleCollapsible(id) {
+            const container = document.getElementById(id);
+            if (container) {
+                container.classList.toggle('collapsed');
+            }
+        }
+
+        // Show message
+        function showMessage(message, type = 'success') {
+            const messageArea = document.getElementById('messageArea');
+            messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
+
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 5000);
+        }
+
+        // ==================== CATEGORY MANAGEMENT ====================
+
+        // Category data storage
+        let categoryData = {
+            departments: [],
+            types: [],
+            subjects: []
+        };
+
+        // Load categories from Python API (separate endpoints for each type)
+        async function loadCategories() {
+            try {
+                const [departmentsRes, typesRes, subjectsRes] = await Promise.all([
+                    fetch('/api/python/categories/departments', {
+                        headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` }
+                    }),
+                    fetch('/api/python/categories/types', {
+                        headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` }
+                    }),
+                    fetch('/api/python/categories/subjects', {
+                        headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` }
+                    })
+                ]);
+
+                const [departmentsData, typesData, subjectsData] = await Promise.all([
+                    departmentsRes.json(),
+                    typesRes.json(),
+                    subjectsRes.json()
+                ]);
+
+                // Extract categories from response
+                if (departmentsData.success && departmentsData.categories) {
+                    categoryData.departments = departmentsData.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                }
+                if (typesData.success && typesData.categories) {
+                    categoryData.types = typesData.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                }
+                if (subjectsData.success && subjectsData.categories) {
+                    categoryData.subjects = subjectsData.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                }
+
+                populateDropdowns();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                showMessage('Error loading categories: ' + error.message, 'error');
+            }
+        }
+
+        // Populate all dropdowns using component API
+        function populateDropdowns() {
+            const browserDept = document.getElementById('browserDepartmentFilter');
+            const browserType = document.getElementById('categoryFilter');
+            const browserSubject = document.getElementById('browserSubjectFilter');
+
+            // Use setOptions method from ewr-horiz-select component
+            if (browserDept) {
+                browserDept.setOptions(categoryData.departments, 'All Departments');
+            }
+            if (browserType) {
+                browserType.setOptions(categoryData.types, 'All Types');
+            }
+            if (browserSubject) {
+                browserSubject.setOptions(categoryData.subjects, 'All Subjects');
+            }
+        }
+
+        // Load categories on page load
+        loadCategories();
+
+        // ==================== DOCUMENT BROWSER FUNCTIONALITY ====================
+
+        // Store all loaded documents for client-side filtering
+        let allLoadedDocuments = [];
+        let searchFilterTimeout = null;
+
+        // Apply document name filter
+        function applyNameFilter() {
+            const searchTerm = document.getElementById('searchFilter')?.value?.trim().toLowerCase() || '';
+            const documentListComponent = document.getElementById('documentList');
+
+            if (allLoadedDocuments.length === 0) {
+                return;
+            }
+
+            let filteredTitles;
+            if (searchTerm) {
+                filteredTitles = allLoadedDocuments.filter(title =>
+                    title.toLowerCase().includes(searchTerm)
+                );
+            } else {
+                filteredTitles = [...allLoadedDocuments];
+            }
+
+            // Use component API to set documents
+            if (filteredTitles.length > 0) {
+                documentListComponent.setDocuments(filteredTitles);
+            } else {
+                documentListComponent.showEmpty('No documents match your search criteria');
+            }
+        }
+
+        // Debounced version of applyNameFilter
+        function applyNameFilterDebounced() {
+            clearTimeout(searchFilterTimeout);
+            searchFilterTimeout = setTimeout(applyNameFilter, 300);
+        }
+
+        // Load documents from MongoDB using aggregation
+        async function loadDocuments() {
+            const documentListComponent = document.getElementById('documentList');
+
+            // Get filter values using component API
+            const department = document.getElementById('browserDepartmentFilter')?.value || '';
+            const docType = document.getElementById('categoryFilter')?.value || '';
+            const subject = document.getElementById('browserSubjectFilter')?.value || '';
+
+            // Show loading state using component API
+            documentListComponent.showLoading();
+
+            try {
+                // Build query parameters
+                const params = new URLSearchParams();
+                if (department) params.append('department', department);
+                if (docType) params.append('type', docType);
+                if (subject) params.append('subject', subject);
+
+                // Fetch filtered documents using aggregation (through Node.js proxy)
+                const aggResponse = await fetch(`/api/python/documents/aggregate?${params.toString()}`);
+                const aggData = await aggResponse.json();
+
+                if (aggData.success) {
+                    allLoadedDocuments = aggData.titles || [];
+                    applyNameFilter();
+                } else {
+                    allLoadedDocuments = [];
+                    documentListComponent.showError(aggData.error || 'Failed to load documents');
+                }
+            } catch (error) {
+                allLoadedDocuments = [];
+                documentListComponent.showError(error.message);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Set up search filter event listener
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchFilter');
+            if (searchInput) {
+                searchInput.addEventListener('input', applyNameFilterDebounced);
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        clearTimeout(searchFilterTimeout);
+                        applyNameFilter();
+                    }
+                });
+            }
+        });
+
+        // ==================== DOCUMENT PREVIEW FUNCTIONALITY ====================
+
+        // Use the modal component - initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('documentPreviewModal');
+            if (modal) {
+                // Set callback for when document is deleted
+                modal.onDocumentDeleted = function(title, deletedChunks) {
+                    showMessage(`Document "${title}" deleted successfully (${deletedChunks} chunks removed)`, 'success');
+                    loadDocuments(); // Reload the document list
+                };
+            }
+        });
+
+        function openDocumentPreview(title) {
+            const modal = document.getElementById('documentPreviewModal');
+            modal.open(title);
+        }
+    </script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

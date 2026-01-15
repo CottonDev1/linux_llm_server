@@ -27,3 +27,35 @@ Thumbs.db
 # Environment files
 .env
 .env.*
+
+# Build artifacts
+llamacpp-cuda/
+llamacpp_venv/
+allure-report/
+playwright-report/
+test-results/
+
+# Runtime data
+data/
+temp/
+uploads/
+testing_data/
+audio-files/
+
+# Error logs
+*.err
+$logFile.err
+
+# Windows artifacts
+nul
+
+# Python services runtime
+python_services/.cache/
+python_services/venv_old/
+python_services/audio-files/
+python_services/unanalyzed_uploads/
+python_services/pending_analyses/
+python_services/$logFile.err
+
+# Large binary tools
+tools/ffmpeg/

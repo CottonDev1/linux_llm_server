@@ -1,0 +1,120 @@
+/**
+ * EWR Collapsible Component
+ * Expandable/collapsible container with header, content, and footer
+ */
+
+/* ============================================
+   Collapsible Container Component
+   ============================================ */
+
+/* Container with header and collapsible content */
+.ewr-collapsible {
+    display: flex;
+    flex-direction: column;
+    background: #3a4556;
+    border-radius: 8px;
+    margin: 8px;
+    overflow: hidden;
+}
+
+/* Header bar with title and collapse toggle */
+.ewr-collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #4a5568;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 8px 8px 0 0;
+}
+
+.ewr-collapsible-header:hover {
+    background: #5a6578;
+}
+
+.ewr-collapsible-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #e8f2ff);
+    margin: 0;
+}
+
+/* Collapse toggle button */
+.ewr-collapse-toggle {
+    background: transparent;
+    border: 1px solid var(--border-primary, #1e3a5f);
+    color: var(--text-secondary, #b8d4f0);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ewr-collapse-toggle:hover {
+    background: rgba(90, 159, 230, 0.1);
+    border-color: var(--accent-primary, #5a9fe6);
+    color: var(--accent-primary, #5a9fe6);
+}
+
+.ewr-collapse-toggle .toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.ewr-collapsible.collapsed .ewr-collapse-toggle .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+/* Collapsible content area */
+.ewr-collapsible-content {
+    transition: all 0.3s ease;
+    overflow: hidden;
+    background: #3a4556;
+}
+
+.ewr-collapsible.collapsed .ewr-collapsible-content {
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.ewr-collapsible.collapsed .ewr-collapsible-footer {
+    display: none;
+}
+
+/* When collapsed, make header corners all rounded */
+.ewr-collapsible.collapsed .ewr-collapsible-header {
+    border-radius: 8px;
+}
+
+/* ============================================
+   Collapsible Footer Component
+   ============================================ */
+
+.ewr-collapsible-footer {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 16px;
+    background: #2d3748;
+    border-radius: 0 0 8px 8px;
+}
+
+/* Right-aligned button in footer */
+.ewr-button-right {
+    margin-left: auto;
+}
+
+/* Status footer - no bottom radius since it's above buttons footer */
+.ewr-status-footer {
+    border-radius: 0;
+    border-bottom: 1px solid #3a4556;
+    padding: 8px 16px;
+    min-height: 32px;
+}

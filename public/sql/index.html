@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Query - EWR AI Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/modern-buttons.css">
+    <link rel="stylesheet" href="../css/ewr-classes.css">
+    <link rel="stylesheet" href="../css/ewr-modals.css">
+    <style>
+        /* Dark Blue Theme - Always Dark */
+        :root {
+            /* Dark blue mode */
+            --bg-primary: #0c1929;      /* Deep navy */
+            --bg-secondary: #142338;    /* Dark blue panels */
+            --bg-tertiary: #1e3a5f;     /* Medium dark blue */
+            --bg-card: #142338;
+            --bg-card-header: #142338;
+            --bg-input: #142338;
+            --bg-elevated: #142338;
+            --text-primary: #e8f2ff;    /* Light blue-white text */
+            --text-secondary: #b8d4f0;
+            --text-muted: #6b8cae;
+            --border-primary: #1e3a5f;
+            --border-secondary: #2d5a8a;
+            --accent-primary: #5a9fe6;  /* Brighter blue for dark mode */
+            --accent-secondary: #7ab8f5;
+            --accent-tertiary: #9aceff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --glow-accent: rgba(90, 159, 230, 0.3);
+        }
+
+        /* Modern typography */
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        body {
+            background: var(--bg-primary);
+            line-height: 1.6;
+        }
+
+        /* SQL-specific component styles */
+
+        /* Single column layout (full width) */
+        .sql-layout {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0; /* Critical for nested flex containers */
+            position: relative;
+        }
+
+        /* Chat Interface Card - Clean Elevated Style (Full Width) */
+        .flex-chat-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-primary);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transition: all 0.3s ease;
+        }
+
+        .flex-chat-card .card-header {
+            padding: 18px 24px 14px;
+            background: var(--bg-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .flex-chat-card .card-header .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+            letter-spacing: 0.3px;
+            transition: color 0.3s ease;
+        }
+
+        .flex-chat-card .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+
+        /* Custom element needs flex styling to fill parent */
+        ewr-chat-window {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        /* Horizontal Settings Bar - Clean Style */
+        .settings-bar {
+            display: flex;
+            gap: 16px;
+            padding: 12px 16px;
+            background: transparent;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            transition: all 0.3s ease;
+        }
+
+        .settings-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 0 16px;
+            border-right: 1px solid var(--border-primary);
+            transition: all 0.3s ease;
+        }
+
+        .settings-group:last-of-type {
+            border-right: none;
+        }
+
+        /* Stacked column layout for Server/User, Database/Pass pairs */
+        .settings-group.settings-column {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 4px;
+            border-right: none;
+            padding: 0 8px;
+        }
+
+        /* Add border only after the last settings-column (Auth/Domain) */
+        .settings-group.settings-column:last-of-type {
+            border-right: 1px solid var(--border-secondary);
+        }
+
+        .settings-group.settings-column .settings-field {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .settings-group.settings-column .settings-field label {
+            min-width: 45px;
+            font-size: 11px;
+        }
+
+        .settings-group.settings-column .settings-field input,
+        .settings-group.settings-column .settings-field select {
+            flex: 1;
+            min-width: 100px;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* Standard input width for EWR forms */
+        .ewr-input-edits {
+            width: 175px;
+            min-width: 175px;
+            max-width: 175px;
+            height: 32px;
+            padding: 6px 10px !important;
+            font-size: 14px !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border-radius: 4px;
+        }
+
+        /* Standard select style for EWR forms */
+        .ewr-select-edit {
+            width: 175px;
+            min-width: 175px;
+            max-width: 175px;
+            height: 32px;
+            padding: 4px 10px !important;
+            font-size: 14px !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border-radius: 4px;
+        }
+
+        /* Standard label style for EWR forms */
+        .ewr-label {
+            color: #cbd5e1 !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+        }
+
+        /* Container for label + input pairs with consistent alignment */
+        .ewr-edit-div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .ewr-edit-div .ewr-label {
+            min-width: 65px;
+            text-align: right;
+        }
+
+        /* Checkbox container for horizontal layout */
+        .ewr-checkbox-div {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            padding-left: 75px;
+        }
+
+        .ewr-checkbox-div input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .ewr-checkbox-div label {
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Settings container styling */
+        .ewr-settings-container {
+            background: #3a4555;
+            border-radius: 10px;
+            padding: 16px 20px;
+            display: inline-block;
+        }
+
+        .ewr-settings-container .settings-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+
+        .ewr-settings-container .settings-column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Legacy settings-actions - kept for compatibility */
+        .ewr-settings-container .settings-actions {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+
+        .settings-group.settings-column .checkbox-field {
+            font-size: 11px;
+            gap: 6px;
+        }
+
+        .settings-group.settings-column .checkbox-field input[type="checkbox"] {
+            min-width: auto;
+            width: 14px;
+            height: 14px;
+        }
+
+        .settings-group.settings-column .checkbox-field label {
+            min-width: auto;
+        }
+
+        /* Checkbox column under Database */
+        .checkbox-column {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-left: 50px; /* Align with input fields (matches label min-width) */
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            min-width: 14px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .checkbox-item label {
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        /* Modern Professional Button - Minimalist Style */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 13px;
+            padding: 10px 20px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px var(--shadow-color);
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px var(--glow-accent);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px var(--shadow-color);
+        }
+
+        .btn:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Secondary/neutral button - transparent with border */
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--accent-primary);
+            color: var(--accent-secondary);
+            box-shadow: none;
+        }
+
+        /* Reset/Danger button - dark red gradient (matches ewr-button-action-green-gradient style) */
+        .ewr-button-reset {
+            padding: 8px 18px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: linear-gradient(180deg, #dc2626 0%, #b91c1c 30%, #991b1b 70%, #7f1d1d 100%);
+            color: #ffffff;
+            box-shadow:
+                0 1px 2px rgba(0, 0, 0, 0.2),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .ewr-button-reset:hover {
+            background: linear-gradient(180deg, #ef4444 0%, #dc2626 30%, #b91c1c 70%, #991b1b 100%);
+            box-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.25),
+                inset 0 1px 1px rgba(255, 255, 255, 0.4),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+        }
+
+        .ewr-button-reset:active {
+            background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 30%, #450a0a 70%, #2a0505 100%);
+            box-shadow:
+                inset 0 2px 3px rgba(0, 0, 0, 0.2),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .settings-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Horizontal divider in settings bar */
+        .settings-divider {
+            width: 100%;
+            border: none;
+            border-top: 1px solid var(--border-secondary);
+            margin: 8px 0;
+        }
+
+        .settings-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-field label {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: color 0.2s ease;
+        }
+
+        /* Edit box label class */
+        .edit-label {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: color 0.2s ease;
+        }
+
+        .edit-label.larger {
+            font-size: 15px;
+        }
+
+        .settings-field input[type="text"],
+        .settings-field input[type="password"],
+        .settings-field select {
+            padding: 10px 14px;
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            font-size: 13px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            min-width: 120px;
+            box-shadow: inset 0 1px 3px var(--shadow-color);
+            transition: all 0.2s ease;
+        }
+
+        .settings-field select {
+            min-width: 140px;
+        }
+
+        .settings-field input:focus,
+        .settings-field select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--glow-accent), inset 0 1px 3px var(--shadow-color);
+        }
+
+        .settings-field input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+            border-radius: 4px;
+        }
+
+        .settings-field label[for] {
+            cursor: pointer;
+        }
+
+        /* Compact button styles for settings bar */
+        .btn-connect,
+        .btn-load,
+        .btn-clear-sm,
+        .btn-save-sm {
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-connect {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-connect:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-1px);
+        }
+
+        .btn-connect:disabled {
+            background: #475569;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .btn-load {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .btn-load:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+        }
+
+        .btn-load:disabled {
+            background: #475569;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .btn-clear-sm {
+            background: #64748b;
+            color: white;
+        }
+
+        .btn-clear-sm:hover {
+            background: #475569;
+            transform: translateY(-1px);
+        }
+
+        .btn-save-sm {
+            background: linear-gradient(135deg, #00d4ff 0%, #0ea5e9 100%);
+            color: #0f172a;
+        }
+
+        .btn-save-sm:hover {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            transform: translateY(-1px);
+        }
+
+        /* Context limit alert */
+        .context-limit-alert {
+            background: rgba(239, 68, 68, 0.15);
+            border: 2px solid #ef4444;
+            color: #fca5a5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            animation: pulse-alert 2s infinite;
+        }
+
+        @keyframes pulse-alert {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Token usage display styling */
+        #tokenUsageDisplay {
+            font-size: 13px;
+            color: #cbd5e1;
+            background: #2d3b52;
+            border-bottom: 2px solid #3f5175;
+        }
+
+        .token-usage-stats {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .token-stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .token-stat-label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .token-stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00d4ff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .token-progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #334155;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .token-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3b82f6, #00d4ff);
+            transition: width 0.3s ease;
+        }
+
+        .token-progress-fill.warning {
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+        }
+
+        /* Connection status styling */
+        .connection-status-inline {
+            display: inline-flex;
+            align-items: center;
+            font-size: 11px;
+            color: #10b981;
+            font-weight: 600;
+            padding: 4px 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 4px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        /* Connection error message styling */
+        .connection-error-message {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .connection-error-message:not(:empty) {
+            display: inline-block;
+        }
+
+        .connection-error-message.error {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .connection-error-message.success {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .connection-error-message.info {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Thin success label - full width with larger font */
+        .thin-success-label {
+            width: 100%;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 4px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .thin-success-label.success {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .thin-success-label.error {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .thin-success-label.info {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        /* Status message container - collapsible */
+        .status-message-container {
+            display: none;
+            margin-top: 8px;
+        }
+
+        .status-message-container.visible {
+            display: block;
+        }
+
+        /* Role-based visibility */
+        .developer-only,
+        .admin-only,
+        .ewr-button-special-lightBlue-gradient {
+            display: none;
+        }
+
+        body.role-developer .developer-only,
+        body.role-admin .developer-only,
+        body.role-admin .admin-only,
+        body.role-developer .ewr-button-special-lightBlue-gradient,
+        body.role-admin .ewr-button-special-lightBlue-gradient {
+            display: inline-flex;
+        }
+
+        /* Dropdown option styling */
+        .form-select option,
+        select option {
+            background-color: #1e293b;
+            color: #f1f5f9;
+            padding: 10px 12px;
+        }
+
+        .form-select option:checked,
+        select option:checked {
+            background-color: #2d3b52;
+        }
+
+        /* Buttons */
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .btn-info {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Messages */
+        .message {
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .message.success {
+            background: #064e3b;
+            color: #6ee7b7;
+            border: 2px solid #047857;
+        }
+
+        .message.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: 2px solid #991b1b;
+        }
+
+        .message.info {
+            background: #1e3a8a;
+            color: #93c5fd;
+            border: 2px solid #1e40af;
+        }
+
+        /* Chat Interface - Clean container within glass card */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            background: transparent;
+        }
+
+        /* Chat message - compact density style */
+        .chat-message,
+        ewr-chat-message,
+        ewr-chat-message-assistant {
+            display: block;
+            padding: 8px 10px;
+            border-radius: 6px;
+            line-height: 1.45;
+            font-size: 14px;
+            color: var(--text-secondary);
+            animation: slideIn 0.3s ease;
+        }
+
+        .chat-message + .chat-message,
+        ewr-chat-message + ewr-chat-message,
+        ewr-chat-message + ewr-chat-message-assistant,
+        ewr-chat-message-assistant + ewr-chat-message,
+        ewr-chat-message-assistant + ewr-chat-message-assistant {
+            margin-top: 8px;
+        }
+
+        /* User messages - blue background and border */
+        .chat-message.user,
+        ewr-chat-message {
+            background: rgba(59, 130, 246, 0.12);
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        /* Assistant messages - no background on outer, fit content width */
+        .chat-message.assistant,
+        ewr-chat-message-assistant {
+            border-left: 3px solid var(--success);
+            width: fit-content;
+            max-width: 85%;
+            position: relative;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+            color: white;
+        }
+
+        .user-avatar {
+            background: #3b82f6;
+        }
+
+        .assistant-avatar {
+            background: #10b981;
+        }
+
+        .message-content {
+            flex: 1;
+            max-width: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Message text - simplified, no separate background */
+        .message-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        /* User message text - accent border */
+        .chat-message.user .message-text {
+            border-left: 3px solid var(--accent-primary);
+            padding-left: 12px;
+        }
+
+        /* Assistant message text - success border with green background */
+        .chat-message.assistant .message-text,
+        ewr-chat-message-assistant .message-text {
+            background: rgba(16, 185, 129, 0.12);
+            border-left: 3px solid var(--success);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        /* SQL Code Block - Clean Style */
+        .sql-block {
+            background: var(--bg-tertiary);
+            padding: 16px 18px;
+            border-radius: 8px;
+            margin-top: 14px;
+            border: 1px solid var(--border-primary);
+        }
+
+        .sql-header {
+            color: var(--accent-primary);
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sql-code {
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+
+        /* Results Table */
+        .results-table-wrapper {
+            margin-top: 12px;
+            border: 2px solid #3f5175;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .results-header {
+            background: #2d3b52;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #3f5175;
+        }
+
+        .results-count {
+            color: #3b82f6;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .btn-export-inline {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-export-inline:hover {
+            background: #d97706;
+            transform: translateY(-1px);
+        }
+
+        .results-table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .results-table th {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .results-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #3f5175;
+            color: #cbd5e1;
+            background: #2d3b52;
+        }
+
+        .results-table tr:nth-child(even) td {
+            background: #243247;
+        }
+
+        .results-table tr:hover td {
+            background: #3f5175;
+        }
+
+        /* Error Block */
+        .error-block {
+            background: #7f1d1d;
+            border: 2px solid #991b1b;
+            padding: 14px 16px;
+            border-radius: 6px;
+            margin-top: 12px;
+        }
+
+        .error-text {
+            color: #fca5a5;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* Context Window Display */
+        .context-remaining {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 20px;
+            background: #2d3b52;
+            border-bottom: 2px solid #3f5175;
+        }
+
+        .context-remaining-label {
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .context-remaining-value {
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Pipeline Timing Display */
+        .timing-metrics {
+            display: none;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid #334155;
+            flex-wrap: wrap;
+        }
+
+        .timing-metrics.visible {
+            display: flex;
+        }
+
+        .timing-metric {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .timing-metric.active {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: #38bdf8;
+        }
+
+        .timing-metric.active .timing-metric-label {
+            color: #38bdf8;
+        }
+
+        .timing-metric.completed {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .timing-metric.completed .timing-metric-label {
+            color: #10b981;
+        }
+
+        .timing-metric.waiting {
+            animation: pulse-waiting 1.5s ease-in-out infinite;
+        }
+
+        .timing-metric.waiting .timing-metric-value {
+            color: #f59e0b;
+        }
+
+        @keyframes pulse-waiting {
+            0%, 100% {
+                background: rgba(56, 189, 248, 0.15);
+                border-color: #38bdf8;
+            }
+            50% {
+                background: rgba(245, 158, 11, 0.2);
+                border-color: #f59e0b;
+            }
+        }
+
+        .timing-metric-label {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .timing-metric-value {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 32px;
+        }
+
+        .timing-metric-value.fast {
+            color: #10b981;
+        }
+
+        .timing-metric-value.medium {
+            color: #f59e0b;
+        }
+
+        .timing-metric-value.slow {
+            color: #ef4444;
+        }
+
+        .timing-separator {
+            color: #475569;
+            font-size: 10px;
+        }
+
+        .timing-total {
+            margin-left: auto;
+            padding-left: 12px;
+            border-left: 1px solid #3f5175;
+        }
+
+        .timing-total .timing-metric-label {
+            color: #94a3b8;
+        }
+
+        .timing-total .timing-metric-value {
+            color: #22d3ee;
+            font-size: 12px;
+        }
+
+        /* Chat Input Area - Clean Style */
+        .chat-input-area {
+            background: var(--bg-secondary);
+            padding: 16px 24px;
+            flex-shrink: 0;
+            border-top: 1px solid var(--border-primary);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .chat-input {
+            flex: 1;
+            min-height: 48px;
+            max-height: 140px;
+            padding: 14px 18px;
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            resize: none;
+            overflow-y: auto;
+            box-shadow: inset 0 1px 3px var(--shadow-color);
+            transition: all 0.2s ease;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--glow-accent), inset 0 1px 3px var(--shadow-color);
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .chat-input:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-send {
+            background: var(--accent-primary);
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+
+        .btn-send:hover:not(:disabled) {
+            background: var(--accent-secondary);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-clear-chat {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-primary);
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .btn-clear-chat:hover:not(:disabled) {
+            background: var(--border-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Empty State - shows initial assistant greeting */
+        .empty-chat {
+            padding: 16px 0;
+        }
+
+        /* Legacy styles (kept for backwards compatibility) */
+        .empty-icon {
+            display: none;
+        }
+
+        .empty-title {
+            display: none;
+        }
+
+        .empty-text {
+            display: none;
+        }
+
+        /* Loading Indicator - simple inline style */
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border-primary);
+            border-top-color: var(--text-secondary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--text-secondary);
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .modal-dialog {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-primary);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            padding: 24px 28px;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            letter-spacing: -0.025em;
+        }
+
+        .btn-close {
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-close:hover {
+            background: var(--border-secondary);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 28px;
+        }
+
+        /* Scrollbar styling */
+        .chat-messages::-webkit-scrollbar,
+        .results-table-container::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track,
+        .results-table-container::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 5px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb,
+        .results-table-container::-webkit-scrollbar-thumb {
+            background: var(--border-secondary);
+            border-radius: 5px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover,
+        .results-table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Feedback Buttons - small thumbs in bottom-right */
+        .feedback-buttons {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .feedback-btn-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            padding: 0;
+            opacity: 0.5;
+        }
+
+        .feedback-btn-icon:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .feedback-btn-icon.active-positive {
+            opacity: 1;
+            color: var(--success);
+        }
+
+        .feedback-btn-icon.active-negative {
+            opacity: 1;
+            color: var(--error);
+        }
+
+        .feedback-label {
+            display: none;
+        }
+
+        .feedback-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            animation: slideInUp 0.3s ease;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Badge styling */
+        .ewr-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #ef4444;
+            color: white;
+            border-radius: 9px;
+            margin-left: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .settings-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .settings-group {
+                flex-direction: column;
+                align-items: stretch;
+                border-right: none;
+                border-bottom: 1px solid #3f5175;
+                padding: 12px 0;
+            }
+
+            .settings-group:last-of-type {
+                border-bottom: none;
+            }
+
+            .settings-actions {
+                margin-left: 0;
+                justify-content: stretch;
+            }
+
+            .settings-field {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .settings-field input,
+            .settings-field select {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Sidebar Component -->
+        <ewr-sidebar></ewr-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Header Component -->
+            <ewr-page-header title="SQL Chat" subtitle="Ask questions about your data in plain English"></ewr-page-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <div class="sql-layout">
+                        <!-- Full Width Chat Card -->
+                        <div class="card ewr_chat-card-full">
+                            <!-- Collapsible Connection Settings -->
+                            <ewr-filter-panel
+                                id="connectionCollapsible"
+                                title="Connection Settings"
+                                columns="4"
+                                show-status="true"
+                                show-actions="true">
+
+                                <!-- Server/Database Column (stacked) -->
+                                <div class="ewr-filter-stack">
+                                    <div class="ewr-edit-div-vert">
+                                        <label class="ewr-label" for="server">Server</label>
+                                        <input type="text" id="server" class="ewr-input-edits" tabindex="1" value="EWRSQLPROD" oninput="collapseStatusMessage()">
+                                    </div>
+                                    <div class="ewr-edit-div-vert">
+                                        <label class="ewr-label" for="database">Database</label>
+                                        <select id="database" class="ewr-select-edit" tabindex="-1" disabled>
+                                            <option value="">Select database...</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Authentication/Domain Column (stacked) -->
+                                <div class="ewr-filter-stack">
+                                    <div class="ewr-edit-div-vert">
+                                        <label class="ewr-label" for="authType">Authentication</label>
+                                        <select id="authType" class="ewr-select-edit" tabindex="2" onchange="toggleAuthFields()">
+                                            <option value="sql">SQL Server</option>
+                                            <option value="windows">Windows</option>
+                                        </select>
+                                    </div>
+                                    <div class="ewr-edit-div-vert" id="domainField">
+                                        <label class="ewr-label" for="domain">Domain</label>
+                                        <input type="text" id="domain" class="ewr-input-edits" tabindex="3" disabled>
+                                    </div>
+                                </div>
+
+                                <!-- User/Password Column (stacked) -->
+                                <div class="ewr-filter-stack">
+                                    <div class="ewr-edit-div-vert" id="usernameField">
+                                        <label class="ewr-label" for="username">User</label>
+                                        <input type="text" id="username" class="ewr-input-edits" tabindex="4" value="EWRUser">
+                                    </div>
+                                    <div class="ewr-edit-div-vert" id="passwordField">
+                                        <label class="ewr-label" for="password">Password</label>
+                                        <input type="password" id="password" class="ewr-input-edits" tabindex="5" value="66a3904d69">
+                                    </div>
+                                </div>
+
+                                <!-- Checkboxes Row (horizontal, spans full width) -->
+                                <div class="ewr-filter-options-horizontal ewr-filter-span-full">
+                                    <label><input type="checkbox" id="trustCert" tabindex="6" checked> Trust Certificate</label>
+                                    <label><input type="checkbox" id="encrypt" tabindex="7"> Encrypt</label>
+                                    <label id="integratedAuthField" style="display: none;"><input type="checkbox" id="integratedAuth" tabindex="8" onchange="toggleIntegratedAuth()"> Integrated Auth</label>
+                                    <label><input type="checkbox" id="showPassword" tabindex="9" onchange="toggleShowPassword()"> Show Password</label>
+                                </div>
+
+                                <!-- Status Footer -->
+                                <div slot="status">
+                                    <span id="connectionStatusInline" class="ewr-status-pill"></span>
+                                    <span id="connectionMessage" class="ewr-status-pill"></span>
+                                    <span id="schemaStatus" class="ewr-status-pill"></span>
+                                </div>
+
+                                <!-- Actions Footer -->
+                                <div slot="actions">
+                                    <button class="ewr-button-action-green-gradient" id="connectBtn" onclick="testConnection()">Connect</button>
+                                    <button class="ewr-button-action-green-gradient" id="loadDatabaseBtn" onclick="loadDatabase()" disabled>Load DB</button>
+                                    <button class="ewr-button-special-lightBlue-gradient" id="addExampleBtn" onclick="showAddExampleModal()" disabled>Add Example</button>
+                                    <button class="ewr-button-special-lightBlue-gradient" id="addRuleBtn" onclick="showAddRuleModal()" disabled>Add Rule</button>
+                                    <button class="ewr-button-reset ewr-button-right" id="clearBtn" onclick="clearConnection()">Reset Connection</button>
+                                    <button class="ewr-button-reset admin-only" id="clearCacheBtn" onclick="clearQueryCache()">Clear Cache</button>
+                                </div>
+                            </ewr-filter-panel>
+
+                            <div class="card-body">
+                                <ewr-chat-window
+                                    messages-id="chatMessages"
+                                    input-id="chatInput"
+                                    send-btn-id="sendBtn"
+                                    placeholder="Ask a question about your data..."
+                                    on-send="sendMessage()"
+                                    on-clear="clearChat()"
+                                    on-keydown="handleKeyDown(event)"
+                                    show-timing="true"
+                                    show-empty="false"
+                                    show-feedback="false">
+
+                                    <!-- Initial welcome message -->
+                                    <div slot="initial-message">
+                                        <ewr-chat-message-assistant>
+                                            How can I assist you?
+                                        </ewr-chat-message-assistant>
+                                    </div>
+
+                                    <!-- Context Window & Token Display -->
+                                    <div slot="status-bar">
+                                        <div class="context-remaining">
+                                            <span class="context-remaining-label">Context:</span>
+                                            <span class="context-remaining-value" id="contextUsedValue">0</span>
+                                            <span class="context-remaining-label">/</span>
+                                            <span class="context-remaining-value" id="contextMaxValue">--</span>
+                                            <span class="context-remaining-label" style="margin-left: 16px;">Prompt:</span>
+                                            <span class="context-remaining-value" id="promptTokens">0</span>
+                                            <span class="context-remaining-label" style="margin-left: 16px;">Completion:</span>
+                                            <span class="context-remaining-value" id="completionTokens">0</span>
+                                            <span class="context-remaining-label" style="margin-left: 16px;">Total:</span>
+                                            <span class="context-remaining-value" id="totalTokens">0</span>
+                                        </div>
+                                    </div>
+
+                                </ewr-chat-window>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Example Modal -->
+    <div id="exampleModal" class="modal hidden" onclick="closeExampleModal(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>Add Query Example</h2>
+                <button class="btn-close" onclick="closeExampleModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="exampleMessage"></div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Natural Language Prompt</label>
+                    <input type="text" id="examplePrompt" placeholder="e.g., Show me the top 10 bales by weight" style="width: 100%; padding: 10px; border: 2px solid #3f5175; border-radius: 6px; font-size: 13px; background: #1e293b; color: #f1f5f9;">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">SQL Query</label>
+                    <textarea id="exampleSql" rows="6" placeholder="SELECT TOP 10 * FROM Bales ORDER BY Weight DESC" style="width: 100%; padding: 10px; border: 2px solid #3f5175; border-radius: 6px; font-size: 13px; font-family: 'Courier New', monospace; resize: vertical; background: #1e293b; color: #f1f5f9;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Expected Response (Optional)</label>
+                    <textarea id="exampleResponse" rows="3" placeholder="Here are the top 10 bales by weight..." style="width: 100%; padding: 10px; border: 2px solid #3f5175; border-radius: 6px; font-size: 14px; resize: vertical; background: #1e293b; color: #f1f5f9;"></textarea>
+                </div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn" onclick="closeExampleModal()">Cancel</button>
+                    <button class="btn" onclick="saveExample()">Save Example</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal hidden" onclick="closeErrorModal(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div class="modal-header" style="background: rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.3);">
+                <h2 style="color: #ef4444;">Connection Error</h2>
+                <button class="btn-close" onclick="closeErrorModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="errorModalMessage" style="color: #f1f5f9; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;"></div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                    <button class="btn" onclick="closeErrorModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SQL Feedback Modal - Simple Input -->
+    <div id="sqlFeedbackModal" class="modal hidden" onclick="closeSqlFeedbackModal(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div class="modal-header" style="background: rgba(251, 191, 36, 0.1); border-bottom: 1px solid rgba(251, 191, 36, 0.3);">
+                <h2 style="color: #fbbf24;">What went wrong?</h2>
+                <button class="btn-close" onclick="closeSqlFeedbackModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- Hidden fields to store context -->
+                <input type="hidden" id="feedbackOriginalQuestion" value="">
+                <input type="hidden" id="feedbackGeneratedSql" value="">
+
+                <!-- Simple text input with hint -->
+                <div style="margin-bottom: 20px;">
+                    <textarea id="feedbackDetails"
+                        placeholder="e.g., Wrong columns, missing filters, used wrong table..."
+                        style="width: 100%; padding: 14px; background: #1e293b; border: 2px solid #3f5175; border-radius: 8px; color: #f1f5f9; font-size: 14px; resize: vertical; min-height: 100px; font-family: inherit;"
+                        autofocus></textarea>
+                    <div style="color: #64748b; font-size: 12px; margin-top: 8px;">
+                        Your feedback helps improve query generation.
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn" onclick="closeSqlFeedbackModal()" style="background: #475569;">Cancel</button>
+                    <button class="btn" onclick="saveSqlFeedback()" style="background: #3b82f6;">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Rule Modal -->
+    <div id="addRuleModal" class="modal hidden" onclick="closeAddRuleModal(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <div class="modal-header" style="background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid rgba(59, 130, 246, 0.3);">
+                <h2 style="color: #3b82f6;">Add SQL Rule</h2>
+                <button class="btn-close" onclick="closeAddRuleModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <div id="addRuleMessage"></div>
+
+                <!-- AI Assist Section -->
+                <div style="margin-bottom: 20px; padding: 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 18px;">🤖</span>
+                        <span style="color: #a78bfa; font-weight: 600; font-size: 14px;">AI Rule Assistant</span>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <textarea id="aiRuleProblem" rows="2"
+                            placeholder="Describe your problem... e.g., 'The LLM returns CentralUserID numbers instead of user names' or 'Queries for ticket creators fail because the view doesn't have that column'"
+                            style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; color: #f1f5f9; font-size: 13px; resize: vertical;"></textarea>
+                    </div>
+                    <button onclick="generateRuleWithAI()" id="aiGenerateBtn" class="btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%); width: 100%;">
+                        <span id="aiGenerateBtnText">✨ Generate Rule with AI</span>
+                    </button>
+                </div>
+
+                <!-- Rule Description -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Rule Description *</label>
+                    <input type="text" id="ruleDescription"
+                        placeholder="e.g., CentralUsers has FirstName, LastName - NOT UserName"
+                        style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px;">
+                </div>
+
+                <!-- Rule Type -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Rule Type</label>
+                    <select id="ruleType" style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px;">
+                        <option value="constraint">Constraint (prevents mistakes)</option>
+                        <option value="assistance">Assistance (guides generation)</option>
+                    </select>
+                </div>
+
+                <!-- Trigger Keywords -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Trigger Keywords (comma-separated)</label>
+                    <input type="text" id="ruleTriggerKeywords"
+                        placeholder="e.g., user, name, who, employee"
+                        style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px;">
+                    <div style="color: #64748b; font-size: 11px; margin-top: 4px;">Words that trigger this rule when found in a question</div>
+                </div>
+
+                <!-- Rule Text (Guidance for LLM) -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Rule Text (Guidance for LLM) *</label>
+                    <textarea id="ruleText" rows="3"
+                        placeholder="e.g., Use FirstName, LastName, or Login columns instead of UserName"
+                        style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px; resize: vertical;"></textarea>
+                </div>
+
+                <!-- Auto-Fix Pattern (Optional) -->
+                <div style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                    <div style="color: #60a5fa; font-weight: 600; font-size: 12px; margin-bottom: 8px;">Auto-Fix (Optional)</div>
+                    <div style="display: flex; gap: 12px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; color: #94a3b8; font-size: 12px; margin-bottom: 4px;">Find Pattern</label>
+                            <input type="text" id="ruleAutoFixPattern"
+                                placeholder="e.g., UserName"
+                                style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #f1f5f9; font-size: 12px; font-family: monospace;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="display: block; color: #94a3b8; font-size: 12px; margin-bottom: 4px;">Replace With</label>
+                            <input type="text" id="ruleAutoFixReplacement"
+                                placeholder="e.g., FirstName"
+                                style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #f1f5f9; font-size: 12px; font-family: monospace;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn" onclick="closeAddRuleModal()" style="background: #475569;">Cancel</button>
+                    <button class="btn" onclick="saveRule()" style="background: #3b82f6;">Save Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Review Modal - Using <ewr-modal> component -->
+    <ewr-modal id="feedbackReviewModal"
+        title="Feedback Review"
+        icon="📋"
+        accent-color="#a78bfa"
+        max-width="900px">
+
+        <!-- Stats display (injected after title via JS) -->
+        <div id="feedbackStatsContainer" style="margin-bottom: 16px; color: #94a3b8; font-size: 13px;">
+            <span id="feedbackStats"></span>
+        </div>
+
+        <!-- Filters - using component classes -->
+        <div class="ewr-form-row" style="margin-bottom: 16px;">
+            <select id="feedbackTypeFilter" class="ewr-form-select" onchange="loadFeedbackList()">
+                <option value="">All Types</option>
+                <option value="negative">Negative Only</option>
+                <option value="positive">Positive Only</option>
+            </select>
+            <select id="feedbackProcessedFilter" class="ewr-form-select" onchange="loadFeedbackList()">
+                <option value="false">Unprocessed</option>
+                <option value="">All</option>
+                <option value="true">Processed</option>
+            </select>
+            <button onclick="loadFeedbackList()" class="ewr-btn ewr-btn-secondary">
+                🔄 Refresh
+            </button>
+        </div>
+
+        <!-- Feedback List -->
+        <div id="feedbackList" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="text-align: center; color: #64748b; padding: 40px;">Loading feedback...</div>
+        </div>
+    </ewr-modal>
+
+    <!-- Rule Preview Modal (from feedback) -->
+    <div id="rulePreviewModal" class="modal hidden" onclick="closeRulePreviewModal(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 700px;">
+            <div class="modal-header" style="background: rgba(16, 185, 129, 0.1); border-bottom: 1px solid rgba(16, 185, 129, 0.3);">
+                <h2 style="color: #10b981;">✨ AI-Generated Rule Suggestion</h2>
+                <button class="btn-close" onclick="closeRulePreviewModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- Source Feedback Info -->
+                <div id="rulePreviewSource" style="margin-bottom: 20px; padding: 12px; background: rgba(139, 92, 246, 0.1); border-radius: 6px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                    <div style="color: #a78bfa; font-weight: 600; font-size: 12px; margin-bottom: 8px;">Source Feedback</div>
+                    <div id="rulePreviewQuestion" style="color: #cbd5e1; font-size: 13px; margin-bottom: 4px;"></div>
+                    <div id="rulePreviewComment" style="color: #94a3b8; font-size: 12px; font-style: italic;"></div>
+                </div>
+
+                <!-- Generated Rule Preview -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Description</label>
+                    <input type="text" id="previewRuleDescription" style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px;">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Type</label>
+                    <select id="previewRuleType" style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px;">
+                        <option value="constraint">Constraint</option>
+                        <option value="assistance">Assistance</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Trigger Keywords</label>
+                    <input type="text" id="previewRuleKeywords" style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px;">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #cbd5e1; font-weight: 600; font-size: 13px; margin-bottom: 6px;">Rule Text</label>
+                    <textarea id="previewRuleText" rows="3" style="width: 100%; padding: 10px; background: #1e293b; border: 2px solid #3f5175; border-radius: 6px; color: #f1f5f9; font-size: 13px; resize: vertical;"></textarea>
+                </div>
+
+                <!-- Auto-Fix (if present) -->
+                <div id="previewAutoFixSection" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2); display: none;">
+                    <div style="color: #60a5fa; font-weight: 600; font-size: 12px; margin-bottom: 8px;">Auto-Fix Pattern</div>
+                    <div style="display: flex; gap: 12px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; color: #94a3b8; font-size: 12px; margin-bottom: 4px;">Find</label>
+                            <input type="text" id="previewAutoFixFind" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #f1f5f9; font-size: 12px; font-family: monospace;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="display: block; color: #94a3b8; font-size: 12px; margin-bottom: 4px;">Replace</label>
+                            <input type="text" id="previewAutoFixReplace" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #f1f5f9; font-size: 12px; font-family: monospace;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Example (if present) -->
+                <div id="previewExampleSection" style="margin-bottom: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.2); display: none;">
+                    <div style="color: #10b981; font-weight: 600; font-size: 12px; margin-bottom: 8px;">Example (Exact Match)</div>
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: block; color: #94a3b8; font-size: 12px; margin-bottom: 4px;">Question</label>
+                        <input type="text" id="previewExampleQuestion" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #f1f5f9; font-size: 12px;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #94a3b8; font-size: 12px; margin-bottom: 4px;">SQL</label>
+                        <textarea id="previewExampleSql" rows="2" style="width: 100%; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #f1f5f9; font-size: 12px; font-family: monospace;"></textarea>
+                    </div>
+                </div>
+
+                <!-- Hidden fields -->
+                <input type="hidden" id="previewFeedbackId" value="">
+                <input type="hidden" id="previewDatabase" value="">
+
+                <!-- Action buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn" onclick="closeRulePreviewModal()" style="background: #475569;">Cancel</button>
+                    <button class="btn" onclick="createRuleFromPreview()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        ✓ Create Rule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/auth-client.js"></script>
+    <script src="../js/ewr-components.js"></script>
+    <script src="../js/ewr-containers.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/system-status.js"></script>
+    <script src="../js/feedback-widget.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        } else {
+            // Initialize sidebar (handles user info display)
+            initPublicSidebar();
+            // Update user info in top section
+            updateUserInfo();
+        }
+
+        // Update user info function
+        async function updateUserInfo() {
+            try {
+                const user = await auth.getUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userRoleEl = document.getElementById('userRole');
+
+                    if (userNameEl) userNameEl.textContent = user.username;
+                    if (userRoleEl) userRoleEl.textContent = user.role || 'User';
+                }
+            } catch (error) {
+                console.error('Failed to get user info:', error);
+            }
+        }
+
+        function logout() {
+            auth.logout();
+        }
+
+        // Toggle collapsible container
+        function toggleCollapsible(id) {
+            const container = document.getElementById(id);
+            if (container) {
+                container.classList.toggle('collapsed');
+            }
+        }
+
+        // Collapse status message when server is changed
+        function collapseStatusMessage() {
+            const container = document.getElementById('statusMessageContainer');
+            const statusInline = document.getElementById('connectionStatusInline');
+            const connectionMessage = document.getElementById('connectionMessage');
+
+            if (container) {
+                container.classList.remove('visible');
+            }
+            if (statusInline) {
+                statusInline.textContent = '';
+                statusInline.className = 'ewr-status-pill';
+            }
+            if (connectionMessage) {
+                connectionMessage.textContent = '';
+                connectionMessage.className = 'ewr-status-pill';
+            }
+        }
+
+        // Set role-based visibility on page load
+        function setRoleBasedVisibility() {
+            // First, try to set from localStorage synchronously (immediate, no flicker)
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    if (user && user.role) {
+                        const role = user.role.toLowerCase();
+                        document.body.classList.add('role-' + role);
+                        return; // Success - no need for async call
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse user from localStorage:', e);
+                }
+            }
+
+            // Fallback: fetch from API if localStorage doesn't have role
+            (async () => {
+                try {
+                    const user = await auth.getUser();
+                    if (user && user.role) {
+                        const role = user.role.toLowerCase();
+                        document.body.classList.add('role-' + role);
+                        // Update localStorage with fresh data
+                        localStorage.setItem('user', JSON.stringify(user));
+                    }
+                } catch (error) {
+                    console.error('Failed to get user role from API:', error);
+                }
+            })();
+        }
+
+        // Initialize role-based visibility
+        setRoleBasedVisibility();
+    </script>
+    <script src="../js/ewr-modals.js"></script>
+    <!-- SQL Chat Modular Application -->
+    <script type="module" src="modules/index.js"></script>
+</body>
+</html>

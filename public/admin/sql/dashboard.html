@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Pipeline Dashboard - Admin</title>
+    <script src="/js/ewr-admin-loader.js"></script>
+</head>
+<body>
+    <ewr-admin-page title="SQL Pipeline Dashboard">
+        <!-- Key Metrics -->
+        <div class="dashboard-grid">
+            <div class="metric-card">
+                <div class="metric-value neutral" id="totalExamples">-</div>
+                <div class="metric-label">SQL Examples</div>
+                <div class="metric-sublabel">Training queries</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value info" id="totalSchemas">-</div>
+                <div class="metric-label">Schema Contexts</div>
+                <div class="metric-sublabel">Table definitions</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value info" id="totalProcedures">-</div>
+                <div class="metric-label">Stored Procedures</div>
+                <div class="metric-sublabel">Documented procs</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value warning" id="totalFailed">-</div>
+                <div class="metric-label">Failed Queries</div>
+                <div class="metric-sublabel" id="correctionRate">0% corrected</div>
+            </div>
+        </div>
+
+        <!-- Correction Rate Progress -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <span class="chart-title">Query Correction Progress</span>
+                <span style="color: var(--text-muted); font-size: 13px;">
+                    <span id="correctedCount">0</span> of <span id="failedCount">0</span> failed queries corrected
+                </span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="correctionProgress" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Database Coverage -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <span class="chart-title">Coverage by Database</span>
+            </div>
+            <div class="database-grid" id="databaseCoverage">
+                <div class="empty-state">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Collection Sizes Chart (Half Width, Centered) -->
+        <div style="display: flex; justify-content: center;">
+            <div class="chart-container" style="width: 50%; min-width: 400px;">
+                <div class="chart-header">
+                    <span class="chart-title">Collection Sizes (MB)</span>
+                </div>
+                <div class="bar-chart" id="collectionSizesChart">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tables and Procedures Charts Row -->
+        <div class="two-column">
+            <!-- Tables by Database -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <span class="chart-title">Tables by Database</span>
+                </div>
+                <div class="bar-chart" id="schemasChart">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Procedures by Database -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <span class="chart-title">Procedures by Database</span>
+                </div>
+                <div class="bar-chart" id="proceduresChart">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Failed Queries -->
+        <div class="table-container">
+            <div class="table-header">
+                <span class="table-title">Recent Failed Queries</span>
+                <span style="color: var(--text-muted); font-size: 13px;">Queries that need attention</span>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Query</th>
+                        <th>Database</th>
+                        <th>Error</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="failedQueriesTable">
+                    <tr>
+                        <td colspan="5" class="empty-state">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SQL RAG Quality Feedback -->
+        <div class="chart-container" style="margin-top: 24px;">
+            <div class="collapsible-header" onclick="toggleQualitySection()">
+                <span class="chart-title">SQL Query Feedback & Quality</span>
+                <span class="collapsible-icon" id="qualityCollapseIcon">&#9660;</span>
+            </div>
+            <div class="collapsible-content" id="qualityContent">
+                <!-- Filters -->
+                <div class="filter-row" style="margin-top: 16px;">
+                    <div class="filter-group">
+                        <label>Database:</label>
+                        <select id="feedbackFilterDatabase" onchange="refreshFeedbackStats()">
+                            <option value="">All Databases</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Period:</label>
+                        <select id="feedbackFilterPeriod" onchange="refreshFeedbackStats()">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="all">All time</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Quality Metrics -->
+                <div class="quality-grid">
+                    <div class="quality-metric">
+                        <div class="quality-metric-value" id="feedbackTotal" style="color: var(--accent-cyan);">-</div>
+                        <div class="quality-metric-label">Total Feedback</div>
+                    </div>
+                    <div class="quality-metric">
+                        <div class="quality-metric-value" id="feedbackHelpfulness" style="color: #22c55e;">-</div>
+                        <div class="quality-metric-label">Helpfulness Rate</div>
+                    </div>
+                    <div class="quality-metric">
+                        <div class="quality-metric-value" id="feedbackAvgRating" style="color: var(--accent-cyan);">-</div>
+                        <div class="quality-metric-label">Average Rating</div>
+                    </div>
+                    <div class="quality-metric">
+                        <div class="quality-metric-value" id="feedbackCorrections" style="color: #f59e0b;">-</div>
+                        <div class="quality-metric-label">Corrections</div>
+                    </div>
+                </div>
+
+                <!-- Feedback by Type -->
+                <div style="margin-top: 16px;">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Feedback by Type</div>
+                    <div class="feedback-breakdown" id="feedbackByType">
+                        <div class="empty-state" style="padding: 20px;">No feedback data</div>
+                    </div>
+                </div>
+
+                <!-- Feedback by Database -->
+                <div style="margin-top: 16px;">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Feedback by Database</div>
+                    <div class="feedback-breakdown" id="feedbackByDatabase">
+                        <div class="empty-state" style="padding: 20px;">No database-specific feedback</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .dashboard-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            .metric-card {
+                background: var(--card-bg);
+                border: 2px solid var(--card-border);
+                border-radius: 12px;
+                padding: 20px;
+                text-align: center;
+            }
+
+            .metric-value {
+                font-size: 32px;
+                font-weight: 700;
+                margin-bottom: 4px;
+            }
+
+            .metric-value.positive { color: #22c55e; }
+            .metric-value.warning { color: #f59e0b; }
+            .metric-value.negative { color: #ef4444; }
+            .metric-value.neutral { color: var(--accent-cyan); }
+            .metric-value.info { color: #8b5cf6; }
+
+            .metric-label {
+                font-size: 14px;
+                color: var(--text-muted);
+            }
+
+            .metric-sublabel {
+                font-size: 11px;
+                color: var(--text-muted);
+                margin-top: 4px;
+            }
+
+            .chart-container {
+                background: var(--card-bg);
+                border: 2px solid var(--card-border);
+                border-radius: 12px;
+                padding: 20px;
+                margin-bottom: 24px;
+            }
+
+            .chart-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 16px;
+            }
+
+            .chart-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+
+            .bar-chart {
+                display: flex;
+                align-items: flex-end;
+                gap: 12px;
+                height: 220px;
+                padding: 30px 20px 60px 20px;
+            }
+
+            .bar {
+                flex: 1;
+                background: linear-gradient(180deg, var(--accent-cyan), #0891b2);
+                border-radius: 4px 4px 0 0;
+                min-width: 60px;
+                position: relative;
+                transition: all 0.3s;
+            }
+
+            .bar:hover {
+                background: linear-gradient(180deg, #22d3ee, var(--accent-cyan));
+            }
+
+            .bar.purple {
+                background: linear-gradient(180deg, #8b5cf6, #7c3aed);
+            }
+
+            .bar.green {
+                background: linear-gradient(180deg, #22c55e, #16a34a);
+            }
+
+            .bar.orange {
+                background: linear-gradient(180deg, #f59e0b, #d97706);
+            }
+
+            .bar-label {
+                position: absolute;
+                bottom: -45px;
+                left: 50%;
+                transform: translateX(-50%) rotate(-25deg);
+                font-size: 12px;
+                color: var(--text-muted);
+                white-space: nowrap;
+                transform-origin: top center;
+            }
+
+            .bar-value {
+                position: absolute;
+                top: -24px;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 13px;
+                color: var(--text-primary);
+                font-weight: 600;
+            }
+
+            .table-container {
+                background: var(--card-bg);
+                border: 2px solid var(--card-border);
+                border-radius: 12px;
+                overflow: hidden;
+            }
+
+            .table-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 20px;
+                border-bottom: 1px solid var(--card-border);
+            }
+
+            .table-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+
+            .data-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 12px 16px;
+                text-align: left;
+                border-bottom: 1px solid var(--card-border);
+            }
+
+            .data-table th {
+                background: rgba(0, 0, 0, 0.2);
+                font-weight: 600;
+                color: var(--text-muted);
+                font-size: 12px;
+                text-transform: uppercase;
+            }
+
+            .data-table tr:hover {
+                background: rgba(0, 212, 255, 0.05);
+            }
+
+            .status-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            .status-badge.corrected { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+            .status-badge.uncorrected { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+            .db-badge {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 500;
+                background: rgba(59, 130, 246, 0.2);
+                color: #3b82f6;
+            }
+
+            .two-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 24px;
+            }
+
+            @media (max-width: 1200px) {
+                .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+                .two-column { grid-template-columns: 1fr; }
+            }
+
+            .empty-state {
+                text-align: center;
+                padding: 40px;
+                color: var(--text-muted);
+            }
+
+            .database-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 12px;
+                padding: 20px;
+            }
+
+            .db-card {
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 8px;
+                padding: 16px;
+            }
+
+            .db-card-name {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-primary);
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid var(--card-border);
+            }
+
+            .db-card-stats {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .db-card-stat {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+            }
+
+            .db-card-stat-label {
+                color: var(--text-muted);
+            }
+
+            .db-card-stat-value {
+                color: var(--accent-cyan);
+                font-weight: 600;
+            }
+
+            .query-text {
+                font-size: 12px;
+                color: var(--text-secondary);
+                max-width: 300px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .error-text {
+                font-size: 11px;
+                color: #ef4444;
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .timestamp {
+                font-size: 11px;
+                color: var(--text-muted);
+            }
+
+            .progress-bar {
+                height: 8px;
+                background: rgba(0, 0, 0, 0.3);
+                border-radius: 4px;
+                overflow: hidden;
+                margin-top: 8px;
+            }
+
+            .progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, var(--accent-cyan), #22d3ee);
+                border-radius: 4px;
+                transition: width 0.3s;
+            }
+
+            .filter-row {
+                display: flex;
+                gap: 16px;
+                margin-bottom: 16px;
+                flex-wrap: wrap;
+            }
+
+            .filter-group {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .filter-group label {
+                font-size: 13px;
+                color: var(--text-muted);
+            }
+
+            .filter-group select {
+                background: var(--input-bg);
+                border: 1px solid var(--card-border);
+                border-radius: 6px;
+                padding: 8px 12px;
+                color: var(--text-primary);
+                font-size: 13px;
+            }
+
+            .quality-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .quality-metric {
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 8px;
+                padding: 12px;
+                text-align: center;
+            }
+
+            .quality-metric-value {
+                font-size: 24px;
+                font-weight: 700;
+                margin-bottom: 4px;
+            }
+
+            .quality-metric-label {
+                font-size: 12px;
+                color: var(--text-muted);
+            }
+
+            .feedback-breakdown {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 8px;
+            }
+
+            .feedback-type-stat {
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 6px;
+                padding: 10px;
+                text-align: center;
+            }
+
+            .feedback-type-name {
+                font-size: 11px;
+                color: var(--text-muted);
+                text-transform: capitalize;
+                margin-bottom: 4px;
+            }
+
+            .feedback-type-value {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--accent-cyan);
+            }
+
+            .collapsible-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .collapsible-header:hover {
+                opacity: 0.8;
+            }
+
+            .collapsible-icon {
+                font-size: 18px;
+                transition: transform 0.3s;
+            }
+
+            .collapsible-icon.collapsed {
+                transform: rotate(-90deg);
+            }
+
+            .collapsible-content {
+                overflow: hidden;
+                max-height: 1000px;
+                transition: max-height 0.3s ease-out;
+            }
+
+            .collapsible-content.collapsed {
+                max-height: 0;
+            }
+
+            @media (max-width: 900px) {
+                .quality-grid { grid-template-columns: repeat(2, 1fr); }
+            }
+        </style>
+    </ewr-admin-page>
+
+    <script>
+        // Python service URL
+        const PYTHON_API = '/api/python';
+
+        // Initialize when page is ready
+        document.addEventListener('page-ready', async () => {
+            await loadFeedbackDatabases();
+            await refreshDashboard();
+            await refreshFeedbackStats();
+        });
+
+        // Refresh entire dashboard
+        async function refreshDashboard() {
+            try {
+                await loadPipelineStats();
+            } catch (error) {
+                console.error('Failed to refresh dashboard:', error);
+            }
+        }
+
+        // Load pipeline statistics
+        async function loadPipelineStats() {
+            try {
+                const response = await fetch(`${PYTHON_API}/sql/pipeline-stats`);
+                if (!response.ok) throw new Error('Failed to fetch stats');
+                const stats = await response.json();
+
+                // Update key metrics
+                const counts = stats.collection_counts || {};
+                document.getElementById('totalExamples').textContent = counts.examples || 0;
+                document.getElementById('totalSchemas').textContent = counts.schema_contexts || 0;
+                document.getElementById('totalProcedures').textContent = counts.stored_procedures || 0;
+                document.getElementById('totalFailed').textContent = counts.failed_queries || 0;
+
+                // Update failed queries metrics
+                const failedStats = stats.failed_queries || {};
+                document.getElementById('correctedCount').textContent = failedStats.with_corrections || 0;
+                document.getElementById('failedCount').textContent = failedStats.total || 0;
+                document.getElementById('correctionRate').textContent = `${failedStats.correction_rate || 0}% corrected`;
+                document.getElementById('correctionProgress').style.width = `${failedStats.correction_rate || 0}%`;
+
+                // Update charts
+                updateBarChart('collectionSizesChart', stats.collection_sizes_mb || {}, 'cyan', ' MB');
+                updateBarChart('schemasChart', stats.schema_by_database || {}, 'purple');
+                updateBarChart('proceduresChart', stats.procedures_by_database || {}, 'green');
+
+                // Update database coverage grid
+                updateDatabaseCoverage(stats);
+
+                // Update recent failed queries table
+                updateFailedQueriesTable(stats.recent_failed_queries || []);
+
+            } catch (error) {
+                console.error('Failed to load pipeline stats:', error);
+                document.getElementById('totalExamples').textContent = 'Error';
+            }
+        }
+
+        // Update bar chart
+        function updateBarChart(containerId, data, colorClass, suffix = '') {
+            const container = document.getElementById(containerId);
+
+            if (Object.keys(data).length === 0) {
+                container.innerHTML = '<div class="empty-state">No data yet</div>';
+                return;
+            }
+
+            const maxValue = Math.max(...Object.values(data), 1);
+
+            let html = '';
+            for (const [label, value] of Object.entries(data)) {
+                const height = (value / maxValue) * 160;
+                const barClass = colorClass === 'cyan' ? '' : colorClass;
+                const displayValue = suffix ? value.toFixed(1) + suffix : value;
+                html += `
+                    <div class="bar ${barClass}" style="height: ${Math.max(height, 20)}px;">
+                        <span class="bar-value">${displayValue}</span>
+                        <span class="bar-label" title="${label}">${label}</span>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        // Update database coverage grid
+        function updateDatabaseCoverage(stats) {
+            const container = document.getElementById('databaseCoverage');
+
+            const databases = new Set([
+                ...Object.keys(stats.examples_by_database || {}),
+                ...Object.keys(stats.schema_by_database || {}),
+                ...Object.keys(stats.procedures_by_database || {})
+            ]);
+
+            if (databases.size === 0) {
+                container.innerHTML = '<div class="empty-state">No database coverage data</div>';
+                return;
+            }
+
+            let html = '';
+            for (const db of databases) {
+                const examples = (stats.examples_by_database || {})[db] || 0;
+                const schemas = (stats.schema_by_database || {})[db] || 0;
+                const procedures = (stats.procedures_by_database || {})[db] || 0;
+
+                html += `
+                    <div class="db-card">
+                        <div class="db-card-name">${db}</div>
+                        <div class="db-card-stats">
+                            <div class="db-card-stat">
+                                <span class="db-card-stat-label">Examples</span>
+                                <span class="db-card-stat-value">${examples}</span>
+                            </div>
+                            <div class="db-card-stat">
+                                <span class="db-card-stat-label">Tables</span>
+                                <span class="db-card-stat-value">${schemas}</span>
+                            </div>
+                            <div class="db-card-stat">
+                                <span class="db-card-stat-label">Procedures</span>
+                                <span class="db-card-stat-value">${procedures}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        // Update failed queries table
+        function updateFailedQueriesTable(queries) {
+            const tbody = document.getElementById('failedQueriesTable');
+
+            if (!queries || queries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No failed queries - excellent!</td></tr>';
+                return;
+            }
+
+            let html = '';
+            for (const query of queries) {
+                const statusClass = query.has_correction ? 'corrected' : 'uncorrected';
+                const statusText = query.has_correction ? 'Corrected' : 'Needs Fix';
+                const timestamp = query.timestamp ? formatTimestamp(query.timestamp) : 'N/A';
+
+                html += `
+                    <tr>
+                        <td class="query-text" title="${escapeHtml(query.query)}">${escapeHtml(query.query)}</td>
+                        <td><span class="db-badge">${query.database || 'Unknown'}</span></td>
+                        <td class="error-text" title="${escapeHtml(query.error)}">${escapeHtml(query.error)}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td class="timestamp">${timestamp}</td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        // Helper functions
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function formatTimestamp(ts) {
+            try {
+                const date = new Date(ts);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            } catch {
+                return ts;
+            }
+        }
+
+        // Toggle quality section collapse
+        function toggleQualitySection() {
+            const content = document.getElementById('qualityContent');
+            const icon = document.getElementById('qualityCollapseIcon');
+            content.classList.toggle('collapsed');
+            icon.classList.toggle('collapsed');
+        }
+
+        // Load available databases for feedback filter
+        async function loadFeedbackDatabases() {
+            try {
+                const response = await fetch('/api/sql/databases');
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('feedbackFilterDatabase');
+                    if (data.databases) {
+                        data.databases.forEach(db => {
+                            const option = document.createElement('option');
+                            option.value = db.name || db;
+                            option.textContent = db.name || db;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load databases for feedback filter:', error);
+            }
+        }
+
+        // Refresh feedback statistics
+        async function refreshFeedbackStats() {
+            const database = document.getElementById('feedbackFilterDatabase').value;
+            const period = document.getElementById('feedbackFilterPeriod').value;
+
+            let url = `${PYTHON_API}/feedback/stats`;
+            const params = new URLSearchParams();
+            if (database) params.append('database', database);
+            if (period !== 'all') {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - parseInt(period));
+                params.append('start_date', startDate.toISOString().split('T')[0]);
+                params.append('end_date', endDate.toISOString().split('T')[0]);
+            }
+            if (params.toString()) url += '?' + params.toString();
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch feedback stats');
+                const stats = await response.json();
+
+                document.getElementById('feedbackTotal').textContent = stats.total_feedback || 0;
+
+                const helpfulness = stats.helpfulness_rate || 0;
+                const helpfulnessEl = document.getElementById('feedbackHelpfulness');
+                helpfulnessEl.textContent = (helpfulness * 100).toFixed(1) + '%';
+                helpfulnessEl.style.color = helpfulness >= 0.7 ? '#22c55e' : helpfulness >= 0.5 ? '#f59e0b' : '#ef4444';
+
+                const avgRating = stats.average_rating || 0;
+                document.getElementById('feedbackAvgRating').textContent = avgRating ? avgRating.toFixed(1) + '/5' : 'N/A';
+
+                document.getElementById('feedbackCorrections').textContent = stats.total_corrections || 0;
+
+                updateFeedbackByType(stats.by_type || {});
+                updateFeedbackByDatabase(stats.by_database || {});
+
+            } catch (error) {
+                console.error('Failed to load feedback stats:', error);
+                document.getElementById('feedbackTotal').textContent = '-';
+            }
+        }
+
+        function updateFeedbackByType(byType) {
+            const container = document.getElementById('feedbackByType');
+
+            if (Object.keys(byType).length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 20px;">No feedback data</div>';
+                return;
+            }
+
+            const colors = {
+                rating: '#3b82f6',
+                correction: '#ef4444',
+                refinement: '#f59e0b',
+                resolution: '#22c55e'
+            };
+
+            let html = '';
+            for (const [type, count] of Object.entries(byType)) {
+                const color = colors[type] || 'var(--accent-cyan)';
+                html += `
+                    <div class="feedback-type-stat">
+                        <div class="feedback-type-name">${type}</div>
+                        <div class="feedback-type-value" style="color: ${color};">${count}</div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function updateFeedbackByDatabase(byDatabase) {
+            const container = document.getElementById('feedbackByDatabase');
+
+            if (Object.keys(byDatabase).length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 20px;">No database-specific feedback</div>';
+                return;
+            }
+
+            let html = '';
+            for (const [db, data] of Object.entries(byDatabase)) {
+                const total = data.total || 0;
+                const helpful = data.helpful || 0;
+                const rate = total > 0 ? ((helpful / total) * 100).toFixed(0) : 'N/A';
+                html += `
+                    <div class="feedback-type-stat">
+                        <div class="feedback-type-name">${db}</div>
+                        <div class="feedback-type-value">${total}</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">${rate}% helpful</div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+/**
+ * EWR Icons Component
+ * Icon component styles
+ */
+
+/* ============================================
+   EWR-Icon Component Styles
+   Lucide icon wrapper with auto-loading
+   ============================================ */
+
+ewr-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    line-height: 0;
+}
+
+ewr-icon svg {
+    display: block;
+}
+
+/* Loading state placeholder animation */
+.ewr-icon-loading {
+    background: linear-gradient(90deg,
+        rgba(255,255,255,0.1) 0%,
+        rgba(255,255,255,0.2) 50%,
+        rgba(255,255,255,0.1) 100%);
+    background-size: 200% 100%;
+    animation: ewr-icon-shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes ewr-icon-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}

@@ -1,0 +1,22 @@
+/**
+ * EWR Components - CSS Index
+ * Import this file to include all component styles
+ *
+ * Usage in HTML:
+ * <link rel="stylesheet" href="/css/components/index.css">
+ *
+ * Or import individual files:
+ * <link rel="stylesheet" href="/css/components/buttons.css">
+ */
+
+@import url('./buttons.css');
+@import url('./forms.css');
+@import url('./modal.css');
+@import url('./chat.css');
+@import url('./cards.css');
+@import url('./collapsible.css');
+@import url('./documents.css');
+@import url('./file-upload.css');
+@import url('./status.css');
+@import url('./audio.css');
+@import url('./icons.css');

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Upload - Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <link rel="stylesheet" href="../../css/ewr-classes.css">
+    <script src="../../js/ewr-components.js"></script>
+    <style>
+        .upload-zone {
+            border: 2px dashed var(--card-border);
+            border-radius: 12px;
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--accent-cyan);
+        }
+
+        .file-list {
+            margin-top: 24px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-cyan);
+            color: #000;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .btn-upload {
+            background: var(--accent-cyan);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-upload:hover:not(:disabled) {
+            background: #22d3ee;
+            transform: translateY(-1px);
+        }
+
+        .btn-upload:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-remove {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn-remove:hover {
+            background: #dc2626;
+        }
+
+        .upload-progress {
+            display: none;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .progress-bar-container {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), #22d3ee);
+            border-radius: 4px;
+            animation: progress-animation 1.5s infinite;
+        }
+
+        @keyframes progress-animation {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .status-message {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-message.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid #22c55e;
+            color: #22c55e;
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Document Upload" show-refresh="false"></ewr-admin-header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Upload Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Upload Documents</h2>
+                        </div>
+                        <div class="card-body">
+                            <p style="color: var(--text-secondary); margin-bottom: 24px;">
+                                Upload work instructions, quality documentation, and operational procedures to the knowledge base.
+                                Documents are automatically chunked and indexed for semantic search.
+                            </p>
+
+                            <!-- Three-Tier Category Selection -->
+                            <div class="category-grid">
+                                <!-- Tier 1: Department (Required) -->
+                                <ewr-required-select-input
+                                    label="Department"
+                                    id="uploadDepartment"
+                                    onchange="updateUploadButtonState()">
+                                    <option value="">Loading departments...</option>
+                                </ewr-required-select-input>
+
+                                <!-- Tier 2: Type (Required) -->
+                                <ewr-required-select-input
+                                    label="Document Type"
+                                    id="uploadType"
+                                    onchange="updateUploadButtonState()">
+                                    <option value="">Loading types...</option>
+                                </ewr-required-select-input>
+
+                                <!-- Tier 3: Subject (Optional) -->
+                                <ewr-select-input
+                                    label="Subject/Product"
+                                    id="uploadSubject">
+                                    <option value="">Loading subjects...</option>
+                                </ewr-select-input>
+                            </div>
+
+                            <!-- Max File Size Setting -->
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 8px;">
+                                <label style="font-size: 14px; color: var(--text-secondary); white-space: nowrap;">
+                                    Max File Size:
+                                </label>
+                                <input type="number" id="maxDocSizeInput" class="form-input" min="1" max="100" value="20" style="width: 80px; text-align: center;">
+                                <span style="color: var(--text-muted);">MB</span>
+                                <button id="updateMaxSizeBtn" class="btn-upload" style="padding: 8px 16px; font-size: 14px;">
+                                    Update
+                                </button>
+                                <span id="maxSizeStatus" style="font-size: 12px; color: var(--text-muted);"></span>
+                            </div>
+
+                            <!-- File Upload Drop Zone -->
+                            <div class="upload-zone" id="uploadZone">
+                                <div class="upload-icon">+</div>
+                                <h3 style="color: var(--text-primary); margin-bottom: 8px;">Drag and drop files here</h3>
+                                <p style="color: var(--text-muted); margin-bottom: 16px;">or</p>
+                                <label for="fileInput" class="btn-upload" style="cursor: pointer; display: inline-block;">
+                                    Browse Files
+                                </label>
+                                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt,.md,.csv,.sql,.cs,.js,.ts,.jsx,.tsx,.json,.xml" style="display: none;">
+                                <p id="fileSizeHint" style="color: var(--text-muted); margin-top: 16px; font-size: 12px;">
+                                    Supported: PDF, Word (.docx), Text, Markdown, CSV, SQL, Code files | Max: <span id="maxSizeDisplay">20</span>MB (50MB for CSV)
+                                </p>
+                            </div>
+
+                            <!-- Selected Files List -->
+                            <div class="file-list" id="fileList">
+                                <div style="text-align: center; padding: 24px; color: var(--text-muted);">No files selected</div>
+                            </div>
+
+                            <!-- Upload Button -->
+                            <div style="text-align: center; margin-top: 24px;">
+                                <button id="uploadBtn" class="btn-upload" disabled>
+                                    Upload Documents
+                                </button>
+                            </div>
+
+                            <!-- Progress Indicator -->
+                            <div class="upload-progress" id="uploadProgress">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="loading-dots">
+                                        <div class="loading-dot"></div>
+                                        <div class="loading-dot"></div>
+                                        <div class="loading-dot"></div>
+                                    </div>
+                                    <span style="color: var(--text-secondary);">Uploading and processing documents...</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" style="width: 100%;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Status Messages -->
+                            <div id="uploadStatus"></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        // Initialize Auth Client
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+
+        // Initialize sidebar and load categories
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+            await loadCategoryOptions();
+            await loadMaxDocSizeSetting();
+        });
+
+        // Load category options from Python service (SQLite-backed)
+        async function loadCategoryOptions() {
+            try {
+                // Fetch all three category types in parallel
+                const [departmentsRes, typesRes, subjectsRes] = await Promise.all([
+                    fetch('/api/python/categories/departments', {
+                        headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` }
+                    }),
+                    fetch('/api/python/categories/types', {
+                        headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` }
+                    }),
+                    fetch('/api/python/categories/subjects', {
+                        headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` }
+                    })
+                ]);
+
+                const [departmentsData, typesData, subjectsData] = await Promise.all([
+                    departmentsRes.json(),
+                    typesRes.json(),
+                    subjectsRes.json()
+                ]);
+
+                // Populate departments dropdown using component API
+                const deptComponent = document.getElementById('uploadDepartment');
+                if (departmentsData.success && departmentsData.categories) {
+                    const sortedDepts = departmentsData.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                    deptComponent.setOptions(sortedDepts, 'Select department...');
+                } else {
+                    deptComponent.setOptions([], 'Error loading departments');
+                }
+
+                // Populate types dropdown using component API
+                const typeComponent = document.getElementById('uploadType');
+                if (typesData.success && typesData.categories) {
+                    const sortedTypes = typesData.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                    typeComponent.setOptions(sortedTypes, 'Select type...');
+                } else {
+                    typeComponent.setOptions([], 'Error loading types');
+                }
+
+                // Populate subjects dropdown using component API
+                const subjectComponent = document.getElementById('uploadSubject');
+                if (subjectsData.success && subjectsData.categories) {
+                    const sortedSubjects = subjectsData.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                    subjectComponent.setOptions(sortedSubjects, 'None');
+                } else {
+                    subjectComponent.setOptions([], 'Error loading subjects');
+                }
+
+            } catch (error) {
+                console.error('Failed to load category options:', error);
+                // Set fallback error state for dropdowns using component API
+                document.getElementById('uploadDepartment').setOptions([], 'Error loading departments');
+                document.getElementById('uploadType').setOptions([], 'Error loading types');
+                document.getElementById('uploadSubject').setOptions([], 'Error loading subjects');
+            }
+        }
+
+        // File upload state
+        let selectedFiles = [];
+        let MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB default, loaded from settings
+        const MAX_CSV_SIZE = 50 * 1024 * 1024; // 50MB for CSV
+
+        // Supported file types
+        const SUPPORTED_FILE_TYPES = {
+            '.pdf': 'PDF', '.docx': 'DOC', '.txt': 'TXT', '.md': 'MD',
+            '.csv': 'CSV', '.sql': 'SQL', '.cs': 'C#', '.js': 'JS',
+            '.ts': 'TS', '.jsx': 'JSX', '.tsx': 'TSX', '.json': 'JSON', '.xml': 'XML'
+        };
+
+        // Load max file size setting from database
+        async function loadMaxDocSizeSetting() {
+            try {
+                const response = await fetch('/api/admin/settings/max-doc-size', {
+                    headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` }
+                });
+                const data = await response.json();
+
+                if (data.success && data.maxDocSize) {
+                    const sizeMB = data.maxDocSize;
+                    MAX_FILE_SIZE = sizeMB * 1024 * 1024;
+                    document.getElementById('maxDocSizeInput').value = sizeMB;
+                    document.getElementById('maxSizeDisplay').textContent = sizeMB;
+                }
+            } catch (error) {
+                console.error('Failed to load max doc size setting:', error);
+            }
+        }
+
+        // Update max file size setting
+        async function updateMaxDocSizeSetting() {
+            const input = document.getElementById('maxDocSizeInput');
+            const statusEl = document.getElementById('maxSizeStatus');
+            const sizeMB = parseInt(input.value, 10);
+
+            if (isNaN(sizeMB) || sizeMB < 1 || sizeMB > 100) {
+                statusEl.textContent = 'Value must be between 1 and 100';
+                statusEl.style.color = '#ef4444';
+                return;
+            }
+
+            try {
+                statusEl.textContent = 'Saving...';
+                statusEl.style.color = 'var(--text-muted)';
+
+                const response = await fetch('/api/admin/settings/max-doc-size', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify({ maxDocSize: sizeMB })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    MAX_FILE_SIZE = sizeMB * 1024 * 1024;
+                    document.getElementById('maxSizeDisplay').textContent = sizeMB;
+                    statusEl.textContent = 'Saved!';
+                    statusEl.style.color = '#22c55e';
+                    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+                } else {
+                    throw new Error(data.error || 'Failed to save');
+                }
+            } catch (error) {
+                statusEl.textContent = error.message;
+                statusEl.style.color = '#ef4444';
+            }
+        }
+
+        // Set up event listeners
+        document.getElementById('fileInput').addEventListener('change', handleFileSelection);
+        document.getElementById('uploadBtn').addEventListener('click', uploadDocuments);
+        document.getElementById('uploadDepartment').addEventListener('change', updateUploadButtonState);
+        document.getElementById('uploadType').addEventListener('change', updateUploadButtonState);
+        document.getElementById('updateMaxSizeBtn').addEventListener('click', updateMaxDocSizeSetting);
+
+        // Drag and drop
+        const uploadZone = document.getElementById('uploadZone');
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            processSelectedFiles(Array.from(e.dataTransfer.files));
+        });
+        uploadZone.addEventListener('click', (e) => {
+            // Prevent double-trigger: don't open file picker if clicking the label (which has its own for="fileInput")
+            if (e.target.tagName === 'LABEL' || e.target.closest('label')) {
+                return;
+            }
+            document.getElementById('fileInput').click();
+        });
+
+        function handleFileSelection(event) {
+            processSelectedFiles(Array.from(event.target.files));
+        }
+
+        function processSelectedFiles(files) {
+            selectedFiles = [];
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+
+            files.forEach((file, index) => {
+                const ext = getFileExtension(file.name).toLowerCase();
+                const maxSize = ext === '.csv' ? MAX_CSV_SIZE : MAX_FILE_SIZE;
+
+                if (!SUPPORTED_FILE_TYPES[ext]) {
+                    displayFileError(file, `Unsupported type: ${ext}`, fileList);
+                } else if (file.size > maxSize) {
+                    displayFileError(file, `Too large (max ${maxSize / (1024*1024)}MB)`, fileList);
+                } else {
+                    selectedFiles.push(file);
+                    displayFilePreview(file, index, fileList);
+                }
+            });
+
+            updateUploadButtonState();
+        }
+
+        function displayFilePreview(file, index, container) {
+            const ext = getFileExtension(file.name).toLowerCase();
+            const icon = SUPPORTED_FILE_TYPES[ext] || '?';
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `
+                <div class="file-icon">${icon}</div>
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${sizeMB} MB</div>
+                </div>
+                <button class="btn-remove" onclick="removeFile(${index})">Remove</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function displayFileError(file, error, container) {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.style.borderColor = '#ef4444';
+            div.innerHTML = `
+                <div class="file-icon" style="background: #ef4444;">X</div>
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size" style="color: #ef4444;">${error}</div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            selectedFiles.forEach((file, idx) => displayFilePreview(file, idx, fileList));
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted);">No files selected</div>';
+            }
+            updateUploadButtonState();
+        }
+
+        function updateUploadButtonState() {
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            const hasFiles = selectedFiles.length > 0;
+            // Use component API to get values
+            const hasDepartment = document.getElementById('uploadDepartment')?.value !== '';
+            const hasType = document.getElementById('uploadType')?.value !== '';
+            const isReady = hasFiles && hasDepartment && hasType;
+
+            uploadBtn.disabled = !isReady;
+        }
+
+        async function uploadDocuments() {
+            if (selectedFiles.length === 0) return;
+
+            const department = document.getElementById('uploadDepartment').value;
+            const documentType = document.getElementById('uploadType').value;
+            const subject = document.getElementById('uploadSubject').value;
+
+            if (!department || !documentType) {
+                showStatus('Please select department and document type', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => formData.append('files', file));
+            formData.append('project', 'knowledge_base');
+            formData.append('department', department);
+            formData.append('type', documentType);
+            if (subject) formData.append('subject', subject);
+
+            showProgress(true);
+            document.getElementById('uploadBtn').disabled = true;
+
+            try {
+                const response = await fetch('/api/admin/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${auth.getAccessToken()}` },
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log('Upload response:', result);
+
+                if (response.ok && result.success) {
+                    showStatus(`Successfully uploaded ${selectedFiles.length} file(s). ${result.message || ''}`, 'success');
+                    clearForm();
+                } else {
+                    // Build error message from various possible error formats
+                    let errorMsg = result.error || result.details || result.message || '';
+
+                    // Check for file-level errors
+                    if (result.errors && result.errors.length > 0) {
+                        errorMsg = result.errors.map(e => `${e.filename}: ${e.error}`).join('; ');
+                    }
+
+                    throw new Error(errorMsg || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus(`Upload failed: ${error.message}`, 'error');
+            } finally {
+                showProgress(false);
+                updateUploadButtonState();
+            }
+        }
+
+        function showProgress(show) {
+            document.getElementById('uploadProgress').style.display = show ? 'block' : 'none';
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('uploadStatus');
+            const icon = type === 'success' ? '✓' : '✗';
+            statusDiv.innerHTML = `<div class="status-message ${type}"><span style="font-size: 18px;">${icon}</span><span>${message}</span></div>`;
+
+            if (type === 'success') {
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+            }
+        }
+
+        function clearForm() {
+            selectedFiles = [];
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileList').innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted);">No files selected</div>';
+            // Use component API to clear values
+            document.getElementById('uploadDepartment').value = '';
+            document.getElementById('uploadType').value = '';
+            document.getElementById('uploadSubject').value = '';
+            updateUploadButtonState();
+        }
+
+        function getFileExtension(filename) {
+            const lastDot = filename.lastIndexOf('.');
+            return lastDot === -1 ? '' : filename.substring(lastDot);
+        }
+    </script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

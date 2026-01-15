@@ -1,0 +1,2 @@
+[console_scripts]
+ewr-code-agent = ewr_code_agent.cli:main

@@ -1,0 +1,181 @@
+/**
+ * EWR Modal Component Styles
+ * Styles for <ewr-modal> web component
+ *
+ * Usage: <ewr-modal id="myModal" title="Title" accent-color="#3b82f6">...</ewr-modal>
+ * API: document.getElementById('myModal').open() / .close()
+ */
+
+/* ============================================
+   Modal Overlay
+   ============================================ */
+.ewr-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: ewr-modal-fade-in 0.2s ease;
+}
+
+.ewr-modal-overlay.hidden {
+    display: none;
+}
+
+@keyframes ewr-modal-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ============================================
+   Modal Dialog Container
+   ============================================ */
+.ewr-modal-dialog {
+    background: var(--bg-secondary, #1e293b);
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: ewr-modal-slide-in 0.3s ease;
+}
+
+@keyframes ewr-modal-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ============================================
+   Modal Header
+   ============================================ */
+.ewr-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+}
+
+.ewr-modal-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.ewr-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary, #64748b);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.ewr-modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary, #f1f5f9);
+}
+
+/* ============================================
+   Modal Body
+   ============================================ */
+.ewr-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ============================================
+   Modal Footer
+   ============================================ */
+.ewr-modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-primary, #334155);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* ============================================
+   Modal Size Variants
+   ============================================ */
+.ewr-modal-sm .ewr-modal-dialog {
+    max-width: 400px;
+}
+
+.ewr-modal-md .ewr-modal-dialog {
+    max-width: 600px;
+}
+
+.ewr-modal-lg .ewr-modal-dialog {
+    max-width: 800px;
+}
+
+.ewr-modal-xl .ewr-modal-dialog {
+    max-width: 1000px;
+}
+
+.ewr-modal-full .ewr-modal-dialog {
+    max-width: 95vw;
+    max-height: 95vh;
+}
+
+/* ============================================
+   Modal Content Sections
+   ============================================ */
+.ewr-modal-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid var(--border-primary, #334155);
+}
+
+.ewr-modal-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary, #cbd5e1);
+    margin-bottom: 12px;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 640px) {
+    .ewr-modal-overlay {
+        padding: 10px;
+    }
+
+    .ewr-modal-dialog {
+        max-height: 95vh;
+    }
+
+    .ewr-modal-header {
+        padding: 12px 16px;
+    }
+
+    .ewr-modal-body {
+        padding: 16px;
+    }
+
+    .ewr-modal-footer {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+    }
+}

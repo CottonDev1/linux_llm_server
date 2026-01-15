@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Search - EWR Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        .search-card {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .search-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 20px 0;
+        }
+
+        .search-controls {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr) auto;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-input, .form-select {
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+        }
+
+        .btn-clear {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-secondary);
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        .results-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .results-count {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .results-count strong {
+            color: var(--accent-cyan);
+        }
+
+        .results-table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .results-table thead {
+            background: var(--card-bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .results-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--card-border);
+        }
+
+        .results-table td {
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .results-table tbody tr:hover {
+            background: rgba(34, 211, 238, 0.05);
+        }
+
+        .results-table .filename-link {
+            color: #60a5fa;
+            text-decoration: underline;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .results-table .filename-link:hover {
+            color: #93c5fd;
+        }
+
+        .mood-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .mood-HAPPY { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .mood-SAD { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .mood-ANGRY { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .mood-NEUTRAL { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+        .mood-FEARFUL { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+        .mood-DISGUSTED { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+        .mood-SURPRISED { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(34, 211, 238, 0.2);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .call-modal-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 0 24px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .call-modal-tab {
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .call-modal-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .call-modal-tab.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+        }
+
+        .call-modal-tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .call-tab-panel {
+            display: none;
+        }
+
+        .call-tab-panel.active {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .call-summary-content,
+        .call-transcription-content {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+
+        .call-raw-content {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .call-emotion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .emotion-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .emotion-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .emotion-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-save:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 1200px) {
+            .search-controls {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .search-controls {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-delete:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: #f87171;
+        }
+
+        .btn-delete:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-view {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-view:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: #60a5fa;
+        }
+
+        .btn-view svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn-trash {
+            background: transparent;
+            border: none;
+            color: #f87171;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-trash:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-trash svg {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Audio Search" show-refresh="false"></ewr-admin-header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Search Card -->
+                    <div class="search-card">
+                        <h3>Search Filters</h3>
+                        <div class="search-controls">
+                            <div class="form-group">
+                                <label for="searchDateFrom">Date From</label>
+                                <input type="date" id="searchDateFrom" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="searchDateTo">Date To</label>
+                                <input type="date" id="searchDateTo" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="searchStaffInput">Staff Member</label>
+                                <select id="searchStaffInput" class="form-select">
+                                    <option value="">All Staff</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="searchMoodFilter">Mood</label>
+                                <select id="searchMoodFilter" class="form-select">
+                                    <option value="">All Moods</option>
+                                    <option value="HAPPY">HAPPY</option>
+                                    <option value="SAD">SAD</option>
+                                    <option value="ANGRY">ANGRY</option>
+                                    <option value="NEUTRAL">NEUTRAL</option>
+                                    <option value="FEARFUL">FEARFUL</option>
+                                    <option value="DISGUSTED">DISGUSTED</option>
+                                    <option value="SURPRISED">SURPRISED</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="searchOutcomeFilter">Outcome</label>
+                                <select id="searchOutcomeFilter" class="form-select">
+                                    <option value="">All Outcomes</option>
+                                    <option value="Issue Resolved">Issue Resolved</option>
+                                    <option value="Issue Unresolved">Issue Unresolved</option>
+                                    <option value="Issue Logged in Central">Issue Logged in Central</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="searchEwrCustomer">Customer</label>
+                                <input type="text" id="searchEwrCustomer" class="form-input" placeholder="Customer...">
+                            </div>
+                            <div class="form-group" style="flex-direction: row; gap: 8px; align-self: end;">
+                                <button class="btn-search" onclick="searchAnalyses()">Search</button>
+                                <button class="btn-clear" onclick="clearFilters()">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div class="search-card">
+                        <div class="results-info">
+                            <span class="results-count">Showing <strong id="resultsCount">0</strong> results</span>
+                        </div>
+                        <div id="searchResults" class="results-table-container">
+                            <table class="results-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">View</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Staff</th>
+                                        <th>Customer</th>
+                                        <th>Mood</th>
+                                        <th>Outcome</th>
+                                        <th>Filename</th>
+                                        <th style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="searchResultsBody">
+                                    <tr>
+                                        <td colspan="9" class="loading-state">
+                                            <div class="loading-spinner"></div>
+                                            <div>Loading recent analyses...</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Call Analysis Modal -->
+    <div id="callAnalysisModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="callAnalysisTitle">Call Analysis</h3>
+                <button class="modal-close" onclick="closeCallAnalysisModal()">&times;</button>
+            </div>
+
+            <div class="call-modal-tabs">
+                <button class="call-modal-tab active" data-tab="details" onclick="switchCallTab('details')">Details</button>
+                <button class="call-modal-tab" data-tab="summary" onclick="switchCallTab('summary')">Summary</button>
+                <button class="call-modal-tab" data-tab="transcription" onclick="switchCallTab('transcription')">Transcription</button>
+                <button class="call-modal-tab" data-tab="emotions" onclick="switchCallTab('emotions')">Emotions</button>
+                <button class="call-modal-tab" data-tab="raw" onclick="switchCallTab('raw')">Raw</button>
+            </div>
+
+            <div class="call-modal-tab-content">
+                <!-- Details Tab -->
+                <div class="call-tab-panel active" id="call-panel-details">
+                    <form id="callAnalysisForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Customer Support Staff</label>
+                                <input type="text" id="callModalStaff" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>EWR Customer</label>
+                                <input type="text" id="callModalCustomer" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Mood</label>
+                                <input type="text" id="callModalMood" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Outcome</label>
+                                <input type="text" id="callModalOutcome" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Call Date</label>
+                                <input type="text" id="callModalDate" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Duration</label>
+                                <input type="text" id="callModalDuration" class="form-input" readonly>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Summary Tab -->
+                <div class="call-tab-panel" id="call-panel-summary">
+                    <div class="call-summary-content" id="callModalSummaryText">No summary available</div>
+                </div>
+
+                <!-- Transcription Tab -->
+                <div class="call-tab-panel" id="call-panel-transcription">
+                    <div class="call-transcription-content" id="callModalTranscriptionText">No transcription available</div>
+                </div>
+
+                <!-- Emotions Tab -->
+                <div class="call-tab-panel" id="call-panel-emotions">
+                    <div class="call-emotion-grid" id="callModalEmotionGrid"></div>
+                </div>
+
+                <!-- Raw Tab -->
+                <div class="call-tab-panel" id="call-panel-raw">
+                    <pre class="call-raw-content" id="callModalRawText">No raw data available</pre>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeCallAnalysisModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+            displayUserInfo();
+            await loadMonitoredUsers();
+
+            // Check for URL parameters (from staff card navigation)
+            const urlParams = new URLSearchParams(window.location.search);
+            const staffParam = urlParams.get('staff');
+            const dateFromParam = urlParams.get('date_from');
+            const dateToParam = urlParams.get('date_to');
+
+            if (staffParam || dateFromParam || dateToParam) {
+                // Pre-populate filters from URL
+                if (staffParam) {
+                    document.getElementById('searchStaffInput').value = staffParam;
+                }
+                if (dateFromParam) {
+                    document.getElementById('searchDateFrom').value = dateFromParam;
+                }
+                if (dateToParam) {
+                    document.getElementById('searchDateTo').value = dateToParam;
+                }
+                // Run search with pre-populated filters
+                searchAnalyses();
+            } else {
+                // Load last 20 records by default
+                loadRecentAnalyses();
+            }
+        });
+
+        // Load monitored users for staff dropdown
+        async function loadMonitoredUsers() {
+            try {
+                const response = await fetch('/api/auth/users', {
+                    headers: {
+                        'Authorization': 'Bearer ' + auth.getAccessToken()
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('Failed to fetch users for staff dropdown');
+                    return;
+                }
+
+                const users = await response.json();
+
+                // Filter users with monitorAnalysis enabled
+                const monitoredUsers = users.filter(user =>
+                    user.settings?.monitorAnalysis === true
+                );
+
+                // Populate staff dropdown
+                const staffSelect = document.getElementById('searchStaffInput');
+                monitoredUsers.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.username;
+                    option.textContent = user.username;
+                    staffSelect.appendChild(option);
+                });
+
+                console.log(`Loaded ${monitoredUsers.length} monitored users for staff dropdown`);
+            } catch (error) {
+                console.error('Failed to load monitored users:', error);
+            }
+        }
+
+        async function displayUserInfo() {
+            try {
+                const user = await auth.getUser();
+                if (user) {
+                    document.getElementById('userName').textContent = user.username;
+                    document.getElementById('userAvatar').textContent = user.username.charAt(0).toUpperCase();
+                    document.getElementById('userRole').textContent = user.role || 'User';
+                }
+            } catch (error) {
+                console.error('Failed to get user info:', error);
+            }
+        }
+
+        function logout() {
+            auth.logout();
+        }
+
+        // Load recent analyses (last 20)
+        async function loadRecentAnalyses() {
+            const searchResultsBody = document.getElementById('searchResultsBody');
+
+            try {
+                const response = await fetch('/api/audio/search?limit=20');
+
+                if (!response.ok) {
+                    throw new Error('Failed to load recent analyses');
+                }
+
+                const data = await response.json();
+                displaySearchResults(data.results || []);
+            } catch (error) {
+                searchResultsBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-state-icon">!</div>
+                            <div>Failed to load analyses: ${error.message}</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Search analyses with filters
+        async function searchAnalyses() {
+            const searchResultsBody = document.getElementById('searchResultsBody');
+
+            // Get filter values
+            const date_from = document.getElementById('searchDateFrom').value;
+            const date_to = document.getElementById('searchDateTo').value;
+            const mood = document.getElementById('searchMoodFilter').value;
+            const outcome = document.getElementById('searchOutcomeFilter').value;
+            const customer_support_staff = document.getElementById('searchStaffInput').value.trim();
+            const ewr_customer = document.getElementById('searchEwrCustomer').value.trim();
+
+            // Show loading
+            searchResultsBody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div>Searching...</div>
+                    </td>
+                </tr>
+            `;
+
+            try {
+                const params = new URLSearchParams();
+                if (date_from) params.append('date_from', date_from);
+                if (date_to) params.append('date_to', date_to);
+                if (mood) params.append('mood', mood);
+                if (outcome) params.append('outcome', outcome);
+                if (customer_support_staff) params.append('customer_support_staff', customer_support_staff);
+                if (ewr_customer) params.append('ewr_customer', ewr_customer);
+
+                const response = await fetch(`/api/audio/search?${params.toString()}`);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Search failed');
+                }
+
+                const data = await response.json();
+                displaySearchResults(data.results || []);
+            } catch (error) {
+                searchResultsBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-state-icon">!</div>
+                            <div>Search failed: ${error.message}</div>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('resultsCount').textContent = '0';
+            }
+        }
+
+        // Display search results
+        function displaySearchResults(results) {
+            const searchResultsBody = document.getElementById('searchResultsBody');
+            const resultsCount = document.getElementById('resultsCount');
+
+            resultsCount.textContent = results.length;
+
+            if (!results || results.length === 0) {
+                searchResultsBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-state-icon">No results</div>
+                            <div>No analyses found matching your criteria</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            searchResultsBody.innerHTML = results.map(result => {
+                const filename = result.filename || result.metadata?.filename || 'Unknown';
+                let date = result.call_date || result.metadata?.call_date;
+                let time = result.call_time || result.metadata?.call_time;
+                if (!date || !time) {
+                    const parsed = parseFilenameDateTime(filename);
+                    date = date || parsed.date;
+                    time = time || parsed.time;
+                }
+                const staff = result.customer_support_staff || result.metadata?.customer_support_staff || 'N/A';
+                const customer = result.ewr_customer || result.metadata?.ewr_customer || 'N/A';
+                const mood = result.mood || result.metadata?.mood || 'N/A';
+                const outcome = result.outcome || result.metadata?.outcome || 'N/A';
+                const id = result._id || result.id;
+
+                return `
+                    <tr>
+                        <td>
+                            <button class="btn-view" onclick="viewAnalysis('${id}')" title="View Details">
+                                <ewr-icon name="eye" size="16"></ewr-icon>
+                            </button>
+                        </td>
+                        <td>${date}</td>
+                        <td>${time}</td>
+                        <td>${staff}</td>
+                        <td>${customer}</td>
+                        <td><span class="mood-badge mood-${mood}">${mood}</span></td>
+                        <td>${outcome}</td>
+                        <td>
+                            <span class="filename-link" onclick="viewAnalysis('${id}')">
+                                ${filename}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn-trash" onclick="deleteAnalysis('${id}', '${escapeHtml(filename)}')" title="Delete">
+                                <ewr-icon name="trash-2" size="16"></ewr-icon>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // View analysis details page
+        function viewAnalysis(id) {
+            window.location.href = `ViewAnalysis.html?id=${encodeURIComponent(id)}`;
+        }
+
+        // Delete analysis from MongoDB
+        async function deleteAnalysis(id, filename) {
+            if (!confirm(`Are you sure you want to delete the analysis for "${filename}"?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/audio/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer ' + auth.getAccessToken()
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to delete analysis');
+                }
+
+                // Reload the results
+                searchAnalyses();
+            } catch (error) {
+                alert('Failed to delete analysis: ' + error.message);
+            }
+        }
+
+        // Parse date/time from filename
+        function parseFilenameDateTime(filename) {
+            const match = filename.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+            if (match) {
+                return {
+                    date: `${match[1]}-${match[2]}-${match[3]}`,
+                    time: `${match[4]}:${match[5]}:${match[6]}`
+                };
+            }
+            return { date: 'N/A', time: 'N/A' };
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/'/g, "\\'");
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchDateFrom').value = '';
+            document.getElementById('searchDateTo').value = '';
+            document.getElementById('searchStaffInput').value = '';
+            document.getElementById('searchMoodFilter').value = '';
+            document.getElementById('searchOutcomeFilter').value = '';
+            document.getElementById('searchEwrCustomer').value = '';
+            loadRecentAnalyses();
+        }
+
+        // Format duration
+        function formatDuration(seconds) {
+            if (!seconds) return 'N/A';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Modal functions
+        let currentAnalysisId = null;
+
+        async function openCallAnalysisModal(id, filename) {
+            const modal = document.getElementById('callAnalysisModal');
+            const title = document.getElementById('callAnalysisTitle');
+
+            currentAnalysisId = id;
+            title.textContent = filename || 'Call Analysis';
+            modal.classList.remove('hidden');
+            switchCallTab('details');
+
+            try {
+                const response = await fetch(`/api/audio/${id}`);
+                if (!response.ok) throw new Error('Failed to load analysis');
+
+                const data = await response.json();
+                populateCallModal(data);
+            } catch (error) {
+                console.error('Failed to load analysis:', error);
+                alert('Failed to load call analysis: ' + error.message);
+                closeCallAnalysisModal();
+            }
+        }
+
+        function populateCallModal(data) {
+            // Details tab
+            document.getElementById('callModalStaff').value = data.customer_support_staff || data.metadata?.customer_support_staff || 'N/A';
+            document.getElementById('callModalCustomer').value = data.ewr_customer || data.metadata?.ewr_customer || 'N/A';
+            document.getElementById('callModalMood').value = data.mood || data.metadata?.mood || 'N/A';
+            document.getElementById('callModalOutcome').value = data.outcome || data.metadata?.outcome || 'N/A';
+            document.getElementById('callModalDate').value = data.call_date || data.metadata?.call_date || 'N/A';
+            document.getElementById('callModalDuration').value = formatDuration(data.audio_metadata?.duration_seconds);
+
+            // Summary tab
+            document.getElementById('callModalSummaryText').textContent =
+                data.transcription_summary || data.metadata?.transcription_summary || 'No summary available';
+
+            // Transcription tab
+            document.getElementById('callModalTranscriptionText').textContent =
+                data.transcription || data.metadata?.transcription || 'No transcription available';
+
+            // Emotions tab
+            const emotions = data.emotions || data.metadata?.emotions || {};
+            const emotionGrid = document.getElementById('callModalEmotionGrid');
+            if (Object.keys(emotions).length > 0) {
+                emotionGrid.innerHTML = Object.entries(emotions).map(([key, value]) => `
+                    <div class="emotion-item">
+                        <div class="emotion-label">${key}</div>
+                        <div class="emotion-value">${typeof value === 'number' ? (value * 100).toFixed(1) + '%' : value}</div>
+                    </div>
+                `).join('');
+            } else {
+                emotionGrid.innerHTML = '<div class="empty-state">No emotion data available</div>';
+            }
+
+            // Raw tab
+            document.getElementById('callModalRawText').textContent = JSON.stringify(data, null, 2);
+        }
+
+        function switchCallTab(tabName) {
+            document.querySelectorAll('.call-modal-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
+            document.querySelectorAll('.call-tab-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === `call-panel-${tabName}`);
+            });
+        }
+
+        function closeCallAnalysisModal() {
+            document.getElementById('callAnalysisModal').classList.add('hidden');
+            currentAnalysisId = null;
+        }
+
+        // Close modal on background click
+        document.getElementById('callAnalysisModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCallAnalysisModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeCallAnalysisModal();
+            }
+        });
+    </script>
+</body>
+</html>

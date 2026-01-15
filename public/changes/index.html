@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Changes Tracker - RAG Admin</title>
+    <link rel="stylesheet" href="../css/layout.css">
+    <style>
+        /* Page-specific styles */
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: #f1f5f9;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: #334155;
+            border: 1px solid #475569;
+            color: #f1f5f9;
+            font-size: 14px;
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: #334155;
+            border-radius: 8px;
+            color: #3b82f6;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #334155;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .message.success {
+            background: #064e3b;
+            color: #6ee7b7;
+            border: 1px solid #047857;
+        }
+
+        .message.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: 1px solid #991b1b;
+        }
+
+        .message.info {
+            background: #1e3a8a;
+            color: #93c5fd;
+            border: 1px solid #1e40af;
+        }
+
+        .results {
+            margin-top: 24px;
+        }
+
+        .repo-info {
+            background: #334155;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 2px solid #334155;
+        }
+
+        .repo-info h3 {
+            color: #3b82f6;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .repo-info .meta {
+            color: #cbd5e1;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .git-output {
+            background: #0a0e1a;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            margin-top: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+
+        .files-list {
+            margin-top: 16px;
+        }
+
+        .file-item {
+            background: #1e293b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 2px solid #334155;
+        }
+
+        .file-item:hover {
+            border-color: #3b82f6;
+        }
+
+        .file-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .file-icon {
+            width: 32px;
+            height: 32px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .file-path {
+            font-weight: 600;
+            color: #f1f5f9;
+            flex: 1;
+        }
+
+        .file-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .file-status.modified {
+            background: #78350f;
+            color: #fef3c7;
+        }
+
+        .file-status.added {
+            background: #064e3b;
+            color: #6ee7b7;
+        }
+
+        .file-status.deleted {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .code-elements {
+            margin-top: 12px;
+        }
+
+        .element-section {
+            margin-bottom: 12px;
+        }
+
+        .element-section h4 {
+            color: #cbd5e1;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .element-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .element-tag {
+            background: #334155;
+            color: #cbd5e1;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .element-tag.class {
+            background: #1e3a8a;
+            color: #93c5fd;
+        }
+
+        .element-tag.method {
+            background: #78350f;
+            color: #fef3c7;
+        }
+
+        .element-tag.function {
+            background: #831843;
+            color: #fce7f3;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px;
+            color: #cbd5e1;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Method Impact Box Styles */
+        .method-impact-box {
+            background: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .method-impact-box:hover {
+            border-color: #3b82f6;
+        }
+
+        .method-header {
+            background: #1e3a8a;
+            padding: 12px 16px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .method-name {
+            font-family: 'Courier New', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            color: #93c5fd;
+        }
+
+        .callers-section {
+            padding: 16px;
+        }
+
+        .callers-section h5 {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .callers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .caller-item {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+
+        .caller-item:hover {
+            border-color: #475569;
+            background: #273548;
+        }
+
+        .caller-method {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .caller-class-method {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #fef3c7;
+            font-weight: 500;
+        }
+
+        .external-badge {
+            background: #7c3aed;
+            color: #e9d5ff;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .caller-location {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .caller-file {
+            color: #64748b;
+            font-family: 'Courier New', monospace;
+        }
+
+        .caller-line {
+            color: #22d3ee;
+            font-weight: 500;
+        }
+
+        .truncation-message {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: #1e293b;
+            border: 1px dashed #475569;
+            border-radius: 6px;
+            color: #f59e0b;
+            font-size: 13px;
+            font-style: italic;
+            text-align: center;
+        }
+
+        .no-callers {
+            padding: 16px;
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        /* Call Graph Status Styles */
+        .callgraph-status {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .callgraph-status.warning {
+            border-color: #f59e0b;
+            background: #451a03;
+        }
+
+        .callgraph-status.success {
+            border-color: #22c55e;
+            background: #052e16;
+        }
+
+        .callgraph-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .callgraph-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .callgraph-icon {
+            font-size: 20px;
+        }
+
+        .callgraph-stats {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .callgraph-message {
+            font-size: 13px;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+
+        .btn-secondary {
+            background: #475569;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #64748b;
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: #1c1917;
+        }
+
+        .btn-warning:hover {
+            background: #fbbf24;
+        }
+
+        .analysis-progress {
+            margin-top: 12px;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .analysis-progress .spinner {
+            display: inline-block;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="app-sidebar">
+            <div class="sidebar-brand">
+                <div class="sidebar-logo">EWR</div>
+                <div class="user-info">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-role" id="userRole">User</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <!-- Navigation will be dynamically generated by sidebar.js -->
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <header class="app-header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <div>
+                            <h1 class="header-title">Code Changes Tracker</h1>
+                            <p class="header-subtitle">Pull latest changes from Git and analyze impacted code</p>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <button class="btn-logout" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <div class="card">
+                        <h2>Pull Changes</h2>
+
+                        <div class="form-group">
+                            <label>Select Repository</label>
+                            <select id="repoSelect">
+                                <option value="">Loading repositories...</option>
+                            </select>
+                        </div>
+
+                        <button id="pullBtn" class="btn btn-primary" onclick="pullChanges()" style="width: 100%;" disabled>
+                            Pull Latest Changes
+                        </button>
+
+                        <div id="loadingMessage" class="loading">
+                            <div class="spinner"></div>
+                            <span>Pulling changes and analyzing code...</span>
+                        </div>
+
+                        <div id="messageContainer"></div>
+                    </div>
+
+                    <div id="resultsContainer" class="card hidden">
+                        <h2>Changes Analysis</h2>
+                        <div id="callgraphStatus" class="callgraph-status hidden"></div>
+                        <div id="resultsContent"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/auth-client.js"></script>
+    <script src="../admin/js/sidebar.js"></script>
+    <script>
+        const auth = new AuthClient();
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+            await loadRepositories();
+        });
+
+        // Load repositories dynamically from API
+        async function loadRepositories() {
+            const repoSelect = document.getElementById('repoSelect');
+            try {
+                const response = await fetch('/api/git/repositories');
+                if (response.ok) {
+                    const repos = await response.json();
+                    repoSelect.innerHTML = '<option value="">Select Repository...</option>';
+
+                    if (Array.isArray(repos)) {
+                        repos.forEach(repo => {
+                            const option = document.createElement('option');
+                            option.value = repo.name;
+                            option.textContent = repo.displayName || repo.name;
+                            repoSelect.appendChild(option);
+                        });
+                    }
+                } else {
+                    repoSelect.innerHTML = '<option value="">Failed to load repositories</option>';
+                }
+            } catch (error) {
+                console.error('Failed to load repositories:', error);
+                repoSelect.innerHTML = '<option value="">Failed to load repositories</option>';
+            }
+        }
+
+        function logout() {
+            auth.logout();
+        }
+    </script>
+    <script src="changes.js"></script>
+</body>
+</html>

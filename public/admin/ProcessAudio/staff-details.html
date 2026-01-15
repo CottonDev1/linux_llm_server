@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Call Details - EWR Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        .page-header-card {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .staff-header-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .staff-avatar-large {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .staff-header-text h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 4px 0;
+        }
+
+        .staff-header-text p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-back:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .search-card {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .search-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 20px 0;
+        }
+
+        .search-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr) auto;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-input, .form-select {
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+        }
+
+        .btn-clear {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-secondary);
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        .results-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .results-count {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .results-count strong {
+            color: var(--accent-cyan);
+        }
+
+        .results-table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .results-table thead {
+            background: var(--card-bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .results-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--card-border);
+        }
+
+        .results-table td {
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .results-table tbody tr:hover {
+            background: rgba(34, 211, 238, 0.05);
+        }
+
+        .results-table .filename-link {
+            color: #60a5fa;
+            text-decoration: underline;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .results-table .filename-link:hover {
+            color: #93c5fd;
+        }
+
+        .mood-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .mood-HAPPY { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .mood-SAD { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .mood-ANGRY { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .mood-NEUTRAL { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+        .mood-FEARFUL { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+        .mood-DISGUSTED { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+        .mood-SURPRISED { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(34, 211, 238, 0.2);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .btn-view {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-view:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: #60a5fa;
+        }
+
+        .btn-view svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 1200px) {
+            .search-controls {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .search-controls {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .page-header-card {
+                flex-direction: column;
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Staff Call Details" show-refresh="false"></ewr-admin-header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Staff Header -->
+                    <div class="page-header-card">
+                        <div class="staff-header-info">
+                            <div class="staff-avatar-large" id="staffAvatar">?</div>
+                            <div class="staff-header-text">
+                                <h2 id="staffNameHeader">Loading...</h2>
+                                <p id="dateRangeText">Last 30 days of call data</p>
+                            </div>
+                        </div>
+                        <button class="btn-back" onclick="goBack()">
+                            <ewr-icon name="arrow-left" size="16"></ewr-icon>
+                            Back to Staff Results
+                        </button>
+                    </div>
+
+                    <!-- Filters Card -->
+                    <div class="search-card">
+                        <h3>Filters</h3>
+                        <div class="search-controls">
+                            <div class="form-group">
+                                <label for="searchMoodFilter">Mood</label>
+                                <select id="searchMoodFilter" class="form-select">
+                                    <option value="">All Moods</option>
+                                    <option value="HAPPY">HAPPY</option>
+                                    <option value="SAD">SAD</option>
+                                    <option value="ANGRY">ANGRY</option>
+                                    <option value="NEUTRAL">NEUTRAL</option>
+                                    <option value="FEARFUL">FEARFUL</option>
+                                    <option value="DISGUSTED">DISGUSTED</option>
+                                    <option value="SURPRISED">SURPRISED</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="searchOutcomeFilter">Outcome</label>
+                                <select id="searchOutcomeFilter" class="form-select">
+                                    <option value="">All Outcomes</option>
+                                    <option value="Issue Resolved">Issue Resolved</option>
+                                    <option value="Issue Unresolved">Issue Unresolved</option>
+                                    <option value="Issue Logged in Central">Issue Logged in Central</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="searchEwrCustomer">Customer</label>
+                                <input type="text" id="searchEwrCustomer" class="form-input" placeholder="Customer...">
+                            </div>
+                            <div class="form-group" style="flex-direction: row; gap: 8px; align-self: end;">
+                                <button class="btn-search" onclick="searchAnalyses()">Filter</button>
+                                <button class="btn-clear" onclick="clearFilters()">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div class="search-card">
+                        <div class="results-info">
+                            <span class="results-count">Showing <strong id="resultsCount">0</strong> calls</span>
+                        </div>
+                        <div id="searchResults" class="results-table-container">
+                            <table class="results-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px;">View</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Customer</th>
+                                        <th>Mood</th>
+                                        <th>Outcome</th>
+                                        <th>Filename</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="searchResultsBody">
+                                    <tr>
+                                        <td colspan="7" class="loading-state">
+                                            <div class="loading-spinner"></div>
+                                            <div>Loading calls...</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Get staff name from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const staffName = urlParams.get('name') || '';
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+        }
+
+        // Redirect if no staff name provided
+        if (!staffName) {
+            window.location.href = 'staff.html';
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+            displayUserInfo();
+            setupStaffHeader();
+            loadStaffCalls();
+        });
+
+        function setupStaffHeader() {
+            document.getElementById('staffNameHeader').textContent = staffName;
+            document.getElementById('staffAvatar').textContent = staffName.charAt(0).toUpperCase();
+            document.title = `${staffName} - Staff Call Details`;
+
+            // Calculate date range for display
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            document.getElementById('dateRangeText').textContent =
+                `Calls from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`;
+        }
+
+        async function displayUserInfo() {
+            try {
+                const user = await auth.getUser();
+                if (user) {
+                    document.getElementById('userName').textContent = user.username;
+                    document.getElementById('userAvatar').textContent = user.username.charAt(0).toUpperCase();
+                    document.getElementById('userRole').textContent = user.role || 'User';
+                }
+            } catch (error) {
+                console.error('Failed to get user info:', error);
+            }
+        }
+
+        function logout() {
+            auth.logout();
+        }
+
+        function goBack() {
+            window.location.href = 'staff.html';
+        }
+
+        // Load calls for the staff member (last 30 days)
+        async function loadStaffCalls() {
+            const searchResultsBody = document.getElementById('searchResultsBody');
+
+            // Calculate 30 days ago
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+
+            const dateFrom = startDate.toISOString().split('T')[0];
+            const dateTo = endDate.toISOString().split('T')[0];
+
+            try {
+                const params = new URLSearchParams({
+                    customer_support_staff: staffName,
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    limit: 100
+                });
+
+                const response = await fetch(`/api/audio/search?${params.toString()}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to load calls');
+                }
+
+                const data = await response.json();
+                displaySearchResults(data.results || []);
+            } catch (error) {
+                searchResultsBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-state-icon">!</div>
+                            <div>Failed to load calls: ${error.message}</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Search with additional filters
+        async function searchAnalyses() {
+            const searchResultsBody = document.getElementById('searchResultsBody');
+
+            // Get filter values
+            const mood = document.getElementById('searchMoodFilter').value;
+            const outcome = document.getElementById('searchOutcomeFilter').value;
+            const ewr_customer = document.getElementById('searchEwrCustomer').value.trim();
+
+            // Calculate 30 days ago
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+
+            const dateFrom = startDate.toISOString().split('T')[0];
+            const dateTo = endDate.toISOString().split('T')[0];
+
+            // Show loading
+            searchResultsBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div>Filtering...</div>
+                    </td>
+                </tr>
+            `;
+
+            try {
+                const params = new URLSearchParams({
+                    customer_support_staff: staffName,
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    limit: 100
+                });
+                if (mood) params.append('mood', mood);
+                if (outcome) params.append('outcome', outcome);
+                if (ewr_customer) params.append('ewr_customer', ewr_customer);
+
+                const response = await fetch(`/api/audio/search?${params.toString()}`);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Filter failed');
+                }
+
+                const data = await response.json();
+                displaySearchResults(data.results || []);
+            } catch (error) {
+                searchResultsBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-state-icon">!</div>
+                            <div>Filter failed: ${error.message}</div>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('resultsCount').textContent = '0';
+            }
+        }
+
+        // Display search results
+        function displaySearchResults(results) {
+            const searchResultsBody = document.getElementById('searchResultsBody');
+            const resultsCount = document.getElementById('resultsCount');
+
+            resultsCount.textContent = results.length;
+
+            if (!results || results.length === 0) {
+                searchResultsBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-state-icon">No calls</div>
+                            <div>No calls found for ${staffName} in the last 30 days</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            searchResultsBody.innerHTML = results.map(result => {
+                const filename = result.filename || result.metadata?.filename || 'Unknown';
+                let date = result.call_date || result.metadata?.call_date;
+                let time = result.call_time || result.metadata?.call_time;
+                if (!date || !time) {
+                    const parsed = parseFilenameDateTime(filename);
+                    date = date || parsed.date;
+                    time = time || parsed.time;
+                }
+                const customer = result.ewr_customer || result.metadata?.ewr_customer || 'N/A';
+                const mood = result.mood || result.metadata?.mood || 'N/A';
+                const outcome = result.outcome || result.metadata?.outcome || 'N/A';
+                const id = result._id || result.id;
+
+                return `
+                    <tr>
+                        <td>
+                            <button class="btn-view" onclick="viewAnalysis('${id}')" title="View Details">
+                                <ewr-icon name="eye" size="16"></ewr-icon>
+                            </button>
+                        </td>
+                        <td>${date}</td>
+                        <td>${time}</td>
+                        <td>${escapeHtml(customer)}</td>
+                        <td><span class="mood-badge mood-${mood}">${mood}</span></td>
+                        <td>${escapeHtml(outcome)}</td>
+                        <td>
+                            <span class="filename-link" onclick="viewAnalysis('${id}')">
+                                ${escapeHtml(filename)}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // View analysis details page
+        function viewAnalysis(id) {
+            window.location.href = `ViewAnalysis.html?id=${encodeURIComponent(id)}`;
+        }
+
+        // Parse date/time from filename
+        function parseFilenameDateTime(filename) {
+            const match = filename.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+            if (match) {
+                return {
+                    date: `${match[1]}-${match[2]}-${match[3]}`,
+                    time: `${match[4]}:${match[5]}:${match[6]}`
+                };
+            }
+            return { date: 'N/A', time: 'N/A' };
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchMoodFilter').value = '';
+            document.getElementById('searchOutcomeFilter').value = '';
+            document.getElementById('searchEwrCustomer').value = '';
+            loadStaffCalls();
+        }
+    </script>
+</body>
+</html>

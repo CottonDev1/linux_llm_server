@@ -1,0 +1,3 @@
+[console_scripts]
+ewr-document = ewr_document_agent.cli:main
+ewr-document-api = ewr_document_agent.api:run_server

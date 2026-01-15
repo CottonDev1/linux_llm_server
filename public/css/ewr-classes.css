@@ -1,0 +1,220 @@
+/* EWR Custom Classes
+ * Reusable component styles for EWR applications
+ *
+ * Component files are in /css/components/:
+ * - buttons.css   - Button styles (.ewr-btn-*, .ewr-button-*)
+ * - forms.css     - Form fields (.ewr-form-*, .ewr-edit-*, .ewr-label)
+ * - modal.css     - Modal dialogs (.ewr-modal-*)
+ * - chat.css      - Chat components (.ewr-chat-*)
+ * - cards.css     - Card layouts (.ewr_chat-card-*, .ewr-content-card)
+ * - collapsible.css - Collapsible containers (.ewr-collapsible-*)
+ * - documents.css - Document list/popup (.ewr-document-*)
+ * - file-upload.css - File upload components (.ewr-file-*)
+ * - status.css    - Status pills/badges (.ewr-status-*, .ewr-count-badge)
+ * - audio.css     - Audio player (.ewr-audio-player-card)
+ * - icons.css     - Icon components (ewr-icon)
+ *
+ * Import all components:
+ * <link rel="stylesheet" href="/css/components/index.css">
+ */
+
+/* Import component styles */
+@import url('./components/index.css');
+
+/* ============================================
+   Full-Width Layout Overrides
+   When using ewr_chat-card-full, parent containers
+   should expand to use all available space
+   ============================================ */
+
+/* Remove max-width constraint when chat card is used */
+.content-wrapper:has(.ewr_chat-card-full) {
+    max-width: none;
+}
+
+/* Ensure parent layout containers are flex-enabled */
+.app-content:has(.ewr_chat-card-full) {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================
+   EWR Grid Multi-Color Component
+   ============================================ */
+
+/* Multi-color grid table with alternating rows */
+.ewr-grid-multi-color {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+}
+
+/* Header and cell base styles */
+.ewr-grid-multi-color th,
+.ewr-grid-multi-color td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--card-border, #334155);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Remove right border on last column */
+.ewr-grid-multi-color th:last-child,
+.ewr-grid-multi-color td:last-child {
+    border-right: none;
+}
+
+/* Header styling - centered, bold, bright blue with sticky positioning */
+.ewr-grid-multi-color thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.ewr-grid-multi-color th {
+    background: #2d3a4d;
+    font-weight: 700;
+    color: #38bdf8;
+    font-size: 12px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+/* Alternating row colors - light grey and light blue */
+.ewr-grid-multi-color tbody tr:nth-child(odd) {
+    background: rgba(148, 163, 184, 0.08);
+}
+
+.ewr-grid-multi-color tbody tr:nth-child(even) {
+    background: rgba(56, 189, 248, 0.06);
+}
+
+/* Row hover effect */
+.ewr-grid-multi-color tbody tr:hover {
+    background: rgba(56, 189, 248, 0.15);
+}
+
+/* Database text styling - bold */
+.ewr-grid-multi-color .database-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.ewr-grid-multi-color .database-text.global {
+    color: #a78bfa;
+    font-style: italic;
+}
+
+/* Priority text styling - normal */
+.ewr-grid-multi-color .priority-text {
+    font-size: 13px;
+    color: #cbd5e1;
+    text-transform: capitalize;
+}
+
+/* Rule text preview - truncated */
+.ewr-grid-multi-color .rule-text-preview {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted, #64748b);
+    font-size: 13px;
+}
+
+/* Actions cell - flex layout for buttons */
+.ewr-grid-multi-color .actions-cell {
+    display: flex;
+    gap: 8px;
+}
+
+/* Grid container wrapper */
+.ewr-grid-multi-color-container {
+    overflow-x: auto;
+    background: #1e293b;
+}
+
+/* Empty state */
+.ewr-grid-multi-color-empty {
+    text-align: center;
+    padding: 60px;
+    color: var(--text-muted, #64748b);
+}
+
+.ewr-grid-multi-color-empty h3 {
+    margin-bottom: 8px;
+    color: var(--text-primary, #f1f5f9);
+}
+
+/* Loading state */
+.ewr-grid-multi-color-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted, #64748b);
+}
+
+/* Filename cell - clickable with hover effect */
+.ewr-grid-multi-color .filename-cell {
+    font-weight: 500;
+    color: #f1f5f9;
+    cursor: pointer;
+}
+
+.ewr-grid-multi-color .filename-cell:hover {
+    color: #38bdf8;
+}
+
+/* Status cell styling */
+.ewr-grid-multi-color .status-cell {
+    font-size: 12px;
+    color: #3b82f6;
+}
+
+/* Expand indicator */
+.ewr-grid-multi-color .expand-indicator {
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 12px;
+    color: #64748b;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.ewr-grid-multi-color tbody tr.expanded .expand-indicator {
+    transform: rotate(90deg);
+}
+
+/* Selected row state */
+.ewr-grid-multi-color tbody tr.selected {
+    background: rgba(0, 212, 255, 0.1) !important;
+}
+
+/* Expanded row state */
+.ewr-grid-multi-color tbody tr.expanded {
+    background: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* ============================================
+   Admin-Only Visibility Controls
+   ============================================ */
+
+/* Elements with .admin-only are hidden by default */
+.admin-only {
+    display: none !important;
+}
+
+/* When body has .user-is-admin, show admin-only elements */
+body.user-is-admin .admin-only {
+    display: inline-flex !important;
+}
+
+/* For block-level admin elements */
+body.user-is-admin .admin-only-block {
+    display: block !important;
+}
+
+/* For flex admin elements */
+body.user-is-admin .admin-only-flex {
+    display: flex !important;
+}

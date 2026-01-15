@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Logs - RAG Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <script>
+        // Check for embed mode and add class before render
+        if (new URLSearchParams(window.location.search).get('embed') === 'true') {
+            document.documentElement.classList.add('embed-mode');
+        }
+    </script>
+    <style>
+        /* Embed mode - hide sidebar and header */
+        .embed-mode .app-sidebar,
+        .embed-mode .app-header {
+            display: none !important;
+        }
+        .embed-mode .app-main {
+            margin-left: 0 !important;
+        }
+        .embed-mode .app-content {
+            padding-top: 0 !important;
+        }
+        /* Tab navigation styles */
+        .tabs-container {
+            display: flex;
+            gap: 4px;
+            margin-bottom: var(--spacing-lg);
+            background: var(--card-bg);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-xs);
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-cyan);
+            color: #1a2332;
+        }
+
+        .tab-icon {
+            font-size: 16px;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Log controls */
+        .log-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .search-input {
+            padding: 8px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .date-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .date-filter-label {
+            color: var(--text-muted);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .date-input {
+            padding: 8px 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            width: 130px;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .date-input::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
+
+        .btn-icon {
+            padding: 8px 12px;
+            background: var(--card-border);
+            border: none;
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-icon:hover {
+            background: var(--accent-cyan);
+            color: #1a2332;
+        }
+
+        .btn-icon.active {
+            background: var(--accent-green);
+            color: white;
+        }
+
+        .btn-icon.btn-danger {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn-icon.btn-danger:hover {
+            background: #dc2626;
+        }
+
+        /* Log viewer */
+        .log-viewer {
+            background: #0d1117;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            height: 500px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .log-content {
+            padding: var(--spacing-md);
+        }
+
+        .log-entry {
+            padding: 4px 8px;
+            margin-bottom: 2px;
+            text-align: left;
+            line-height: 1.5;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-timestamp {
+            color: #8b949e;
+            margin-right: 12px;
+            font-size: 13px;
+        }
+
+        .log-level {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 10px;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .log-level-info {
+            background: rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        .log-level-warning {
+            background: rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+        }
+
+        .log-level-error {
+            background: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .log-level-debug {
+            background: rgba(139, 92, 246, 0.3);
+            color: #a78bfa;
+        }
+
+        .log-message {
+            color: #c9d1d9;
+            font-size: 13px;
+        }
+
+        .log-pipeline {
+            color: #a78bfa;
+            font-size: 13px;
+            margin-right: 6px;
+        }
+
+        .log-user {
+            color: #7ee787;
+            font-size: 13px;
+            margin-right: 8px;
+        }
+
+        /* Status indicators */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.connected {
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.disconnected {
+            background: var(--accent-red);
+        }
+
+        .status-dot.connecting {
+            background: #f59e0b;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .log-count {
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+        }
+
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--text-muted);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Auto-refresh indicator */
+        .auto-refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .auto-refresh-indicator.active {
+            color: var(--accent-green);
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="System Logs" show-refresh="false"></ewr-admin-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Tab Navigation -->
+                    <div class="tabs-container">
+                        <button class="tab-btn active" data-tab="pipeline" onclick="switchTab('pipeline')">
+                            <span class="tab-icon">&#9881;</span>
+                            <span>Pipeline</span>
+                        </button>
+                        <button class="tab-btn" data-tab="webserver" onclick="switchTab('webserver')">
+                            <span class="tab-icon">&#127760;</span>
+                            <span>Web Server</span>
+                        </button>
+                        <button class="tab-btn" data-tab="python-service" onclick="switchTab('python-service')">
+                            <span class="tab-icon">&#128013;</span>
+                            <span>Python</span>
+                        </button>
+                        <button class="tab-btn" data-tab="api-access" onclick="switchTab('api-access')">
+                            <span class="tab-icon">&#128279;</span>
+                            <span>API</span>
+                        </button>
+                        <button class="tab-btn" data-tab="error" onclick="switchTab('error')">
+                            <span class="tab-icon">&#9888;</span>
+                            <span>Errors</span>
+                        </button>
+                        <button class="tab-btn" data-tab="system" onclick="switchTab('system')">
+                            <span class="tab-icon">&#128187;</span>
+                            <span>System</span>
+                        </button>
+                    </div>
+
+                    <!-- Status Bar -->
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <span class="status-dot connecting" id="connectionStatus"></span>
+                            <span id="connectionText">Connecting...</span>
+                        </div>
+                        <div class="status-item">
+                            <span>Entries:</span>
+                            <span class="log-count" id="logCount">0</span>
+                        </div>
+                        <div class="auto-refresh-indicator" id="autoRefreshIndicator">
+                            <span class="loading-spinner" id="refreshSpinner" style="display: none;"></span>
+                            <span id="autoRefreshText">Auto-refresh: OFF</span>
+                        </div>
+                    </div>
+
+                    <!-- Log Controls -->
+                    <div class="card">
+                        <div class="log-controls">
+                            <div class="control-group">
+                                <select class="filter-select" id="levelFilter" onchange="applyFilters()">
+                                    <option value="all">All Levels</option>
+                                    <option value="error">Error</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="info">Info</option>
+                                    <option value="debug">Debug</option>
+                                </select>
+                                <div class="date-filter-group">
+                                    <span class="date-filter-label">From:</span>
+                                    <input type="date" class="date-input" id="dateFrom" onchange="applyFilters()">
+                                    <span class="date-filter-label">To:</span>
+                                    <input type="date" class="date-input" id="dateTo" onchange="applyFilters()">
+                                </div>
+                                <input type="text" class="search-input" id="searchInput" placeholder="Search logs..." oninput="applyFilters()">
+                            </div>
+                            <div class="control-group">
+                                <button class="btn-icon" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
+                                    <span>&#8635;</span>
+                                    <span>Auto-refresh</span>
+                                </button>
+                                <button class="btn-icon" onclick="refreshLogs()">
+                                    <span>&#8634;</span>
+                                    <span>Refresh</span>
+                                </button>
+                                <button class="btn-icon btn-danger" onclick="clearLogs()">
+                                    <span>&#128465;</span>
+                                    <span>Clear</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Tab Panels - Using single dynamic panel -->
+                        <div class="log-viewer" id="log-viewer">
+                            <div class="log-content" id="log-content">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">&#128196;</div>
+                                    <div class="empty-state-text">Loading logs...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        // State management
+        let currentTab = 'pipeline';
+        let autoRefreshEnabled = false;
+        let autoRefreshInterval = null;
+        const AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
+
+        // Current logs data
+        let currentLogs = [];
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Initialize sidebar
+            await initSidebar();
+
+            // Don't set default date filters - show all logs
+            // Users can manually filter by date if needed
+
+            // Load initial logs
+            await refreshLogs();
+
+            // Update connection status
+            updateConnectionStatus('connected');
+        });
+
+        function logout() {
+            const auth = new AuthClient();
+            auth.logout();
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            currentTab = tabName;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+
+            // Reload logs for new tab
+            refreshLogs();
+        }
+
+        // Fetch logs from API
+        async function fetchLogs(category) {
+            const levelFilter = document.getElementById('levelFilter').value;
+            const searchQuery = document.getElementById('searchInput').value;
+
+            try {
+                const params = new URLSearchParams({
+                    lines: '500',
+                    search: searchQuery || '',
+                    level: levelFilter !== 'all' ? levelFilter.toUpperCase() : ''
+                });
+
+                const response = await fetch(`/api/logs/${category}?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.success) {
+                    return {
+                        lines: data.lines || [],
+                        totalLines: data.totalLines || 0,
+                        returnedLines: data.returnedLines || 0
+                    };
+                }
+                return { lines: [], totalLines: 0, returnedLines: 0 };
+            } catch (error) {
+                console.error(`Failed to fetch ${category} logs:`, error);
+                return { lines: [], totalLines: 0, returnedLines: 0 };
+            }
+        }
+
+        // Refresh logs for current tab
+        async function refreshLogs() {
+            showRefreshSpinner(true);
+
+            try {
+                const result = await fetchLogs(currentTab);
+                currentLogs = result.lines;
+
+                renderLogs(currentLogs);
+                updateConnectionStatus('connected');
+            } catch (error) {
+                console.error('Failed to refresh logs:', error);
+                updateConnectionStatus('disconnected');
+            } finally {
+                showRefreshSpinner(false);
+            }
+        }
+
+        // Apply filters (re-fetch from server)
+        function applyFilters() {
+            refreshLogs();
+        }
+
+        // Filter logs by date range
+        function filterByDateRange(lines) {
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+
+            if (!dateFrom && !dateTo) {
+                return lines;
+            }
+
+            return lines.filter(line => {
+                // Extract date from timestamp (format: YYYY-MM-DD HH:MM:SS)
+                const match = line.match(/^(\d{4}-\d{2}-\d{2})/);
+                if (!match) return true; // Keep lines without timestamps
+
+                const lineDate = match[1];
+
+                if (dateFrom && lineDate < dateFrom) return false;
+                if (dateTo && lineDate > dateTo) return false;
+
+                return true;
+            });
+        }
+
+        // Render logs to the viewer
+        function renderLogs(lines) {
+            const contentEl = document.getElementById('log-content');
+
+            // Apply date filtering
+            const filteredLines = filterByDateRange(lines);
+
+            if (!filteredLines || filteredLines.length === 0) {
+                contentEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128196;</div>
+                        <div class="empty-state-text">No logs found for ${currentTab}</div>
+                    </div>
+                `;
+                updateLogCount(0, lines ? lines.length : 0);
+                return;
+            }
+
+            const logsHtml = filteredLines.map(line => {
+                const parsed = parseLogLine(line);
+                const levelClass = getLevelClass(parsed.level);
+
+                // Build log entry matching web server log format:
+                // timestamp  INFO  [Pipeline] [User] Message
+                let entryHtml = '<div class="log-entry">';
+                if (parsed.timestamp) {
+                    entryHtml += `<span class="log-timestamp">${escapeHtml(parsed.timestamp)}</span>`;
+                }
+                entryHtml += `<span class="log-level ${levelClass}">${parsed.level}</span>`;
+                if (parsed.pipeline) {
+                    entryHtml += `<span class="log-pipeline">${escapeHtml(parsed.pipeline)}</span>`;
+                }
+                if (parsed.user) {
+                    entryHtml += `<span class="log-user">${escapeHtml(parsed.user)}</span>`;
+                }
+                entryHtml += `<span class="log-message">${escapeHtml(parsed.message)}</span>`;
+                entryHtml += '</div>';
+                return entryHtml;
+            }).join('');
+
+            contentEl.innerHTML = logsHtml;
+
+            // Update count to show filtered results
+            updateLogCount(filteredLines.length, lines.length);
+
+            // Auto-scroll to bottom
+            const viewer = document.getElementById('log-viewer');
+            viewer.scrollTop = viewer.scrollHeight;
+        }
+
+        // Parse a log line in format: timestamp [PipelineName][User] : message
+        function parseLogLine(line) {
+            // Try to match: timestamp [PipelineName][User] : message
+            const match = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*\[([^\]]+)\]\[([^\]]+)\]\s*:\s*(.*)$/);
+
+            if (match) {
+                const message = match[4];
+                let level = 'INFO';
+
+                if (message.startsWith('ERROR:')) {
+                    level = 'ERROR';
+                } else if (message.startsWith('WARN:')) {
+                    level = 'WARN';
+                }
+
+                return {
+                    timestamp: match[1],
+                    pipeline: `[${match[2]}]`,
+                    user: `[${match[3]}]`,
+                    message: message,
+                    level: level
+                };
+            }
+
+            // Try API log format: [API][user] : METHOD path status duration
+            const apiMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*\[API\]\[([^\]]+)\]\s*:\s*(\w+)\s+(\S+)\s+(\d+)\s+(\d+)ms$/);
+            if (apiMatch) {
+                return {
+                    timestamp: apiMatch[1],
+                    pipeline: '[API]',
+                    user: `[${apiMatch[2]}]`,
+                    message: `${apiMatch[3]} ${apiMatch[4]} ${apiMatch[5]} ${apiMatch[6]}ms`,
+                    level: parseInt(apiMatch[5]) >= 400 ? 'ERROR' : 'INFO'
+                };
+            }
+
+            // Fallback: just display the raw line
+            const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*(.*)$/);
+            if (timestampMatch) {
+                return {
+                    timestamp: timestampMatch[1],
+                    pipeline: '',
+                    user: '',
+                    message: timestampMatch[2],
+                    level: line.includes('ERROR') ? 'ERROR' : (line.includes('WARN') ? 'WARN' : 'INFO')
+                };
+            }
+
+            return {
+                timestamp: '',
+                pipeline: '',
+                user: '',
+                message: line,
+                level: 'INFO'
+            };
+        }
+
+        // Get CSS class for log level
+        function getLevelClass(level) {
+            const levelUpper = (level || 'INFO').toUpperCase();
+            switch (levelUpper) {
+                case 'ERROR':
+                    return 'log-level-error';
+                case 'WARN':
+                case 'WARNING':
+                    return 'log-level-warning';
+                case 'DEBUG':
+                    return 'log-level-debug';
+                case 'INFO':
+                default:
+                    return 'log-level-info';
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Update log count display
+        function updateLogCount(showing, total) {
+            const countEl = document.getElementById('logCount');
+            if (total !== undefined) {
+                countEl.textContent = `${showing.toLocaleString()} / ${total.toLocaleString()}`;
+            } else {
+                countEl.textContent = showing ? showing.toLocaleString() : '0';
+            }
+        }
+
+        // Update connection status indicator
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('connectionStatus');
+            const text = document.getElementById('connectionText');
+
+            dot.className = 'status-dot ' + status;
+
+            switch (status) {
+                case 'connected':
+                    text.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    text.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    text.textContent = 'Connecting...';
+                    break;
+            }
+        }
+
+        // Show/hide refresh spinner
+        function showRefreshSpinner(show) {
+            const spinner = document.getElementById('refreshSpinner');
+            spinner.style.display = show ? 'inline-block' : 'none';
+        }
+
+        // Toggle auto-refresh
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = document.getElementById('autoRefreshBtn');
+            const indicator = document.getElementById('autoRefreshIndicator');
+            const text = document.getElementById('autoRefreshText');
+
+            if (autoRefreshEnabled) {
+                btn.classList.add('active');
+                indicator.classList.add('active');
+                text.textContent = 'Auto-refresh: ON (5s)';
+
+                // Start auto-refresh interval
+                autoRefreshInterval = setInterval(refreshLogs, AUTO_REFRESH_INTERVAL);
+            } else {
+                btn.classList.remove('active');
+                indicator.classList.remove('active');
+                text.textContent = 'Auto-refresh: OFF';
+
+                // Clear interval
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+
+        // Clear logs on server
+        async function clearLogs() {
+            if (!confirm(`Are you sure you want to clear the ${currentTab} logs? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/logs/${currentTab}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    await refreshLogs();
+                } else {
+                    alert('Failed to clear logs: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to clear logs: ' + error.message);
+            }
+        }
+    </script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

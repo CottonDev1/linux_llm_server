@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Results - Audio Analysis</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        .staff-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .staff-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s;
+        }
+
+        .staff-card {
+            cursor: pointer;
+        }
+
+        .staff-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .staff-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .staff-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .staff-info {
+            flex: 1;
+        }
+
+        .staff-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .staff-role {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        .metric-value.neutral {
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--card-border);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-refresh {
+            background: transparent;
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-refresh:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .btn-refresh svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Loading dot animation */
+        .loading-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Mood color styles */
+        .mood-happy { color: #10b981; }
+        .mood-neutral { color: #94a3b8; }
+        .mood-sad { color: #3b82f6; }
+        .mood-angry { color: #ef4444; }
+        .mood-fearful { color: #f59e0b; }
+        .mood-disgusted { color: #8b5cf6; }
+        .mood-surprised { color: #ec4899; }
+
+        @media (max-width: 768px) {
+            .staff-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Staff Results" show-refresh="false"></ewr-admin-header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Loading State -->
+                    <div id="loadingState" class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p style="color: var(--text-muted);">Loading monitored staff...</p>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="empty-state" style="display: none;">
+                        <ewr-icon name="users" size="48" color="var(--text-muted)"></ewr-icon>
+                        <p style="font-size: 18px; margin-bottom: 8px;">No monitored staff members</p>
+                        <p>Enable "Monitor Analysis" for users in User Management to display their metrics here.</p>
+                    </div>
+
+                    <!-- Staff Cards -->
+                    <div id="mainContent" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">Monitored Staff Members</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="staff-grid" id="staffGrid">
+                                    <!-- Staff cards will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+            await loadMonitoredUsers();
+        });
+
+        async function loadMonitoredUsers() {
+            const loadingState = document.getElementById('loadingState');
+            const emptyState = document.getElementById('emptyState');
+            const mainContent = document.getElementById('mainContent');
+            const staffGrid = document.getElementById('staffGrid');
+
+            // Show loading
+            loadingState.style.display = 'block';
+            emptyState.style.display = 'none';
+            mainContent.style.display = 'none';
+
+            try {
+                // Fetch all users
+                const response = await fetch('/api/auth/users', {
+                    headers: {
+                        'Authorization': 'Bearer ' + auth.getAccessToken()
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch users');
+                }
+
+                const users = await response.json();
+
+                // Filter users with monitorAnalysis enabled (regardless of active status)
+                const monitoredUsers = users.filter(user =>
+                    user.settings?.monitorAnalysis === true
+                );
+
+                loadingState.style.display = 'none';
+
+                if (monitoredUsers.length === 0) {
+                    emptyState.style.display = 'block';
+                    mainContent.style.display = 'none';
+                    return;
+                }
+
+                // Display staff cards
+                mainContent.style.display = 'block';
+                staffGrid.innerHTML = monitoredUsers.map(user => createStaffCard(user)).join('');
+
+                // Load metrics for each staff member (in parallel)
+                monitoredUsers.forEach(user => {
+                    const staffName = user.username || 'Unknown User';
+                    loadStaffMetrics(staffName);
+                });
+
+            } catch (error) {
+                console.error('Error loading monitored users:', error);
+                loadingState.style.display = 'none';
+                emptyState.style.display = 'block';
+                emptyState.querySelector('p:first-of-type').textContent = 'Error loading staff';
+                emptyState.querySelector('p:last-of-type').textContent = error.message;
+            }
+        }
+
+        function createStaffCard(user) {
+            const initial = (user.username || 'U').charAt(0).toUpperCase();
+            const displayName = user.username || 'Unknown User';
+            const role = user.role || 'user';
+            const cardId = encodeURIComponent(displayName).replace(/%20/g, '_');
+
+            return `
+                <div class="staff-card" id="staff-card-${cardId}" data-staff-name="${escapeHtml(displayName)}" onclick="viewStaffDetails('${escapeHtml(displayName)}')">
+                    <div class="staff-header">
+                        <div class="staff-avatar">${initial}</div>
+                        <div class="staff-info">
+                            <div class="staff-name">${escapeHtml(displayName)}</div>
+                            <div class="staff-role">${escapeHtml(role)}</div>
+                        </div>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-row">
+                            <span class="metric-label">Calls Analyzed</span>
+                            <span class="metric-value" id="metric-calls-${cardId}">
+                                <span class="loading-dot"></span>
+                            </span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Average Mood</span>
+                            <span class="metric-value" id="metric-mood-${cardId}">
+                                <span class="loading-dot"></span>
+                            </span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Average Call Length</span>
+                            <span class="metric-value" id="metric-length-${cardId}">
+                                <span class="loading-dot"></span>
+                            </span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Total Call Time (30d)</span>
+                            <span class="metric-value" id="metric-totaltime-${cardId}">
+                                <span class="loading-dot"></span>
+                            </span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Tickets Entered (30d)</span>
+                            <span class="metric-value" id="metric-entered-${cardId}">
+                                <span class="loading-dot"></span>
+                            </span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Tickets Closed (30d)</span>
+                            <span class="metric-value" id="metric-closed-${cardId}">
+                                <span class="loading-dot"></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load metrics for a staff member
+        async function loadStaffMetrics(staffName) {
+            const cardId = encodeURIComponent(staffName).replace(/%20/g, '_');
+
+            try {
+                const response = await fetch(`/api/audio/staff-metrics/${encodeURIComponent(staffName)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update calls analyzed
+                    const callsEl = document.getElementById(`metric-calls-${cardId}`);
+                    if (callsEl) callsEl.textContent = data.calls_analyzed || 0;
+
+                    // Update average mood with emoji
+                    const moodEl = document.getElementById(`metric-mood-${cardId}`);
+                    if (moodEl) {
+                        const mood = data.average_mood || '-';
+                        const moodEmoji = getMoodEmoji(mood);
+                        moodEl.innerHTML = `<span class="mood-${mood.toLowerCase()}">${moodEmoji} ${mood}</span>`;
+                    }
+
+                    // Update average call length
+                    const lengthEl = document.getElementById(`metric-length-${cardId}`);
+                    if (lengthEl) lengthEl.textContent = data.average_call_length_formatted || '0:00';
+
+                    // Update total call time
+                    const totalTimeEl = document.getElementById(`metric-totaltime-${cardId}`);
+                    if (totalTimeEl) totalTimeEl.textContent = data.total_call_time_formatted || '0:00';
+
+                    // Update tickets entered
+                    const enteredEl = document.getElementById(`metric-entered-${cardId}`);
+                    if (enteredEl) enteredEl.textContent = data.tickets_entered_30d || 0;
+
+                    // Update tickets closed
+                    const closedEl = document.getElementById(`metric-closed-${cardId}`);
+                    if (closedEl) closedEl.textContent = data.tickets_closed_30d || 0;
+                } else {
+                    console.error(`Failed to load metrics for ${staffName}:`, data.error);
+                    setMetricsError(cardId);
+                }
+            } catch (error) {
+                console.error(`Error loading metrics for ${staffName}:`, error);
+                setMetricsError(cardId);
+            }
+        }
+
+        function setMetricsError(cardId) {
+            const ids = ['calls', 'mood', 'length', 'totaltime', 'entered', 'closed'];
+            ids.forEach(id => {
+                const el = document.getElementById(`metric-${id}-${cardId}`);
+                if (el) el.textContent = '-';
+            });
+        }
+
+        function getMoodEmoji(mood) {
+            const moodEmojis = {
+                'HAPPY': '😊',
+                'SAD': '😢',
+                'ANGRY': '😠',
+                'NEUTRAL': '😐',
+                'FEARFUL': '😨',
+                'DISGUSTED': '🤢',
+                'SURPRISED': '😲'
+            };
+            return moodEmojis[mood?.toUpperCase()] || '😐';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Navigate to search page with staff filter and last month date range
+        function viewStaffDetails(staffName) {
+            // Calculate last month date range
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+
+            const dateFrom = startDate.toISOString().split('T')[0];
+            const dateTo = endDate.toISOString().split('T')[0];
+
+            // Navigate to search page with pre-populated filters
+            window.location.href = `search.html?staff=${encodeURIComponent(staffName)}&date_from=${dateFrom}&date_to=${dateTo}`;
+        }
+    </script>
+</body>
+</html>

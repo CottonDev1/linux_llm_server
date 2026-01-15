@@ -1,0 +1,77 @@
+{
+  "agent_name": "ewr_code_agent",
+  "version": "1.0.0",
+  "description": "Code analysis and validation agent for SQL query review",
+
+  "llm": {
+    "backend": "llamacpp",
+    "model": "qwen2.5-coder",
+    "base_url": "http://localhost:8080",
+    "temperature": 0.1,
+    "max_tokens": 2000,
+    "timeout": 60
+  },
+
+  "mongodb": {
+    "uri": "mongodb://localhost:27019",
+    "database": "agent_learning",
+    "collections": {
+      "validation_successes": "code_agent_validation_successes",
+      "validation_failures": "code_agent_validation_failures",
+      "review_history": "code_agent_reviews",
+      "learned_patterns": "code_agent_patterns",
+      "sql_knowledge": "code_agent_sql_knowledge"
+    }
+  },
+
+  "vector_storage": {
+    "type": "lancedb",
+    "path": "./data/lancedb",
+    "embedding_model": "all-MiniLM-L6-v2",
+    "embedding_dimensions": 384,
+    "tables": {
+      "valid_sql_patterns": "code_valid_sql",
+      "invalid_sql_patterns": "code_invalid_sql",
+      "review_decisions": "code_review_decisions"
+    }
+  },
+
+  "learning": {
+    "enabled": true,
+    "auto_learn_from_outcomes": true,
+    "track_false_positives": true,
+    "track_false_negatives": true,
+    "min_confidence_for_pattern": 0.75,
+    "feedback_weight": {
+      "correct_approval": 1.0,
+      "correct_rejection": 1.0,
+      "false_positive": -0.5,
+      "false_negative": -0.8
+    }
+  },
+
+  "sql_validation": {
+    "check_syntax": true,
+    "check_schema_references": true,
+    "check_sql_injection": true,
+    "check_dangerous_operations": true,
+    "dangerous_patterns": [
+      "DROP TABLE",
+      "DROP DATABASE",
+      "TRUNCATE",
+      "DELETE FROM.*WHERE 1=1",
+      "UPDATE.*SET.*WHERE 1=1",
+      "xp_cmdshell",
+      "sp_executesql.*@"
+    ],
+    "max_complexity_score": 50
+  },
+
+  "capabilities": [
+    "code_analyze",
+    "code_review",
+    "sql_validate",
+    "pattern_match",
+    "security_scan"
+  ]
+}

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management - EWR Admin</title>
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <style>
+        /* Project Selector Grid */
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .project-card {
+            background: var(--card-bg, #1e293b);
+            border: 1px solid var(--card-border, #334155);
+            border-radius: 12px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .project-card:hover {
+            border-color: var(--accent-color, #22d3ee);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .project-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .project-card-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(34, 211, 238, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .project-card-name {
+            font-weight: 600;
+            font-size: 18px;
+            color: var(--text-primary, #f1f5f9);
+        }
+
+        .project-card-meta {
+            font-size: 13px;
+            color: var(--text-muted, #64748b);
+        }
+
+        .project-card-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--card-border, #334155);
+        }
+
+        .project-stat {
+            text-align: center;
+        }
+
+        .project-stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent-color, #22d3ee);
+        }
+
+        .project-stat-label {
+            font-size: 11px;
+            color: var(--text-muted, #64748b);
+            text-transform: uppercase;
+        }
+
+        /* Document Viewer Layout */
+        .document-viewer {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+
+        .doc-sidebar {
+            background: var(--card-bg, #1e293b);
+            border: 1px solid var(--card-border, #334155);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .doc-sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--card-border, #334155);
+        }
+
+        .doc-sidebar-header h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: var(--text-secondary, #94a3b8);
+        }
+
+        .doc-search {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-secondary, #0f172a);
+            border: 1px solid var(--card-border, #334155);
+            border-radius: 8px;
+            color: var(--text-primary, #f1f5f9);
+            font-size: 14px;
+        }
+
+        .doc-search:focus {
+            outline: none;
+            border-color: var(--accent-color, #22d3ee);
+        }
+
+        .doc-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .doc-item {
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }
+
+        .doc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .doc-item.active {
+            background: rgba(34, 211, 238, 0.1);
+            border-color: var(--accent-color, #22d3ee);
+        }
+
+        .doc-item-title {
+            font-weight: 500;
+            color: var(--text-primary, #f1f5f9);
+            font-size: 14px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .doc-item-meta {
+            font-size: 12px;
+            color: var(--text-muted, #64748b);
+        }
+
+        .doc-content-pane {
+            background: var(--card-bg, #1e293b);
+            border: 1px solid var(--card-border, #334155);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .doc-content-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--card-border, #334155);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .doc-content-header h3 {
+            margin: 0;
+            color: var(--text-primary, #f1f5f9);
+        }
+
+        .doc-content-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .doc-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .doc-textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 12px;
+            background: var(--bg-secondary, #0f172a);
+            border: 1px solid var(--card-border, #334155);
+            border-radius: 8px;
+            color: var(--text-primary, #f1f5f9);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+
+        .doc-textarea:focus {
+            outline: none;
+            border-color: var(--accent-color, #22d3ee);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted, #64748b);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-muted, #64748b);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary, #94a3b8);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .back-link:hover {
+            color: var(--accent-color, #22d3ee);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Project Management" show-refresh="false"></ewr-admin-header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Project Selector View -->
+                    <div id="projectSelector">
+                        <div id="projectGrid" class="project-grid">
+                            <div class="loading">Loading projects...</div>
+                        </div>
+                    </div>
+
+                    <!-- Document Viewer View (hidden initially) -->
+                    <div id="documentViewer" class="hidden">
+                        <a href="#" class="back-link" onclick="backToProjects(); return false;">
+                            <ewr-icon name="arrow-left" size="16"></ewr-icon>
+                            Back to all projects
+                        </a>
+
+                        <div class="document-viewer">
+                            <div class="doc-sidebar">
+                                <div class="doc-sidebar-header">
+                                    <h3>Documents (<span id="docCount">0</span>)</h3>
+                                    <input type="text" id="searchBox" class="doc-search" placeholder="Search documents..." onkeyup="filterDocuments()">
+                                </div>
+                                <div id="docList" class="doc-list">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">📄</div>
+                                        <p>Loading documents...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="doc-content-pane">
+                                <div id="docContentHeader" class="doc-content-header hidden">
+                                    <h3 id="docTitle">Document</h3>
+                                    <div class="btn-group">
+                                        <button class="btn btn-primary" onclick="saveDocument()">Save Changes</button>
+                                        <button class="btn btn-danger" onclick="deleteDocument()">Delete</button>
+                                    </div>
+                                </div>
+
+                                <div id="docContentBody" class="doc-content-body">
+                                    <div id="emptyDocState" class="empty-state">
+                                        <div class="empty-state-icon">👈</div>
+                                        <p>Select a document from the list to view and edit</p>
+                                    </div>
+
+                                    <div id="documentForm" class="hidden">
+                                        <div class="doc-form-grid">
+                                            <div class="form-group">
+                                                <label>Document ID</label>
+                                                <input type="text" id="docId" class="form-control" readonly>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Category</label>
+                                                <select id="docCategory" class="form-control">
+                                                    <option value="code">Code</option>
+                                                    <option value="database">Database</option>
+                                                    <option value="documentation">Documentation</option>
+                                                    <option value="architecture">Architecture</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>File Name</label>
+                                                <input type="text" id="docFile" class="form-control" readonly>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Project</label>
+                                                <input type="text" id="docProject" class="form-control" readonly>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Content</label>
+                                            <textarea id="docContent" class="doc-textarea" placeholder="Document content..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/ewr-components.js"></script>
+    <script src="/js/auth-client.js"></script>
+    <script src="/admin/js/sidebar.js"></script>
+    <script src="project.js"></script>
+</body>
+</html>

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Rules Manager - Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <link rel="stylesheet" href="../../css/ewr-classes.css">
+    <style>
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        .form-group small {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .form-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--card-border);
+        }
+
+
+        /* Filter bar inside collapsible */
+        .filter-content {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-content input,
+        .filter-content select {
+            padding: 8px 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+
+        .filter-content input {
+            flex: 1;
+            min-width: 200px;
+            max-width: 300px;
+        }
+
+        /* Rules count in header */
+        .rules-count {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-left: auto;
+            padding-right: 12px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="SQL Rules Manager" show-refresh="false"></ewr-admin-header>
+
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Main Card using ewr_chat-card-full -->
+                    <div class="ewr_chat-card-full">
+                        <!-- SQL Generation Rules - Collapsible Header -->
+                        <div class="ewr-collapsible" id="rulesCollapsible">
+                            <div class="ewr-collapsible-header" onclick="toggleCollapsible('rulesCollapsible')">
+                                <h3 class="ewr-collapsible-title">SQL Generation Rules</h3>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span class="rules-count" id="ruleCount">Loading...</span>
+                                    <button class="ewr-collapse-toggle">
+                                        <span class="toggle-icon">&#9660;</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="ewr-collapsible-content">
+                                <!-- Filter Bar -->
+                                <div class="filter-content">
+                                    <input type="text" id="searchFilter" placeholder="Search rules..." oninput="filterRules()">
+                                    <select id="databaseFilter" onchange="filterRules()">
+                                        <option value="">All Databases</option>
+                                        <option value="_global">Global Only</option>
+                                    </select>
+                                    <select id="priorityFilter" onchange="filterRules()">
+                                        <option value="">All Priorities</option>
+                                        <option value="critical">Critical</option>
+                                        <option value="high">High</option>
+                                        <option value="normal">Normal</option>
+                                    </select>
+                                    <button class="ewr-button-special-lightBlue-gradient" onclick="openCreateModal()">
+                                        + Add New Rule
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rules Table -->
+                        <div class="ewr-grid-multi-color-container" id="rulesContent">
+                            <div class="ewr-grid-multi-color-loading">Loading rules...</div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create/Edit Rule Modal -->
+    <div id="ruleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Create New Rule</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="ruleForm">
+                    <input type="hidden" id="editingRuleId">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="ruleId">Rule ID *</label>
+                            <input type="text" id="ruleId" required placeholder="e.g., convert-datetimeoffset">
+                            <small>Unique identifier (lowercase, hyphens allowed)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="database">Database</label>
+                            <input type="text" id="database" value="_global" placeholder="_global for all databases">
+                            <small>Use "_global" to apply to all databases</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description *</label>
+                        <input type="text" id="description" required placeholder="Brief description of what this rule does">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="ruleType">Type</label>
+                            <select id="ruleType">
+                                <option value="assistance">Assistance (guidance)</option>
+                                <option value="constraint">Constraint (validation)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="priority">Priority</label>
+                            <select id="priority">
+                                <option value="normal">Normal</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Triggers (at least one required)</h3>
+                        <div class="form-group">
+                            <label for="triggerKeywords">Trigger Keywords</label>
+                            <input type="text" id="triggerKeywords" placeholder="today, yesterday, date, when (comma-separated)">
+                            <small>Keywords in the question that activate this rule</small>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="triggerTables">Trigger Tables</label>
+                                <input type="text" id="triggerTables" placeholder="CentralTickets, Orders (comma-separated)">
+                            </div>
+                            <div class="form-group">
+                                <label for="triggerColumns">Trigger Columns</label>
+                                <input type="text" id="triggerColumns" placeholder="AddTicketDate, CreatedAt (comma-separated)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ruleText">Rule Text (Guidance) *</label>
+                        <textarea id="ruleText" required placeholder="Instructions for the LLM on how to handle this scenario..."></textarea>
+                        <small>This text is injected into the LLM prompt when the rule triggers</small>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Auto-Fix (Optional)</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="autoFixPattern">Regex Pattern</label>
+                                <input type="text" id="autoFixPattern" placeholder="\bCAST\((\w+)\s+AS\s+DATE\)">
+                            </div>
+                            <div class="form-group">
+                                <label for="autoFixReplacement">Replacement</label>
+                                <input type="text" id="autoFixReplacement" placeholder="CONVERT(date, \1)">
+                            </div>
+                        </div>
+                        <small>Auto-fix patterns are applied to generated SQL to correct common mistakes</small>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Example (Optional)</h3>
+                        <div class="form-group">
+                            <label for="exampleQuestion">Example Question</label>
+                            <input type="text" id="exampleQuestion" placeholder="Show records from today">
+                        </div>
+                        <div class="form-group">
+                            <label for="exampleSql">Example SQL</label>
+                            <textarea id="exampleSql" placeholder="SELECT * FROM MyTable WHERE CONVERT(date, DateColumn) = CAST(GETDATE() AS date)"></textarea>
+                        </div>
+                        <small>Examples help with exact-match bypass and few-shot learning</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="ewr-button ewr-button-secondary ewr-button-medium" onclick="closeModal()">Cancel</button>
+                <button class="ewr-button-special-lightBlue-gradient" onclick="saveRule()">Save Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        const SQL_API_BASE = 'http://localhost:8001';  // Python FastAPI service
+        let allRules = [];
+
+        // Toggle collapsible section
+        function toggleCollapsible(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.toggle('collapsed');
+            }
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+            await loadRules();
+        });
+
+        async function loadRules() {
+            try {
+                const response = await fetch(`${SQL_API_BASE}/api/sql/rules`);
+                const data = await response.json();
+
+                if (data.success) {
+                    allRules = data.rules;
+                    renderRules(allRules);
+                    updateDatabaseFilter(allRules);
+                    document.getElementById('ruleCount').textContent = `${allRules.length} rules`;
+                } else {
+                    showError('Failed to load rules');
+                }
+            } catch (error) {
+                console.error('Error loading rules:', error);
+                showError('Failed to load rules: ' + error.message);
+            }
+        }
+
+        function updateDatabaseFilter(rules) {
+            const databases = [...new Set(rules.map(r => r.database))].sort();
+            const select = document.getElementById('databaseFilter');
+
+            // Keep existing options, add new databases
+            databases.forEach(db => {
+                if (db !== '_global' && !select.querySelector(`option[value="${db}"]`)) {
+                    const option = document.createElement('option');
+                    option.value = db;
+                    option.textContent = db;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        function filterRules() {
+            const search = document.getElementById('searchFilter').value.toLowerCase();
+            const database = document.getElementById('databaseFilter').value;
+            const priority = document.getElementById('priorityFilter').value;
+
+            const filtered = allRules.filter(rule => {
+                const matchesSearch = !search ||
+                    rule.rule_id.toLowerCase().includes(search) ||
+                    rule.description.toLowerCase().includes(search) ||
+                    (rule.rule_text && rule.rule_text.toLowerCase().includes(search));
+                const matchesDatabase = !database || rule.database === database;
+                const matchesPriority = !priority || rule.priority === priority;
+
+                return matchesSearch && matchesDatabase && matchesPriority;
+            });
+
+            renderRules(filtered);
+            document.getElementById('ruleCount').textContent = `${filtered.length} of ${allRules.length} rules`;
+        }
+
+        function renderRules(rules) {
+            const container = document.getElementById('rulesContent');
+
+            if (rules.length === 0) {
+                container.innerHTML = `
+                    <div class="ewr-grid-multi-color-empty">
+                        <h3>No Rules Found</h3>
+                        <p>Create your first rule to help the SQL generation system.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="ewr-grid-multi-color">
+                    <thead>
+                        <tr>
+                            <th>Database</th>
+                            <th>Priority</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rules.map(rule => `
+                            <tr>
+                                <td>
+                                    <span class="database-text ${rule.database === '_global' ? 'global' : ''}">
+                                        ${rule.database === '_global' ? 'Global' : rule.database}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="priority-text">${rule.priority}</span>
+                                </td>
+                                <td>
+                                    <div>${rule.description}</div>
+                                    <div class="rule-text-preview">${rule.rule_text || ''}</div>
+                                </td>
+                                <td class="actions-cell">
+                                    <button class="ewr-button-show" onclick="editRule('${rule.rule_id}')">Edit</button>
+                                    <button class="ewr-delete-file-button" onclick="deleteRule('${rule.rule_id}')">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('rulesContent').innerHTML = `
+                <div class="ewr-grid-multi-color-empty">
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function openCreateModal() {
+            document.getElementById('modalTitle').textContent = 'Create New Rule';
+            document.getElementById('ruleForm').reset();
+            document.getElementById('editingRuleId').value = '';
+            document.getElementById('database').value = '_global';
+            document.getElementById('ruleModal').classList.add('active');
+        }
+
+        function editRule(ruleId) {
+            const rule = allRules.find(r => r.rule_id === ruleId);
+            if (!rule) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit Rule';
+            document.getElementById('editingRuleId').value = ruleId;
+            document.getElementById('ruleId').value = rule.rule_id;
+            document.getElementById('database').value = rule.database || '_global';
+            document.getElementById('description').value = rule.description || '';
+            document.getElementById('ruleType').value = rule.type || 'assistance';
+            document.getElementById('priority').value = rule.priority || 'normal';
+            document.getElementById('triggerKeywords').value = (rule.trigger_keywords || []).join(', ');
+            document.getElementById('triggerTables').value = (rule.trigger_tables || []).join(', ');
+            document.getElementById('triggerColumns').value = (rule.trigger_columns || []).join(', ');
+            document.getElementById('ruleText').value = rule.rule_text || '';
+
+            if (rule.auto_fix) {
+                document.getElementById('autoFixPattern').value = rule.auto_fix.pattern || '';
+                document.getElementById('autoFixReplacement').value = rule.auto_fix.replacement || '';
+            } else {
+                document.getElementById('autoFixPattern').value = '';
+                document.getElementById('autoFixReplacement').value = '';
+            }
+
+            if (rule.example) {
+                document.getElementById('exampleQuestion').value = rule.example.question || '';
+                document.getElementById('exampleSql').value = rule.example.sql || '';
+            } else {
+                document.getElementById('exampleQuestion').value = '';
+                document.getElementById('exampleSql').value = '';
+            }
+
+            document.getElementById('ruleModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('ruleModal').classList.remove('active');
+        }
+
+        async function saveRule() {
+            const editingId = document.getElementById('editingRuleId').value;
+            const ruleId = document.getElementById('ruleId').value.trim();
+
+            if (!ruleId) {
+                alert('Rule ID is required');
+                return;
+            }
+
+            const parseList = (value) => value.split(',').map(s => s.trim()).filter(s => s);
+
+            const ruleData = {
+                rule_id: ruleId,
+                database: document.getElementById('database').value.trim() || '_global',
+                description: document.getElementById('description').value.trim(),
+                type: document.getElementById('ruleType').value,
+                priority: document.getElementById('priority').value,
+                enabled: true,
+                trigger_keywords: parseList(document.getElementById('triggerKeywords').value),
+                trigger_tables: parseList(document.getElementById('triggerTables').value),
+                trigger_columns: parseList(document.getElementById('triggerColumns').value),
+                rule_text: document.getElementById('ruleText').value.trim(),
+                auto_fix_pattern: document.getElementById('autoFixPattern').value.trim() || null,
+                auto_fix_replacement: document.getElementById('autoFixReplacement').value.trim() || null,
+                example_question: document.getElementById('exampleQuestion').value.trim() || null,
+                example_sql: document.getElementById('exampleSql').value.trim() || null
+            };
+
+            try {
+                const url = editingId ? `${SQL_API_BASE}/api/sql/rules/${editingId}` : `${SQL_API_BASE}/api/sql/rules`;
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ruleData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    closeModal();
+                    loadRules();
+                    alert(editingId ? 'Rule updated successfully!' : 'Rule created successfully!');
+                } else {
+                    alert('Failed to save rule: ' + (result.detail || result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error saving rule:', error);
+                alert('Failed to save rule: ' + error.message);
+            }
+        }
+
+        async function deleteRule(ruleId) {
+            if (!confirm(`Are you sure you want to delete rule "${ruleId}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SQL_API_BASE}/api/sql/rules/${ruleId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    loadRules();
+                    alert('Rule deleted successfully!');
+                } else {
+                    alert('Failed to delete rule: ' + (result.detail || result.message));
+                }
+            } catch (error) {
+                console.error('Error deleting rule:', error);
+                alert('Failed to delete rule: ' + error.message);
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Close modal on background click
+        document.getElementById('ruleModal').addEventListener('click', (e) => {
+            if (e.target.id === 'ruleModal') closeModal();
+        });
+    </script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

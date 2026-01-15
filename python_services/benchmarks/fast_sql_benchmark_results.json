@@ -1,0 +1,16 @@
+{
+  "total_queries": 15,
+  "successful_queries": 15,
+  "failed_queries": 0,
+  "cache_hits": 0,
+  "rule_matches": 0,
+  "avg_generation_time_ms": 3343.266666666667,
+  "min_generation_time_ms": 659,
+  "max_generation_time_ms": 11472,
+  "avg_tokens_per_second": 20.017241219567822,
+  "under_5_seconds": 11,
+  "under_3_seconds": 10,
+  "speculative_decoding": false,
+  "model_used": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+  "timestamp": "2025-12-15T04:03:04.389599"
+}

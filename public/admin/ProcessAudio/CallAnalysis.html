@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Analysis - Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        /* Page container */
+        .analysis-page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .analysis-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .analysis-title-icon {
+            font-size: 28px;
+        }
+
+        .analysis-filename {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 4px;
+            font-family: monospace;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #64748b;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(100, 116, 139, 0.2);
+            color: #f1f5f9;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Content grid */
+        .analysis-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1200px) {
+            .analysis-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .analysis-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            background: rgba(30, 41, 59, 0.5);
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #60a5fa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Full width card */
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Metadata grid */
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .metadata-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .metadata-item {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 12px 16px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+        }
+
+        .metadata-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .metadata-value {
+            font-size: 14px;
+            color: #f1f5f9;
+            font-weight: 500;
+        }
+
+        .metadata-value.success {
+            color: #34d399;
+        }
+
+        .metadata-value.warning {
+            color: #fbbf24;
+        }
+
+        .metadata-value.incoming {
+            color: #34d399;
+        }
+
+        .metadata-value.outgoing {
+            color: #fbbf24;
+        }
+
+        /* Form fields */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-label.required::after {
+            content: ' *';
+            color: #ef4444;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 10px 14px;
+            font-size: 14px;
+            border-radius: 6px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Transcription box */
+        .transcription-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 14px;
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+
+        .transcription-box.summary {
+            max-height: 150px;
+        }
+
+        /* Emotions display */
+        .emotions-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .emotion-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #334155;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #f1f5f9;
+        }
+
+        .emotion-badge.primary {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+            color: #60a5fa;
+        }
+
+        /* Loading state */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: #94a3b8;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #334155;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error state */
+        .error-container {
+            text-align: center;
+            padding: 40px;
+            color: #ef4444;
+        }
+
+        /* Message toast */
+        .message-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .message-toast.success {
+            background: rgba(16, 185, 129, 0.9);
+            color: white;
+        }
+
+        .message-toast.error {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+        }
+
+        .message-toast.info {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Audio metadata inline */
+        .audio-meta-inline {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .audio-meta-inline span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Span columns */
+        .span-2 {
+            grid-column: span 2;
+        }
+
+        .span-3 {
+            grid-column: span 3;
+        }
+
+        .span-4 {
+            grid-column: span 4;
+        }
+
+        /* Ticket cards */
+        .ticket-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ticket-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .ticket-card:hover {
+            border-color: #3b82f6;
+        }
+
+        .ticket-card.best-match {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .ticket-id {
+            font-family: monospace;
+            font-size: 13px;
+            color: #60a5fa;
+            background: rgba(59, 130, 246, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .ticket-title {
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+        }
+
+        .ticket-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .ticket-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .match-score {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .match-score.high {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .match-score.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .match-score.low {
+            background: rgba(100, 116, 139, 0.2);
+            color: #94a3b8;
+        }
+
+        .match-reasons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .match-reason {
+            font-size: 11px;
+            padding: 3px 8px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 4px;
+            color: #60a5fa;
+        }
+
+        .no-tickets {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+        }
+
+        .no-tickets-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        /* Speaker statistics */
+        .speaker-stat {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .speaker-stat:last-child {
+            border-bottom: none;
+        }
+
+        .speaker-label {
+            min-width: 100px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .speaker-bar-container {
+            flex: 1;
+            height: 24px;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .speaker-bar {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+        }
+
+        .speaker-bar.speaker-1 {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        }
+
+        .speaker-bar.speaker-2 {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .speaker-bar.speaker-3 {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .speaker-bar.speaker-4 {
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+        }
+
+        .speaker-info {
+            min-width: 140px;
+            text-align: right;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .speaker-percentage {
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="analysis-page">
+        <!-- Header -->
+        <div class="analysis-header">
+            <div>
+                <div class="analysis-title">
+                    <span class="analysis-title-icon">📞</span>
+                    <span>Call Analysis</span>
+                </div>
+                <div class="analysis-filename" id="filenameDisplay">Loading...</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="goBack()">
+                    ← Back to List
+                </button>
+                <button class="btn btn-primary" id="saveBtn" onclick="saveToMongoDB()" disabled>
+                    💾 Save to MongoDB
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loadingState" class="loading-container">
+            <div class="loading-spinner"></div>
+            <div>Loading analysis data...</div>
+        </div>
+
+        <!-- Error state -->
+        <div id="errorState" class="error-container" style="display: none;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <div id="errorMessage">Failed to load analysis</div>
+            <button class="btn btn-secondary" style="margin-top: 16px;" onclick="goBack()">← Back to List</button>
+        </div>
+
+        <!-- Main content -->
+        <div id="mainContent" class="analysis-content" style="display: none;">
+
+            <!-- Required Fields Card -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <span class="card-title">📝 Required Fields</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label required">Customer Support Staff</label>
+                            <input type="text" class="form-input" id="staffInput" placeholder="Staff name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">EWR Customer</label>
+                            <input type="text" class="form-input" id="customerInput" placeholder="Customer name">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label required">Mood</label>
+                            <select class="form-select" id="moodSelect">
+                                <option value="">Select mood...</option>
+                                <option value="Positive">Positive</option>
+                                <option value="Neutral">Neutral</option>
+                                <option value="Negative">Negative</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">Outcome</label>
+                            <select class="form-select" id="outcomeSelect">
+                                <option value="">Select outcome...</option>
+                                <option value="Issue Resolved">Issue Resolved</option>
+                                <option value="Issue Unresolved">Issue Unresolved</option>
+                                <option value="Issue Logged in Central">Issue Logged in Central</option>
+                                <option value="Undetermined">Undetermined</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call Metadata Card -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <span class="card-title">📋 Call Metadata</span>
+                </div>
+                <div class="card-body">
+                    <div class="metadata-grid">
+                        <div class="metadata-item">
+                            <div class="metadata-label">Date</div>
+                            <div class="metadata-value" id="metaDate">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Time</div>
+                            <div class="metadata-value" id="metaTime">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Extension</div>
+                            <div class="metadata-value" id="metaExtension">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Phone</div>
+                            <div class="metadata-value" id="metaPhone">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Direction</div>
+                            <div class="metadata-value" id="metaDirection">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Duration</div>
+                            <div class="metadata-value" id="metaDuration">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Language</div>
+                            <div class="metadata-value" id="metaLanguage">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Recording ID</div>
+                            <div class="metadata-value" id="metaRecordingId" style="font-family: monospace; font-size: 12px;">N/A</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM Analysis Card -->
+            <div class="analysis-card full-width">
+                <div class="card-header">
+                    <span class="card-title">🤖 LLM Call Content Analysis</span>
+                </div>
+                <div class="card-body">
+                    <div class="metadata-grid">
+                        <div class="metadata-item span-2">
+                            <div class="metadata-label">Call Subject</div>
+                            <div class="metadata-value" id="llmSubject">Not detected</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">LLM Outcome</div>
+                            <div class="metadata-value" id="llmOutcome">Not detected</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Customer Name (from call)</div>
+                            <div class="metadata-value" id="llmCustomerName">Not mentioned</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emotions Card -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <span class="card-title">😊 Emotions</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <div class="metadata-label">Primary Emotion</div>
+                        <div id="primaryEmotion" class="metadata-value" style="font-size: 18px; margin-bottom: 12px;">NEUTRAL</div>
+                    </div>
+                    <div class="metadata-label">Detected Emotions</div>
+                    <div id="emotionsContainer" class="emotions-container">
+                        <!-- Emotions will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Info Card -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <span class="card-title">🔊 Audio Information</span>
+                </div>
+                <div class="card-body">
+                    <div class="metadata-grid" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="metadata-item">
+                            <div class="metadata-label">Format</div>
+                            <div class="metadata-value" id="audioFormat">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">File Size</div>
+                            <div class="metadata-value" id="audioSize">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Sample Rate</div>
+                            <div class="metadata-value" id="audioSampleRate">N/A</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Channels</div>
+                            <div class="metadata-value" id="audioChannels">N/A</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speaker Diarization Card -->
+            <div class="analysis-card" id="diarizationCard" style="display: none;">
+                <div class="card-header">
+                    <span class="card-title">🎙️ Speaker Analysis</span>
+                </div>
+                <div class="card-body">
+                    <div class="metadata-grid" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="metadata-item">
+                            <div class="metadata-label">Speakers Detected</div>
+                            <div class="metadata-value" id="numSpeakers">0</div>
+                        </div>
+                        <div class="metadata-item">
+                            <div class="metadata-label">Total Segments</div>
+                            <div class="metadata-value" id="numSegments">0</div>
+                        </div>
+                    </div>
+                    <div id="speakerStats" style="margin-top: 16px;">
+                        <!-- Speaker statistics will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transcription Card -->
+            <div class="analysis-card full-width">
+                <div class="card-header">
+                    <span class="card-title">📝 Transcription</span>
+                    <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="copyTranscription()">
+                        📋 Copy
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="transcriptionBox" class="transcription-box">
+                        No transcription available
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Card (if available) -->
+            <div class="analysis-card full-width" id="summaryCard" style="display: none;">
+                <div class="card-header">
+                    <span class="card-title">📄 Summary</span>
+                </div>
+                <div class="card-body">
+                    <div id="summaryBox" class="transcription-box summary">
+                        No summary available
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Tickets Card -->
+            <div class="analysis-card full-width" id="ticketsCard">
+                <div class="card-header">
+                    <span class="card-title">🎫 Related Tickets</span>
+                    <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="searchTickets()">
+                        🔍 Search
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="ticketsLoading" style="display: none; text-align: center; padding: 20px; color: #94a3b8;">
+                        <div class="loading-spinner" style="margin: 0 auto 12px;"></div>
+                        Searching for matching tickets...
+                    </div>
+                    <div id="ticketsContent">
+                        <p style="color: #94a3b8; text-align: center;">Click "Search" to find tickets that may be related to this call</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Message toast container -->
+    <div id="messageToast" class="message-toast" style="display: none;"></div>
+
+    <script src="CallAnalysis.js"></script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role Management - RAG Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        /* Category Badge Pool */
+        .badge-pool {
+            background: var(--card-bg);
+            border: 2px dashed var(--card-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .badge-pool-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .badge-pool-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge-pool-title svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--accent-cyan);
+        }
+
+        .badge-pool-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .badge-pool-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .category-badge {
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: grab;
+            transition: all 0.2s;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .category-badge:active {
+            cursor: grabbing;
+        }
+
+        .category-badge.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+        .category-badge svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* Category-specific colors */
+        .category-badge.documentation { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; }
+        .category-badge.documents { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+        .category-badge.sql { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .category-badge.git { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .category-badge.code { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .category-badge.audio { background: linear-gradient(135deg, #ec4899, #db2777); color: white; }
+        .category-badge.admin { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .category-badge.system { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+
+        /* Roles Grid */
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .role-card {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .role-card.drag-over {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .role-card-header {
+            padding: 16px 20px;
+            background: var(--card-border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .role-badge {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .role-badge.admin { background: #dc2626; color: white; }
+        .role-badge.developer { background: #3b82f6; color: white; }
+        .role-badge.user { background: #6b7280; color: white; }
+
+        .role-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            flex: 1;
+        }
+
+        .role-card-body {
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        .role-categories {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 40px;
+        }
+
+        .role-category-badge {
+            padding: 8px 14px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: default;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .role-category-badge svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        .role-category-badge .remove-btn {
+            margin-left: 4px;
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.2);
+            transition: all 0.2s;
+        }
+
+        .role-category-badge .remove-btn:hover {
+            background: rgba(0, 0, 0, 0.4);
+            transform: scale(1.1);
+        }
+
+        .role-category-badge .remove-btn svg {
+            width: 10px;
+            height: 10px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            fill: var(--text-muted);
+            opacity: 0.3;
+            margin-bottom: 12px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .message {
+            padding: 12px 16px;
+            margin-top: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .message.success {
+            background: #064e3b;
+            color: #6ee7b7;
+            border: 1px solid #047857;
+        }
+
+        .message.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: 1px solid #991b1b;
+        }
+
+        .save-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: 12px;
+        }
+
+        .save-indicator.saving {
+            color: var(--accent-cyan);
+        }
+
+        .save-indicator.saved {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Role Management" show-refresh="false"></ewr-admin-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Category Badge Pool -->
+                    <div class="badge-pool">
+                        <div class="badge-pool-header">
+                            <div class="badge-pool-title">
+                                <ewr-icon name="tags" size="24"></ewr-icon>
+                                Categories
+                            </div>
+                        </div>
+                        <div class="badge-pool-subtitle">
+                            Drag category badges onto role cards to assign access permissions
+                        </div>
+                        <div class="badge-pool-container" id="badgePool">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Role Cards -->
+                    <div class="roles-grid" id="rolesGrid">
+                        <!-- Will be populated by JavaScript -->
+                        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            Loading role permissions...
+                        </div>
+                    </div>
+
+                    <div id="roleMessage"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/role-management.js"></script>
+    <script>
+        // Initialize sidebar on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSidebar();
+        });
+
+        function logout() {
+            const auth = new AuthClient();
+            auth.logout();
+        }
+    </script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

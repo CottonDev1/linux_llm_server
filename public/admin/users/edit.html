@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit User - RAG Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group select,
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--card-border);
+            background: var(--card-border);
+            color: var(--text-primary);
+            font-size: 14px;
+            border-radius: 8px;
+        }
+
+        .form-group input[type="text"]:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .message {
+            padding: 12px 16px;
+            margin-top: 16px;
+            border-radius: 8px;
+        }
+
+        .message.success {
+            background: #064e3b;
+            color: #6ee7b7;
+            border: 1px solid #047857;
+        }
+
+        .message.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: 1px solid #991b1b;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1200px) {
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .permissions-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .permission-category {
+            background: var(--card-border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .permission-category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .permission-category-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .category-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .category-controls button {
+            padding: 4px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .category-controls .btn-cat-all {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .category-controls .btn-cat-all:hover {
+            background: rgba(0, 212, 255, 0.3);
+        }
+
+        .category-controls .btn-cat-none {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .category-controls .btn-cat-none:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .permission-category-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--accent-cyan);
+        }
+
+        .permission-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+        }
+
+        .permission-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .permission-item:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .permission-item input[type="checkbox"] {
+            margin: 0;
+        }
+
+        .permission-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .permissions-info {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+
+        .permissions-info p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .permissions-info strong {
+            color: var(--accent-cyan);
+        }
+
+        .permissions-info em {
+            color: var(--text-primary);
+            font-style: normal;
+            font-weight: 600;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .loading-spinner {
+            background: var(--card-bg);
+            padding: 32px;
+            border-radius: 12px;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--card-border);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .admin-protection {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+
+        .select-all-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .select-all-controls button {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-select-all {
+            background: var(--accent-cyan);
+            color: #1a2332;
+        }
+
+        .btn-select-all:hover {
+            background: var(--accent-cyan-hover);
+        }
+
+        .btn-select-none {
+            background: var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .btn-select-none:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div>Loading user data...</div>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Edit User" show-refresh="false"></ewr-admin-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- User Information and Permissions Cards -->
+                    <div class="card-grid">
+                        <!-- User Information Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">User Information</h2>
+                            </div>
+
+                            <form id="userInfoForm" autocomplete="off">
+                                <div class="form-group">
+                                    <label>Username</label>
+                                    <input type="text" id="username" disabled>
+                                    <p class="help-text">Username cannot be changed</p>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="email" placeholder="user@example.com" autocomplete="off">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Role</label>
+                                    <select id="role">
+                                        <option value="user">User</option>
+                                        <option value="developer">Developer</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                    <div id="adminProtectionWarning" class="admin-protection" style="display: none;">
+                                        You cannot remove your own admin access. This is a security protection.
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>New Password (optional)</label>
+                                    <input type="password" id="password" placeholder="Leave blank to keep current password" autocomplete="new-password">
+                                    <p class="help-text">Only enter a password if you want to change it</p>
+                                </div>
+
+                                <div class="form-group" style="display: flex; gap: 32px;">
+                                    <div>
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="isActive">
+                                            <span>Account Active</span>
+                                        </label>
+                                        <p class="help-text">Inactive accounts cannot log in</p>
+                                    </div>
+                                    <div>
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="monitorAnalysis">
+                                            <span>Monitor Analysis</span>
+                                        </label>
+                                        <p class="help-text">Log audio results</p>
+                                    </div>
+                                </div>
+
+                                <div class="button-group">
+                                    <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
+                                    <button type="button" class="btn btn-secondary" onclick="window.location.href='index.html'" style="flex: 1;">Cancel</button>
+                                </div>
+                            </form>
+
+                            <div id="userInfoMessage"></div>
+                        </div>
+
+                        <!-- Page Access Permissions Card -->
+                        <div class="card" id="permissionsCard">
+                            <div class="card-header">
+                                <h2 class="card-title">Page Access Permissions</h2>
+                            </div>
+
+                            <div id="permissionsContainer">
+                                <div class="permissions-grid" id="permissionsGrid">
+                                    <!-- Will be populated dynamically by category -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/user-edit.js"></script>
+    <script>
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Initialize sidebar
+            await initSidebar();
+
+            // Load user data
+            await loadUserData();
+        });
+
+        function logout() {
+            const auth = new AuthClient();
+            auth.logout();
+        }
+    </script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

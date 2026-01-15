@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: ewr-code-agent
+Version: 1.0.0
+Summary: EWR Code Agent - Code analysis, generation, review, and project scanning
+Author: EWR Development Team
+License: MIT
+Project-URL: Homepage, https://github.com/ewr/ewr-agents
+Keywords: agents,code-analysis,ai,llm
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: ewr-agent-core>=1.0.0
+Requires-Dist: aiofiles>=23.0.0
+Requires-Dist: chardet>=5.0.0
+Requires-Dist: pathspec>=0.11.0
+Provides-Extra: tree-sitter
+Requires-Dist: tree-sitter>=0.20.0; extra == "tree-sitter"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"

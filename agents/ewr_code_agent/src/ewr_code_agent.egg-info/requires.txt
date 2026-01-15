@@ -1,0 +1,12 @@
+ewr-agent-core>=1.0.0
+aiofiles>=23.0.0
+chardet>=5.0.0
+pathspec>=0.11.0
+
+[dev]
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+[tree-sitter]
+tree-sitter>=0.20.0

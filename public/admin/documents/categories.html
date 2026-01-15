@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Management - EWR Admin</title>
+    <link rel="stylesheet" href="../../css/layout.css">
+    <style>
+        /* Three-Column Layout */
+        .category-columns {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .category-columns > .category-card {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Responsive: stack on smaller screens */
+        @media (max-width: 1200px) {
+            .category-columns {
+                flex-direction: column;
+            }
+            .category-columns > .category-card {
+                width: 100%;
+            }
+        }
+
+        /* Collapsible Card Styles */
+        .category-card {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            margin-bottom: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .category-card:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        .category-card-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+            height: 180px;
+            box-sizing: border-box;
+        }
+
+        .category-card-header:hover {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .category-card-header-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .category-card-tier {
+            background: #0f172a;
+            padding: 8px 16px;
+            border-radius: 6px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .category-card-subtitle {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .category-card-icon {
+            font-size: 32px;
+        }
+
+        .category-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .category-card-header-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .collapse-indicator {
+            font-size: 18px;
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+
+        .category-card.collapsed .collapse-indicator {
+            transform: rotate(-90deg);
+        }
+
+        .category-card-body {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.3s ease;
+            padding: 20px;
+        }
+
+        .category-card.collapsed .category-card-body {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        /* Category Grid */
+        .category-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .category-item {
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 10px 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .category-item:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+
+        .category-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .category-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            text-align: left;
+        }
+
+        .category-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+            word-break: break-word;
+        }
+
+        .category-description {
+            font-size: 11px;
+            color: #94a3b8;
+            line-height: 1.4;
+            text-transform: none;
+        }
+
+        .category-meta {
+            font-size: 11px;
+            color: #3b82f6;
+            font-family: 'Courier New', monospace;
+            margin-top: 2px;
+        }
+
+        .category-actions {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            color: #3b82f6;
+        }
+
+        .btn-edit:hover {
+            color: #2563eb;
+            transform: scale(1.1);
+        }
+
+        .btn-delete {
+            color: #ef4444;
+        }
+
+        .btn-delete:hover {
+            color: #dc2626;
+            transform: scale(1.1);
+        }
+
+        .btn-add-category {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #22c55e;
+            padding: 0;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+
+        .btn-add-category:hover {
+            color: #16a34a;
+            transform: scale(1.1);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #94a3b8;
+            background: #0f172a;
+            border: 1px dashed #334155;
+            border-radius: 8px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #334155;
+            color: #f1f5f9;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .form-input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 10px 14px;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 10px 14px;
+            font-size: 14px;
+            border-radius: 4px;
+            font-family: inherit;
+            resize: vertical;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 24px;
+            color: #cbd5e1;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 24px;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Admin Sidebar Component -->
+        <ewr-admin-sidebar></ewr-admin-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Admin Header Component -->
+            <ewr-admin-header title="Category Management" show-refresh="false"></ewr-admin-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Three-Column Layout for Category Cards -->
+                    <div class="category-columns">
+                        <!-- Departments Card (Tier 1) -->
+                        <div class="category-card" id="departmentsCard" data-category="departments">
+                        <div class="category-card-header" onclick="toggleCard('departments')">
+                            <div class="category-card-header-left">
+                                <div class="category-card-tier">
+                                    <span class="category-card-subtitle">Tier 1 - Primary Classification</span>
+                                </div>
+                                <span class="category-card-icon">🏢</span>
+                                <h3 class="category-card-title">Departments</h3>
+                            </div>
+                            <div class="category-card-header-right">
+                                <button class="btn-add-category" onclick="event.stopPropagation(); openAddCategoryModal('departments')" title="Add">+</button>
+                                <span class="collapse-indicator">▼</span>
+                            </div>
+                        </div>
+                        <div class="category-card-body">
+                            <div id="departmentsList" class="category-grid">
+                                <div class="loading-state">Loading departments...</div>
+                            </div>
+                        </div>
+                        </div>
+
+                        <!-- Types Card (Tier 2) -->
+                        <div class="category-card" id="typesCard" data-category="types">
+                        <div class="category-card-header" onclick="toggleCard('types')">
+                            <div class="category-card-header-left">
+                                <div class="category-card-tier">
+                                    <span class="category-card-subtitle">Tier 2 - Document Classification</span>
+                                </div>
+                                <span class="category-card-icon">🗄️</span>
+                                <h3 class="category-card-title">Document Types</h3>
+                            </div>
+                            <div class="category-card-header-right">
+                                <button class="btn-add-category" onclick="event.stopPropagation(); openAddCategoryModal('types')" title="Add">+</button>
+                                <span class="collapse-indicator">▼</span>
+                            </div>
+                        </div>
+                        <div class="category-card-body">
+                            <div id="typesList" class="category-grid">
+                                <div class="loading-state">Loading types...</div>
+                            </div>
+                        </div>
+                        </div>
+
+                        <!-- Subjects Card (Tier 3) -->
+                        <div class="category-card" id="subjectsCard" data-category="subjects">
+                        <div class="category-card-header" onclick="toggleCard('subjects')">
+                            <div class="category-card-header-left">
+                                <div class="category-card-tier">
+                                    <span class="category-card-subtitle">Tier 3 - Optional Granular Tags</span>
+                                </div>
+                                <span class="category-card-icon">🏷️</span>
+                                <h3 class="category-card-title">Subjects / Products</h3>
+                            </div>
+                            <div class="category-card-header-right">
+                                <button class="btn-add-category" onclick="event.stopPropagation(); openAddCategoryModal('subjects')" title="Add">+</button>
+                                <span class="collapse-indicator">▼</span>
+                            </div>
+                        </div>
+                        <div class="category-card-body">
+                            <div id="subjectsList" class="category-grid">
+                                <div class="loading-state">Loading subjects...</div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="categoryModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="categoryModalTitle">Add Category</h3>
+                <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="categoryId">ID (lowercase, no spaces) *</label>
+                    <input type="text" id="categoryId" class="form-input" placeholder="e.g., customer_support" required>
+                    <div class="form-hint">Unique identifier for the category. Use lowercase with underscores.</div>
+                </div>
+                <div class="form-group">
+                    <label for="categoryName">Display Name *</label>
+                    <input type="text" id="categoryName" class="form-input" placeholder="e.g., Customer Support" required>
+                    <div class="form-hint">Human-readable name shown in the UI.</div>
+                </div>
+                <div class="form-group">
+                    <label for="categoryDescription">Description</label>
+                    <textarea id="categoryDescription" class="form-textarea" placeholder="Brief description of this category" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="categoryOrder">Display Order *</label>
+                    <input type="number" id="categoryOrder" class="form-input" placeholder="1" min="1" required>
+                    <div class="form-hint">Lower numbers appear first in lists.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+                <button class="btn btn-primary" id="saveCategoryBtn" onclick="saveCategory()">Save Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../js/ewr-components.js"></script>
+    <script src="../../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../../js/system-status.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+
+        // Initialize sidebar
+        if (typeof initSidebar === 'function') {
+            initSidebar();
+        }
+
+        // Display user info in header
+        async function displayUserInfo() {
+            try {
+                const user = await auth.getUser();
+                if (user) {
+                    const userNameEl = document.getElementById('userName');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    const userRoleEl = document.getElementById('userRole');
+
+                    if (userNameEl) userNameEl.textContent = user.username;
+                    if (userAvatarEl) userAvatarEl.textContent = user.username.charAt(0).toUpperCase();
+                    if (userRoleEl) userRoleEl.textContent = user.role || 'User';
+                }
+            } catch (error) {
+                console.error('Failed to get user info:', error);
+            }
+        }
+        displayUserInfo();
+
+        function logout() {
+            auth.logout();
+        }
+
+        // ==================== CATEGORY MANAGEMENT FUNCTIONALITY ====================
+
+        let currentCategoryType = '';
+        let categories = {
+            departments: [],
+            types: [],
+            subjects: []
+        };
+
+        // Card collapse state management
+        const COLLAPSE_STATE_KEY = 'categoryCardCollapseState';
+
+        function getCollapseState() {
+            try {
+                return JSON.parse(localStorage.getItem(COLLAPSE_STATE_KEY)) || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function saveCollapseState(state) {
+            localStorage.setItem(COLLAPSE_STATE_KEY, JSON.stringify(state));
+        }
+
+        function toggleCard(category) {
+            const card = document.getElementById(`${category}Card`);
+            if (!card) return;
+
+            const isCollapsed = card.classList.toggle('collapsed');
+
+            // Save state to localStorage
+            const state = getCollapseState();
+            state[category] = isCollapsed;
+            saveCollapseState(state);
+        }
+
+        function initializeCardStates() {
+            const state = getCollapseState();
+            ['departments', 'types', 'subjects'].forEach(category => {
+                const card = document.getElementById(`${category}Card`);
+                if (card && state[category]) {
+                    card.classList.add('collapsed');
+                }
+            });
+        }
+
+        // Load all categories on page load
+        async function loadAllCategories() {
+            await Promise.all([
+                loadCategories('departments'),
+                loadCategories('types'),
+                loadCategories('subjects')
+            ]);
+        }
+
+        // Load categories for a specific tier
+        // Uses Python service endpoint via Node.js proxy: /api/python/categories/{type}
+        async function loadCategories(type) {
+            const listId = type + 'List';
+            const container = document.getElementById(listId);
+
+            try {
+                const response = await fetch(`/api/python/categories/${type}`, {
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    categories[type] = data.categories || [];
+                    displayCategories(type);
+                } else {
+                    container.innerHTML = `<div class="error-state">Error loading ${type}: ${data.error}</div>`;
+                }
+            } catch (error) {
+                console.error(`Failed to load ${type}:`, error);
+                container.innerHTML = `<div class="error-state">Failed to load ${type}: ${error.message}</div>`;
+            }
+        }
+
+        // Display categories in the UI
+        function displayCategories(type) {
+            const listId = type + 'List';
+            const container = document.getElementById(listId);
+            const items = categories[type] || [];
+
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📁</div>
+                        <div>No ${type} found. Click the button above to add one.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort by order
+            items.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            container.innerHTML = items.map(item => `
+                <div class="category-item">
+                    <div class="category-actions">
+                        <button class="btn-icon btn-edit" onclick="editCategory('${type}', '${item.id}')" title="Edit">▲</button>
+                        <button class="btn-icon btn-delete" onclick="deleteCategory('${type}', '${item.id}')" title="Delete">−</button>
+                    </div>
+                    <div class="category-content">
+                        <span class="category-name">${item.name}</span>
+                        ${item.description ? `<div class="category-description">${item.description}</div>` : ''}
+                        <div class="category-meta">[${item.id}]</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Open modal to add a new category
+        function openAddCategoryModal(type) {
+            currentCategoryType = type;
+            document.getElementById('categoryModalTitle').textContent = `Add ${type.slice(0, -1).charAt(0).toUpperCase() + type.slice(1, -1)}`;
+            document.getElementById('categoryId').value = '';
+            document.getElementById('categoryName').value = '';
+            document.getElementById('categoryDescription').value = '';
+            document.getElementById('categoryOrder').value = '';
+            document.getElementById('categoryModal').classList.add('active');
+        }
+
+        // Close the modal
+        function closeCategoryModal() {
+            document.getElementById('categoryModal').classList.remove('active');
+            currentCategoryType = '';
+        }
+
+        // Save a category (create or update)
+        async function saveCategory() {
+            const id = document.getElementById('categoryId').value.trim();
+            const name = document.getElementById('categoryName').value.trim();
+            const description = document.getElementById('categoryDescription').value.trim();
+            const order = parseInt(document.getElementById('categoryOrder').value) || 1;
+
+            if (!id || !name) {
+                alert('ID and Name are required');
+                return;
+            }
+
+            // Validate ID format (lowercase, underscores only)
+            if (!/^[a-z_]+$/.test(id)) {
+                alert('ID must be lowercase letters and underscores only');
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveCategoryBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            // Save to Python service endpoint via Node.js proxy
+            try {
+                const response = await fetch(`/api/python/categories/${currentCategoryType}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify({ id, name, description, order })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const typeToReload = currentCategoryType; // Save before closing clears it
+                    closeCategoryModal();
+                    await loadCategories(typeToReload);
+                } else {
+                    alert('Error saving category: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Failed to save category:', error);
+                alert('Failed to save category: ' + error.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Category';
+            }
+        }
+
+        // Edit an existing category
+        function editCategory(type, id) {
+            const category = categories[type].find(c => c.id === id);
+            if (!category) return;
+
+            currentCategoryType = type;
+            document.getElementById('categoryModalTitle').textContent = `Edit ${type.slice(0, -1).charAt(0).toUpperCase() + type.slice(1, -1)}`;
+            document.getElementById('categoryId').value = category.id;
+            document.getElementById('categoryId').disabled = true; // Don't allow ID changes
+            document.getElementById('categoryName').value = category.name;
+            document.getElementById('categoryDescription').value = category.description || '';
+            document.getElementById('categoryOrder').value = category.order || 1;
+            document.getElementById('categoryModal').classList.add('active');
+        }
+
+        // Delete a category
+        async function deleteCategory(type, id) {
+            if (!confirm(`Are you sure you want to delete this ${type.slice(0, -1)}?`)) {
+                return;
+            }
+
+            // Delete via Python service endpoint through Node.js proxy
+            try {
+                const response = await fetch(`/api/python/categories/${type}/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    await loadCategories(type);
+                } else {
+                    alert('Error deleting category: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Failed to delete category:', error);
+                alert('Failed to delete category: ' + error.message);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('categoryModal').addEventListener('click', (e) => {
+            if (e.target.id === 'categoryModal') {
+                closeCategoryModal();
+            }
+        });
+
+        // Enable ID field when modal closes
+        document.getElementById('categoryModal').addEventListener('transitionend', () => {
+            if (!document.getElementById('categoryModal').classList.contains('active')) {
+                document.getElementById('categoryId').disabled = false;
+            }
+        });
+
+        // Initialize page
+        initializeCardStates();
+        loadAllCategories();
+    </script>
+</body>
+</html>

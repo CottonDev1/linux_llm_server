@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base Assistant - EWR AI Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/ewr-classes.css">
+    <style>
+        /* Dark Blue Theme - Always Dark (matching SQL chat) */
+        :root {
+            --bg-primary: #0c1929;
+            --bg-secondary: #142338;
+            --bg-tertiary: #1e3a5f;
+            --bg-card: #142338;
+            --bg-input: #142338;
+            --text-primary: #e8f2ff;
+            --text-secondary: #b8d4f0;
+            --text-muted: #6b8cae;
+            --border-primary: #1e3a5f;
+            --border-secondary: #2d5a8a;
+            --accent-primary: #5a9fe6;
+            --accent-secondary: #7ab8f5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --glow-accent: rgba(90, 159, 230, 0.3);
+        }
+
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        body {
+            background: var(--bg-primary);
+            line-height: 1.6;
+        }
+
+        /* Single column layout */
+        .sql-layout {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 150px);
+            position: relative;
+        }
+
+        /* Chat Interface Card */
+        .flex-chat-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-primary);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .flex-chat-card .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+
+        /* Chat container */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            background: transparent;
+        }
+
+        .chat-message {
+            display: flex;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            background: #3b82f6;
+        }
+
+        .assistant-avatar {
+            background: #10b981;
+        }
+
+        .message-content {
+            flex: 1;
+            max-width: 800px;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .message-sender {
+            color: #f1f5f9;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .message-time {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .message-text {
+            background: var(--bg-secondary);
+            padding: 16px 20px;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.7;
+            border: 1px solid var(--border-primary);
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .chat-message.user .message-text {
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .chat-message.assistant .message-text {
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--success);
+        }
+
+        /* Empty State - shows initial assistant greeting */
+        .empty-chat {
+            padding: 16px 0;
+        }
+
+        /* Context Window Display */
+        .context-remaining {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 20px;
+            background: #2d3b52;
+            border-bottom: 2px solid #3f5175;
+        }
+
+        .context-remaining-label {
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .context-remaining-value {
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Context limit alert */
+        .context-limit-alert {
+            background: rgba(239, 68, 68, 0.15);
+            border: 2px solid #ef4444;
+            color: #fca5a5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* Loading Indicator */
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--accent-primary);
+            font-size: 14px;
+            padding: 14px 20px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-primary);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 5px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--border-secondary);
+            border-radius: 5px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Sidebar Component -->
+        <ewr-sidebar></ewr-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Header Component -->
+            <ewr-page-header title="Knowledge Base Assistant"></ewr-page-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <div class="sql-layout">
+                        <!-- Full Width Chat Card -->
+                        <div class="card ewr_chat-card-full">
+                            <!-- Collapsible Filter Settings -->
+                            <ewr-filter-panel id="filterCollapsible" title="Question Scope" columns="4" no-margin>
+                                <div class="ewr-edit-div-vert">
+                                    <label class="ewr-label">Department</label>
+                                    <select id="chatDepartmentFilter" class="ewr-select-edit" onchange="loadChatTypes()">
+                                        <option value="">All Departments</option>
+                                    </select>
+                                </div>
+                                <div class="ewr-edit-div-vert">
+                                    <label class="ewr-label">Doc Type</label>
+                                    <select id="chatDocTypeFilter" class="ewr-select-edit" onchange="loadChatSubjects()">
+                                        <option value="">All Types</option>
+                                    </select>
+                                </div>
+                                <div class="ewr-edit-div-vert">
+                                    <label class="ewr-label">Subject</label>
+                                    <select id="chatSubjectFilter" class="ewr-select-edit">
+                                        <option value="">All Subjects</option>
+                                    </select>
+                                </div>
+                                <div class="ewr-edit-div-vert">
+                                    <label class="ewr-label">Keywords</label>
+                                    <input type="text" id="chatKeywordFilter" class="ewr-input-edits" placeholder="e.g., safety, inspection...">
+                                </div>
+                            </ewr-filter-panel>
+
+                            <div class="card-body">
+                                <div class="ewr-chat-container">
+                                    <div class="ewr-chat-window" id="chatMessages">
+                                        <div class="ewr-chat-message-assistant">
+                                            <div class="ewr-message-avatar assistant">EWR</div>
+                                            <div class="ewr-message-content">How can I assist you?</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Context Window & Token Display -->
+                                    <div class="context-remaining">
+                                        <span class="context-remaining-label">Context:</span>
+                                        <span class="context-remaining-value" id="contextUsedValue">0</span>
+                                        <span class="context-remaining-label">/</span>
+                                        <span class="context-remaining-value" id="contextMaxValue">--</span>
+                                        <span class="context-remaining-label" style="margin-left: 16px;">Prompt:</span>
+                                        <span class="context-remaining-value" id="promptTokens">0</span>
+                                        <span class="context-remaining-label" style="margin-left: 16px;">Completion:</span>
+                                        <span class="context-remaining-value" id="completionTokens">0</span>
+                                        <span class="context-remaining-label" style="margin-left: 16px;">Total:</span>
+                                        <span class="context-remaining-value" id="totalTokens">0</span>
+                                    </div>
+
+                                    <!-- EWR Chat Footer -->
+                                    <div class="ewr-chat-footer">
+                                        <div id="contextLimitAlert" class="context-limit-alert" style="display: none;">
+                                            Context window full - click Clear Chat to continue
+                                        </div>
+                                        <div class="ewr-chat-input-row">
+                                            <textarea
+                                                class="ewr-chat-entry"
+                                                id="chatInput"
+                                                placeholder="Ask about work instructions, quality procedures, or documentation..."
+                                                rows="1"
+                                                onkeydown="handleChatKeydown(event)"
+                                            ></textarea>
+                                            <div class="ewr-chat-buttons">
+                                                <button class="ewr-button-send" id="sendButton" onclick="sendMessage()" title="Send">&#10148;</button>
+                                                <button class="ewr-button-clear" onclick="clearChatHistory()">Clear</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/auth-client.js"></script>
+    <script src="../js/ewr-components.js"></script>
+    <script src="../js/ewr-containers.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/system-status.js"></script>
+    <script src="../js/feedback-widget.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Token tracking
+        let tokenTracker = {
+            currentTokens: 0,
+            maxTokens: 8192
+        };
+
+        // Chat state variables
+        let isProcessing = false;
+        let lastQuery = '';
+        let lastDocumentIds = [];
+        let chatHistory = [];
+        let retainContext = true;
+        let vectorSearchAvailable = true;  // Optimistic default - Python confirms health at startup
+        let vectorSearchError = null;
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+
+        function logout() {
+            auth.logout();
+        }
+
+        // Toggle collapsible container
+        function toggleCollapsible(id) {
+            const container = document.getElementById(id);
+            if (container) {
+                container.classList.toggle('collapsed');
+            }
+        }
+
+        // ==================== CATEGORY MANAGEMENT ====================
+
+        let categoryData = {
+            departments: [],
+            types: [],
+            subjects: []
+        };
+
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/python/categories', {
+                    headers: {
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    categoryData.departments = data.departments || [];
+                    categoryData.types = data.types || [];
+                    categoryData.subjects = data.subjects || [];
+                    populateDepartmentDropdowns();
+                    populateTypeDropdowns();
+                    populateSubjectDropdowns();
+                } else {
+                    useFallbackCategories();
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                useFallbackCategories();
+            }
+        }
+
+        function useFallbackCategories() {
+            categoryData.departments = [
+                { id: 'customer_support', name: 'Customer Support' },
+                { id: 'development', name: 'Development' },
+                { id: 'it', name: 'IT' },
+                { id: 'admin', name: 'Admin' },
+                { id: 'general', name: 'General' }
+            ];
+            categoryData.types = [
+                { id: 'work_instruction', name: 'Work Instruction' },
+                { id: 'documentation', name: 'Documentation' },
+                { id: 'customer_information', name: 'Customer Information' },
+                { id: 'procedural', name: 'Procedural' }
+            ];
+            categoryData.subjects = [
+                { id: 'gin', name: 'Gin' },
+                { id: 'warehouse', name: 'Warehouse' },
+                { id: 'marketing', name: 'Marketing' },
+                { id: 'provider', name: 'Provider' }
+            ];
+            populateDepartmentDropdowns();
+            populateTypeDropdowns();
+            populateSubjectDropdowns();
+        }
+
+        function populateDepartmentDropdowns() {
+            const chatDept = document.getElementById('chatDepartmentFilter');
+            if (!chatDept) return;
+            chatDept.innerHTML = '<option value="">All Departments</option>' +
+                categoryData.departments.map(d => `<option value="${d.id || d.name}">${d.name || d.id}</option>`).join('');
+        }
+
+        function populateTypeDropdowns() {
+            const chatType = document.getElementById('chatDocTypeFilter');
+            if (!chatType) return;
+            chatType.innerHTML = '<option value="">All Types</option>' +
+                categoryData.types.map(t => `<option value="${t.id || t.name}">${t.name || t.id}</option>`).join('');
+        }
+
+        function populateSubjectDropdowns() {
+            const chatSubject = document.getElementById('chatSubjectFilter');
+            if (!chatSubject) return;
+            chatSubject.innerHTML = '<option value="">All Subjects</option>' +
+                categoryData.subjects.map(s => `<option value="${s.id || s.name}">${s.name || s.id}</option>`).join('');
+        }
+
+        function loadChatTypes() {
+            populateTypeDropdowns();
+        }
+
+        function loadChatSubjects() {
+            populateSubjectDropdowns();
+        }
+
+        // Clear chat history
+        function clearChatHistory() {
+            chatHistory = [];
+            tokenTracker.currentTokens = 0;
+            updateContextDisplay();
+
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = `
+                <div class="ewr-chat-message-assistant">
+                    <div class="ewr-message-avatar assistant">EWR</div>
+                    <div class="ewr-message-content">How can I assist you?</div>
+                </div>
+            `;
+        }
+
+        // Load categories on page load
+        loadCategories();
+        initializeContextWindow();
+
+        // ==================== VECTOR SEARCH STATUS ====================
+
+        /**
+         * Handle vector search status changes
+         * Disables/enables the send button based on MongoDB Atlas Vector Search availability
+         */
+        function handleVectorSearchStatus(status) {
+            vectorSearchAvailable = status.available;
+            vectorSearchError = status.error;
+
+            const sendButton = document.getElementById('sendButton');
+            const chatInput = document.getElementById('chatInput');
+            const contextLimitAlert = document.getElementById('contextLimitAlert');
+
+            if (!vectorSearchAvailable) {
+                // Vector search unavailable - disable input and show error
+                const errorMsg = status.mongoUri
+                    ? `Unable to connect to ${status.mongoUri}`
+                    : 'MongoDB Atlas Vector Search unavailable';
+
+                if (sendButton) {
+                    sendButton.disabled = true;
+                    sendButton.title = errorMsg;
+                    sendButton.style.opacity = '0.5';
+                    sendButton.style.cursor = 'not-allowed';
+                }
+                if (chatInput) {
+                    chatInput.disabled = true;
+                    chatInput.placeholder = errorMsg;
+                }
+                if (contextLimitAlert) {
+                    contextLimitAlert.style.display = 'block';
+                    contextLimitAlert.innerHTML = `<strong>Vector Search Unavailable:</strong> ${errorMsg}`;
+                    contextLimitAlert.style.background = 'rgba(239, 68, 68, 0.15)';
+                    contextLimitAlert.style.borderColor = '#ef4444';
+                }
+            } else {
+                // Vector search available - enable input (unless context is full)
+                const percentage = (tokenTracker.currentTokens / tokenTracker.maxTokens) * 100;
+                const isFull = percentage >= 100;
+
+                if (!isFull) {
+                    if (sendButton) {
+                        sendButton.disabled = false;
+                        sendButton.title = 'Send';
+                        sendButton.style.opacity = '1';
+                        sendButton.style.cursor = 'pointer';
+                    }
+                    if (chatInput) {
+                        chatInput.disabled = false;
+                        chatInput.placeholder = 'Ask about work instructions, quality procedures, or documentation...';
+                    }
+                    if (contextLimitAlert) {
+                        contextLimitAlert.style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        // Listen for vector search status changes from system-status.js
+        window.addEventListener('vectorSearchStatusChanged', (event) => {
+            handleVectorSearchStatus(event.detail);
+        });
+
+        // Also check on page load after a short delay (to let system-status.js initialize)
+        setTimeout(() => {
+            if (typeof getVectorSearchStatus === 'function') {
+                handleVectorSearchStatus(getVectorSearchStatus());
+            }
+        }, 1000);
+
+        function initializeContextWindow() {
+            const usedValueEl = document.getElementById('contextUsedValue');
+            const maxValueEl = document.getElementById('contextMaxValue');
+            const savedContextWindow = localStorage.getItem('kbContextWindowSize');
+            tokenTracker.maxTokens = savedContextWindow ? parseInt(savedContextWindow) : 8192;
+
+            if (usedValueEl) usedValueEl.textContent = '0';
+            if (maxValueEl) maxValueEl.textContent = tokenTracker.maxTokens.toLocaleString();
+        }
+
+        function updateContextDisplay() {
+            const usedValueEl = document.getElementById('contextUsedValue');
+            const maxValueEl = document.getElementById('contextMaxValue');
+            const contextLimitAlert = document.getElementById('contextLimitAlert');
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+
+            const percentage = (tokenTracker.currentTokens / tokenTracker.maxTokens) * 100;
+            const isWarning = percentage > 80;
+            const isFull = percentage >= 100;
+
+            if (usedValueEl) {
+                usedValueEl.textContent = tokenTracker.currentTokens.toLocaleString();
+                usedValueEl.style.color = isWarning ? '#f59e0b' : '#10b981';
+            }
+            if (maxValueEl) {
+                maxValueEl.style.color = isWarning ? '#f59e0b' : '#10b981';
+            }
+
+            if (isFull) {
+                if (contextLimitAlert) contextLimitAlert.style.display = 'block';
+                if (chatInput) {
+                    chatInput.disabled = true;
+                    chatInput.placeholder = 'Context window full - click Clear Chat to continue';
+                }
+                if (sendButton) sendButton.disabled = true;
+            } else {
+                if (contextLimitAlert) contextLimitAlert.style.display = 'none';
+                if (chatInput) {
+                    chatInput.disabled = false;
+                    chatInput.placeholder = 'Ask about work instructions, quality procedures, or documentation...';
+                }
+                if (sendButton) sendButton.disabled = false;
+            }
+        }
+
+        function updateTokenTracker(tokenUsage) {
+            if (!tokenUsage) return;
+            const savedContextWindow = localStorage.getItem('kbContextWindowSize');
+            tokenTracker.maxTokens = savedContextWindow ? parseInt(savedContextWindow) : 8192;
+            const totalTokens = tokenUsage.total_tokens || (tokenUsage.prompt_tokens || 0) + (tokenUsage.completion_tokens || 0);
+            tokenTracker.currentTokens = totalTokens;
+            updateContextDisplay();
+        }
+
+        // ==================== CHAT FUNCTIONALITY ====================
+
+        function handleChatKeydown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+
+            if (!message || isProcessing) return;
+
+            // Check vector search availability before sending
+            if (!vectorSearchAvailable) {
+                const status = typeof getVectorSearchStatus === 'function' ? getVectorSearchStatus() : { mongoUri: null };
+                const errorMsg = status.mongoUri
+                    ? `Unable to connect to ${status.mongoUri}`
+                    : 'MongoDB Atlas Vector Search unavailable';
+                addMessage(`Error: ${errorMsg}. Please check system status.`, 'assistant');
+                return;
+            }
+
+            // Remove welcome message on first user message
+            const welcomeMessage = document.querySelector('#chatMessages > .ewr-chat-message-assistant:first-child');
+            if (welcomeMessage && welcomeMessage.querySelector('.ewr-message-content')?.textContent === 'How can I assist you?') {
+                welcomeMessage.remove();
+            }
+
+            lastQuery = message;
+            lastDocumentIds = [];
+
+            addMessage(message, 'user');
+            input.value = '';
+
+            isProcessing = true;
+            document.getElementById('sendButton').disabled = true;
+
+            const messagesContainer = document.getElementById('chatMessages');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'ewr-chat-message assistant';
+            loadingDiv.id = 'loading-message';
+            loadingDiv.innerHTML = `
+                <div class="ewr-message-avatar assistant">
+                    <div class="spinner"></div>
+                </div>
+                <div class="ewr-message-content">
+                    <div class="ewr-message-text">
+                        <span style="color: #3b82f6;">Processing your question...</span>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(loadingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                const department = document.getElementById('chatDepartmentFilter')?.value || '';
+                const docType = document.getElementById('chatDocTypeFilter')?.value || '';
+                const subject = document.getElementById('chatSubjectFilter')?.value || '';
+                const keywords = document.getElementById('chatKeywordFilter')?.value?.trim() || '';
+
+                const queryPayload = {
+                    query: message,
+                    project: 'knowledge_base',
+                    limit: 5
+                };
+
+                if (department) queryPayload.department = department;
+                if (docType) queryPayload.category = docType;
+                if (subject) queryPayload.subject = subject;
+                if (keywords) {
+                    queryPayload.keywords = keywords;
+                    queryPayload.query = `${message} (keywords: ${keywords})`;
+                }
+                if (retainContext && chatHistory.length > 0) {
+                    queryPayload.history = chatHistory.slice(-6);
+                }
+
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.getAccessToken()}`
+                    },
+                    body: JSON.stringify(queryPayload)
+                });
+
+                const data = await response.json();
+                loadingDiv.remove();
+
+                if (data.answer) {
+                    if (data.context && Array.isArray(data.context)) {
+                        lastDocumentIds = data.context.map(doc => doc.id || doc._id).filter(Boolean);
+                    }
+                    if (retainContext) {
+                        chatHistory.push({ role: 'user', content: message });
+                        chatHistory.push({ role: 'assistant', content: data.answer });
+                    }
+                    addMessage(data.answer, 'assistant', lastDocumentIds);
+                    if (data.tokenUsage) updateTokenTracker(data.tokenUsage);
+                } else {
+                    addMessage('Sorry, I encountered an error: ' + (data.error || 'Unknown error'), 'assistant');
+                }
+            } catch (error) {
+                loadingDiv.remove();
+                addMessage('Sorry, I encountered an error: ' + error.message, 'assistant');
+            } finally {
+                isProcessing = false;
+                document.getElementById('sendButton').disabled = false;
+            }
+        }
+
+        function addMessage(text, sender, documentIds = []) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `ewr-chat-message ${sender}`;
+
+            const avatar = sender === 'user' ? '👤' : 'EWR';
+            const senderName = sender === 'user' ? 'You' : 'Assistant';
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const messageId = 'msg-' + Date.now();
+
+            messageDiv.innerHTML = `
+                <div class="ewr-message-avatar ${sender}">${avatar}</div>
+                <div class="ewr-message-content">
+                    <div class="ewr-message-header">
+                        <span class="ewr-message-name">${senderName}</span>
+                        <span class="ewr-message-time">${time}</span>
+                    </div>
+                    <div class="ewr-message-text">${text}</div>
+                    ${sender === 'assistant' ? `<div id="feedback-${messageId}" style="margin-top: 12px;"></div>` : ''}
+                </div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            if (sender === 'assistant' && typeof FeedbackWidget !== 'undefined') {
+                setTimeout(() => {
+                    const feedbackContainer = document.getElementById(`feedback-${messageId}`);
+                    if (feedbackContainer) {
+                        FeedbackWidget.init({
+                            query: lastQuery,
+                            documentIds: lastDocumentIds.length > 0 ? lastDocumentIds : documentIds,
+                            containerId: `feedback-${messageId}`,
+                            mode: 'inline',
+                            onSubmit: (result) => console.log('Feedback submitted:', result)
+                        });
+                    }
+                }, 100);
+            }
+        }
+    </script>
+</body>
+</html>

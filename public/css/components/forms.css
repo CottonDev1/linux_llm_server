@@ -1,0 +1,623 @@
+/**
+ * EWR Form Component Styles
+ * Styles for <ewr-form-field> web component and form elements
+ *
+ * Usage: <ewr-form-field label="Name" type="text" id="name"></ewr-form-field>
+ */
+
+/* ============================================
+   Form Field Container
+   ============================================ */
+.ewr-form-field {
+    margin-bottom: 16px;
+}
+
+.ewr-form-field:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================
+   Form Labels
+   ============================================ */
+.ewr-form-label {
+    display: block;
+    color: var(--text-secondary, #cbd5e1);
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.ewr-form-label-required::after {
+    content: ' *';
+    color: var(--error, #ef4444);
+}
+
+/* ============================================
+   Text Inputs
+   ============================================ */
+.ewr-form-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-primary, #0f172a);
+    border: 2px solid var(--border-primary, #334155);
+    border-radius: 6px;
+    color: var(--text-primary, #f1f5f9);
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ewr-form-input:focus {
+    outline: none;
+    border-color: var(--accent-primary, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.ewr-form-input::placeholder {
+    color: var(--text-tertiary, #64748b);
+}
+
+.ewr-form-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Input variants */
+.ewr-form-input-sm {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+.ewr-form-input-lg {
+    padding: 12px 16px;
+    font-size: 16px;
+}
+
+/* ============================================
+   Textareas
+   ============================================ */
+.ewr-form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-primary, #0f172a);
+    border: 2px solid var(--border-primary, #334155);
+    border-radius: 6px;
+    color: var(--text-primary, #f1f5f9);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ewr-form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.ewr-form-textarea::placeholder {
+    color: var(--text-tertiary, #64748b);
+}
+
+.ewr-form-textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    resize: none;
+}
+
+/* Code textarea */
+.ewr-form-textarea-code {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* ============================================
+   Select Dropdowns
+   ============================================ */
+.ewr-form-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-primary, #0f172a);
+    border: 2px solid var(--border-primary, #334155);
+    border-radius: 6px;
+    color: var(--text-primary, #f1f5f9);
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+.ewr-form-select:focus {
+    outline: none;
+    border-color: var(--accent-primary, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.ewr-form-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ewr-form-select option {
+    background: var(--bg-secondary, #1e293b);
+    color: var(--text-primary, #f1f5f9);
+}
+
+/* ============================================
+   Checkboxes & Radios
+   ============================================ */
+.ewr-form-checkbox,
+.ewr-form-radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ewr-form-checkbox input,
+.ewr-form-radio input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-primary, #3b82f6);
+    cursor: pointer;
+}
+
+.ewr-form-checkbox-label,
+.ewr-form-radio-label {
+    color: var(--text-primary, #f1f5f9);
+    font-size: 14px;
+}
+
+/* ============================================
+   Form Hints & Errors
+   ============================================ */
+.ewr-form-hint {
+    color: var(--text-tertiary, #64748b);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.ewr-form-error {
+    color: var(--error, #ef4444);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.ewr-form-input.error,
+.ewr-form-textarea.error,
+.ewr-form-select.error {
+    border-color: var(--error, #ef4444);
+}
+
+.ewr-form-input.error:focus,
+.ewr-form-textarea.error:focus,
+.ewr-form-select.error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* ============================================
+   Form Groups (horizontal layout)
+   ============================================ */
+.ewr-form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ewr-form-row > * {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.ewr-form-row-2 > * {
+    flex: 0 0 calc(50% - 8px);
+}
+
+.ewr-form-row-3 > * {
+    flex: 0 0 calc(33.333% - 11px);
+}
+
+/* ============================================
+   Inline Form Fields
+   ============================================ */
+.ewr-form-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ewr-form-inline .ewr-form-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.ewr-form-inline .ewr-form-input,
+.ewr-form-inline .ewr-form-select {
+    flex: 1;
+}
+
+/* ============================================
+   Form Sections
+   ============================================ */
+.ewr-form-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-primary, #334155);
+}
+
+.ewr-form-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.ewr-form-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary, #cbd5e1);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-secondary, #475569);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 640px) {
+    .ewr-form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .ewr-form-row > * {
+        flex: none;
+        width: 100%;
+        margin-bottom: 16px;
+    }
+
+    .ewr-form-inline {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ============================================
+   Component-Specific Select Input Styles
+   Used by ewr-required-select-input and ewr-select-input
+   ============================================ */
+
+/* Form group container */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* Standard label */
+.form-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary, #cbd5e1);
+}
+
+/* Required field yellow label */
+.form-group label.required {
+    color: #fbbf24;
+}
+
+/* Form select and input base styles */
+.form-select, .form-input {
+    background: var(--input-bg, var(--bg-primary, #0f172a));
+    border: 1px solid var(--card-border, var(--border-primary, #334155));
+    color: var(--text-primary, #f1f5f9);
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+/* Required field yellow outline */
+.form-select.required-field {
+    border: 2px solid #fbbf24;
+}
+
+/* Focus states */
+.form-select:focus, .form-input:focus {
+    outline: none;
+    border-color: var(--accent-cyan, var(--accent-primary, #3b82f6));
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+
+/* Dropdown option styling for dark theme */
+.form-select option {
+    background: #000;
+    color: #fff;
+}
+
+/* Category grid layout (3 columns) */
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+    .category-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   Base Form Input Components
+   ============================================ */
+
+/* Base edit div - horizontal layout with label beside control */
+.ewr-edit-div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.ewr-edit-div .ewr-label {
+    min-width: 70px;
+    text-align: right;
+}
+
+/* Base label styling */
+.ewr-label {
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Base input styling */
+.ewr-input-edits {
+    width: 175px;
+    min-width: 175px;
+    max-width: 175px;
+    height: 32px;
+    padding: 6px 10px;
+    font-size: 14px;
+    background-color: #ffffff;
+    color: #000000;
+    border-radius: 4px;
+    border: 1px solid #334155;
+}
+
+/* Base select styling */
+.ewr-select-edit {
+    width: 175px;
+    min-width: 175px;
+    max-width: 175px;
+    height: 32px;
+    padding: 4px 10px;
+    font-size: 14px;
+    background-color: #ffffff;
+    color: #000000;
+    border-radius: 4px;
+    border: 1px solid #334155;
+}
+
+/* ============================================
+   Grid Layout Components
+   ============================================ */
+
+/* Grid column for equally aligned form fields */
+.ewr-grid-column {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-content: start;
+}
+
+.ewr-grid-column .ewr-edit-div {
+    display: grid;
+    grid-template-columns: 95px 175px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.ewr-grid-column .ewr-label {
+    text-align: right;
+}
+
+.ewr-grid-column .ewr-input-edits,
+.ewr-grid-column .ewr-select-edit {
+    width: 100%;
+    min-width: unset;
+}
+
+/* ============================================
+   EWR Modern Edit Components
+   Modern styled input/select with vertical and horizontal layouts
+   ============================================ */
+
+/* Vertical layout - label above control, centered */
+.ewr-edit-div-vert {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 160px;
+}
+
+.ewr-edit-div-vert .ewr-label,
+.ewr-edit-div-vert .ewr-edit-label-modern {
+    text-align: center;
+}
+
+/* Horizontal layout - label beside control */
+.ewr-edit-div-horiz {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    min-width: 200px;
+}
+
+.ewr-edit-div-horiz .ewr-edit-label-modern {
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+/* Modern label styling */
+.ewr-edit-label-modern {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Modern input/select styling - clean and contemporary */
+.ewr-edit-modern {
+    width: 100%;
+    min-width: 160px;
+    height: 40px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #f1f5f9;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.2s ease;
+    box-shadow:
+        inset 0 1px 2px rgba(0, 0, 0, 0.2),
+        0 1px 0 rgba(255, 255, 255, 0.05);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Select arrow indicator */
+select.ewr-edit-modern {
+    padding-right: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+}
+
+/* Hover state */
+.ewr-edit-modern:hover {
+    border-color: #475569;
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+}
+
+/* Focus state with glow */
+.ewr-edit-modern:focus {
+    border-color: #38bdf8;
+    background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%);
+    box-shadow:
+        inset 0 1px 2px rgba(0, 0, 0, 0.2),
+        0 0 0 3px rgba(56, 189, 248, 0.15),
+        0 0 12px rgba(56, 189, 248, 0.1);
+}
+
+/* Placeholder styling */
+.ewr-edit-modern::placeholder {
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Disabled state */
+.ewr-edit-modern:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #1e293b;
+}
+
+/* Option styling for select dropdowns */
+.ewr-edit-modern option {
+    background: #1e293b;
+    color: #f1f5f9;
+    padding: 8px;
+}
+
+/* Container for horizontal filter layout */
+.ewr-edit-filters-horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 16px 20px;
+    align-items: flex-end;
+}
+
+/* ============================================
+   EWR Filter Inputs Horizontal Component
+   ============================================ */
+
+/* Horizontal layout for filter inputs with centered labels above */
+.ewr-filter-inputs-horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 16px 20px;
+    align-items: flex-start;
+}
+
+/* Individual filter item - vertical stack with centered label */
+.ewr-filter-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 150px;
+}
+
+.ewr-filter-item .ewr-label {
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.ewr-filter-item .ewr-input-edits,
+.ewr-filter-item .ewr-select-edit {
+    width: 175px;
+    min-width: 175px;
+    max-width: 175px;
+    height: 32px;
+    padding: 6px 10px;
+    font-size: 14px;
+    background-color: #ffffff;
+    color: #000000;
+    border-radius: 4px;
+    border: 1px solid #334155;
+}
+
+.ewr-filter-item .ewr-select-edit {
+    padding: 4px 10px;
+}
+
+/* Collapsible without margin/padding for full-width appearance */
+.ewr-collapsible.no-margin {
+    margin: 0;
+    border-radius: 0;
+}
+
+.ewr-collapsible.no-margin .ewr-collapsible-header {
+    border-radius: 0;
+}
+
+.ewr-collapsible.no-margin .ewr-collapsible-footer {
+    border-radius: 0;
+}

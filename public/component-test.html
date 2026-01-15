@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EWR Web Components Test - All Phases</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #94a3b8;
+            --border-primary: #334155;
+            --border-secondary: #475569;
+            --accent-primary: #3b82f6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --accent-info: #06b6d4;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--text-primary); margin-bottom: 8px; }
+        .subtitle { color: var(--text-tertiary); margin-bottom: 40px; }
+
+        section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            color: var(--text-secondary);
+            font-size: 18px;
+            margin: 0 0 20px 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .component-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .component-row:last-child { margin-bottom: 0; }
+
+        .label {
+            color: var(--text-tertiary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 100px;
+        }
+
+        .form-demo { max-width: 400px; }
+        .form-demo > * { margin-bottom: 16px; }
+
+        .code {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        .chat-demo {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .chat-demo ewr-chat-message {
+            margin-bottom: 12px;
+        }
+
+        .event-log {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 16px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+        }
+
+        .event-log-entry {
+            color: var(--accent-success);
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>EWR Web Components - All Phases</h1>
+    <p class="subtitle">Testing Shadow DOM encapsulated components</p>
+
+    <!-- Phase 1: Buttons -->
+    <section>
+        <h2>Phase 1: Button Component (ewr-btn)</h2>
+        <div class="component-row">
+            <span class="label">Variants:</span>
+            <ewr-btn variant="primary">Primary</ewr-btn>
+            <ewr-btn variant="secondary">Secondary</ewr-btn>
+            <ewr-btn variant="success">Success</ewr-btn>
+            <ewr-btn variant="danger">Danger</ewr-btn>
+            <ewr-btn variant="warning">Warning</ewr-btn>
+            <ewr-btn variant="info">Info</ewr-btn>
+            <ewr-btn variant="send">Send</ewr-btn>
+        </div>
+        <div class="component-row">
+            <span class="label">Sizes:</span>
+            <ewr-btn variant="primary" size="xs">XS</ewr-btn>
+            <ewr-btn variant="primary" size="sm">Small</ewr-btn>
+            <ewr-btn variant="primary" size="md">Medium</ewr-btn>
+            <ewr-btn variant="primary" size="lg">Large</ewr-btn>
+            <ewr-btn variant="primary" size="xl">XL</ewr-btn>
+        </div>
+        <div class="component-row">
+            <span class="label">States:</span>
+            <ewr-btn variant="primary" disabled>Disabled</ewr-btn>
+            <ewr-btn variant="primary" loading>Loading</ewr-btn>
+        </div>
+    </section>
+
+    <!-- Phase 1: Form Components -->
+    <section>
+        <h2>Phase 1: Form Components</h2>
+        <div class="grid-2">
+            <div class="form-demo">
+                <ewr-input label="Text Input" placeholder="Enter text..." hint="This is a hint"></ewr-input>
+                <ewr-input label="Email" type="email" placeholder="you@example.com" required></ewr-input>
+                <ewr-input label="With Error" value="invalid" error="This field has an error"></ewr-input>
+                <ewr-input label="Disabled" value="Cannot edit" disabled></ewr-input>
+            </div>
+            <div class="form-demo">
+                <ewr-select label="Select" placeholder="Choose an option...">
+                    <option value="">Select...</option>
+                    <option value="a">Option A</option>
+                    <option value="b">Option B</option>
+                    <option value="c">Option C</option>
+                </ewr-select>
+                <ewr-select label="Required Select" required>
+                    <option value="">Choose...</option>
+                    <option value="1">First</option>
+                    <option value="2">Second</option>
+                </ewr-select>
+                <div style="margin-top: 16px;">
+                    <ewr-checkbox label="Enable notifications"></ewr-checkbox>
+                </div>
+                <div style="margin-top: 12px;">
+                    <ewr-checkbox label="Accept terms" checked></ewr-checkbox>
+                </div>
+                <div style="margin-top: 12px;">
+                    <ewr-checkbox label="Disabled option" disabled></ewr-checkbox>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Phase 2: Layout Components -->
+    <section>
+        <h2>Phase 2: Layout Components</h2>
+
+        <div class="component-row">
+            <span class="label">Status Pills:</span>
+            <ewr-status-pill variant="success">Active</ewr-status-pill>
+            <ewr-status-pill variant="error">Failed</ewr-status-pill>
+            <ewr-status-pill variant="warning">Pending</ewr-status-pill>
+            <ewr-status-pill variant="info">Processing</ewr-status-pill>
+            <ewr-status-pill variant="default">Draft</ewr-status-pill>
+        </div>
+
+        <div class="component-row">
+            <span class="label">Spinners:</span>
+            <ewr-spinner size="xs"></ewr-spinner>
+            <ewr-spinner size="sm"></ewr-spinner>
+            <ewr-spinner size="md"></ewr-spinner>
+            <ewr-spinner size="lg" color="success"></ewr-spinner>
+            <ewr-spinner size="xl" color="danger"></ewr-spinner>
+        </div>
+
+        <div style="margin-top: 24px;">
+            <ewr-collapsible title="Collapsible Section">
+                <div style="padding: 16px;">
+                    <p style="margin: 0; color: var(--text-secondary);">
+                        This content can be collapsed and expanded. Click the header to toggle.
+                    </p>
+                </div>
+            </ewr-collapsible>
+
+            <ewr-collapsible title="Initially Collapsed" collapsed>
+                <div style="padding: 16px;">
+                    <p style="margin: 0; color: var(--text-secondary);">
+                        This section starts collapsed. Expand it to see this content.
+                    </p>
+                </div>
+            </ewr-collapsible>
+        </div>
+
+        <div style="margin-top: 24px;">
+            <ewr-card title="Card Component">
+                <p style="margin: 0; color: var(--text-secondary);">
+                    This is a card with a title and content. Cards can have headers, body content, and footers.
+                </p>
+            </ewr-card>
+        </div>
+    </section>
+
+    <!-- Phase 3: Chat Components -->
+    <section>
+        <h2>Phase 3: Chat Components</h2>
+
+        <div class="chat-demo">
+            <ewr-chat-message role="user" name="User" time="2:30 PM">
+                <p>Hello! How can I analyze my documents?</p>
+            </ewr-chat-message>
+
+            <ewr-chat-message role="assistant" name="Assistant" time="2:31 PM">
+                <p>I can help you analyze documents in several ways:</p>
+                <p>1. Upload PDFs, Word docs, or text files<br>
+                2. Ask questions about the content<br>
+                3. Generate summaries or insights</p>
+            </ewr-chat-message>
+
+            <ewr-chat-message role="error" name="System" time="2:32 PM">
+                <p>Connection interrupted. Please try again.</p>
+            </ewr-chat-message>
+        </div>
+
+        <div style="margin-top: 16px;">
+            <ewr-chat-input id="chatInput" placeholder="Type a message..."></ewr-chat-input>
+        </div>
+    </section>
+
+    <!-- Phase 4: Document Components -->
+    <section>
+        <h2>Phase 4: Document Components</h2>
+
+        <div style="max-width: 500px;">
+            <ewr-document-row
+                title="Annual Report 2024.pdf"
+                meta="2.4 MB - Updated Jan 5, 2025"
+                icon="📄"
+            ></ewr-document-row>
+
+            <ewr-document-row
+                title="Technical Specifications.docx"
+                meta="1.1 MB - Updated Jan 3, 2025"
+                icon="📋"
+            ></ewr-document-row>
+
+            <ewr-document-row
+                title="Meeting Notes.txt"
+                meta="24 KB - Updated Jan 4, 2025"
+                icon="📝"
+            ></ewr-document-row>
+        </div>
+
+        <div style="margin-top: 24px;">
+            <ewr-btn id="openModalBtn" variant="primary">Open Modal</ewr-btn>
+        </div>
+
+        <ewr-modal id="demoModal" title="Document Details" size="md">
+            <p style="color: var(--text-secondary);">This is a modal dialog. You can put any content here.</p>
+            <p style="color: var(--text-secondary);">Click outside or press Escape to close.</p>
+            <div slot="footer">
+                <ewr-btn variant="secondary" id="closeModalBtn">Cancel</ewr-btn>
+                <ewr-btn variant="primary">Save Changes</ewr-btn>
+            </div>
+        </ewr-modal>
+    </section>
+
+    <!-- Phase 5: File Upload Components -->
+    <section>
+        <h2>Phase 5: File Upload Components</h2>
+
+        <div style="margin-bottom: 24px;">
+            <h3 style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">File Drop Zone</h3>
+            <ewr-file-drop-zone
+                id="dropZone"
+                accept="audio/*,.pdf,.doc,.docx"
+                multiple
+                text="Drop audio or document files here"
+                subtext="Supports MP3, WAV, PDF, DOC files"
+            ></ewr-file-drop-zone>
+        </div>
+
+        <div>
+            <h3 style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">File Grid</h3>
+            <ewr-file-grid selectable columns="filename,size,date,status">
+                <ewr-file-row
+                    filename="interview_recording.mp3"
+                    size="12.4 MB"
+                    date="Jan 5, 2025"
+                    status="Ready"
+                    status-variant="success"
+                    selectable
+                    expandable
+                ></ewr-file-row>
+                <ewr-file-row
+                    filename="meeting_notes.pdf"
+                    size="2.1 MB"
+                    date="Jan 4, 2025"
+                    status="Processing"
+                    status-variant="info"
+                    selectable
+                    expandable
+                ></ewr-file-row>
+                <ewr-file-row
+                    filename="presentation.docx"
+                    size="4.8 MB"
+                    date="Jan 3, 2025"
+                    status="Error"
+                    status-variant="error"
+                    selectable
+                ></ewr-file-row>
+            </ewr-file-grid>
+        </div>
+    </section>
+
+    <!-- Phase 6: Audio Components -->
+    <section>
+        <h2>Phase 6: Audio Components</h2>
+
+        <div style="max-width: 600px;">
+            <ewr-audio-player
+                id="audioPlayer"
+                title="Sample Audio Recording"
+                info="3.2 MB - 5:32"
+                metadata='{"Duration":"5:32","Format":"MP3","Sample Rate":"44.1 kHz","Bitrate":"320 kbps"}'
+                show-analyze
+            ></ewr-audio-player>
+
+            <ewr-audio-player
+                title="Compact Player"
+                info="Compact mode"
+                compact
+            ></ewr-audio-player>
+        </div>
+    </section>
+
+    <!-- Event Handling Demo -->
+    <section>
+        <h2>Event Handling Demo</h2>
+
+        <div class="component-row">
+            <ewr-btn id="eventBtn" variant="primary">Click Me</ewr-btn>
+            <ewr-input id="eventInput" placeholder="Type here..." style="width: 250px;"></ewr-input>
+            <ewr-checkbox id="eventCheckbox" label="Toggle me"></ewr-checkbox>
+        </div>
+
+        <div class="event-log" id="eventLog">
+            <div class="event-log-entry">Events will appear here...</div>
+        </div>
+    </section>
+
+    <!-- Load components -->
+    <script type="module" src="/js/components/index.js"></script>
+
+    <script type="module">
+        const eventLog = document.getElementById('eventLog');
+
+        function logEvent(name, detail = '') {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'event-log-entry';
+            entry.textContent = `[${time}] ${name}${detail ? ': ' + detail : ''}`;
+            eventLog.insertBefore(entry, eventLog.firstChild);
+            while (eventLog.children.length > 10) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+
+        // Button events
+        document.getElementById('eventBtn').addEventListener('ewr-click', () => {
+            logEvent('ewr-click', 'Button clicked');
+        });
+
+        // Input events
+        document.getElementById('eventInput').addEventListener('ewr-input', (e) => {
+            logEvent('ewr-input', `"${e.detail.value}"`);
+        });
+
+        // Checkbox events
+        document.getElementById('eventCheckbox').addEventListener('ewr-change', (e) => {
+            logEvent('ewr-change', `checked=${e.detail.checked}`);
+        });
+
+        // Chat input events
+        document.getElementById('chatInput').addEventListener('ewr-submit', (e) => {
+            logEvent('ewr-submit', `"${e.detail.value}"`);
+            e.target.clear();
+        });
+
+        // Modal events
+        const modal = document.getElementById('demoModal');
+        document.getElementById('openModalBtn').addEventListener('click', () => {
+            modal.open();
+            logEvent('Modal opened');
+        });
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            modal.close();
+        });
+        modal.addEventListener('ewr-close', () => {
+            logEvent('Modal closed');
+        });
+
+        // Document row events
+        document.querySelectorAll('ewr-document-row').forEach(row => {
+            row.addEventListener('ewr-click', (e) => {
+                logEvent('ewr-click', `Document: ${e.detail.title}`);
+            });
+        });
+
+        // File drop zone events
+        document.getElementById('dropZone').addEventListener('ewr-files-selected', (e) => {
+            logEvent('ewr-files-selected', `${e.detail.count} file(s)`);
+        });
+
+        // File row events
+        document.querySelectorAll('ewr-file-row').forEach(row => {
+            row.addEventListener('ewr-select', (e) => {
+                logEvent('ewr-select', `${e.detail.filename}: ${e.detail.selected}`);
+            });
+            row.addEventListener('ewr-delete', (e) => {
+                logEvent('ewr-delete', e.detail.filename);
+            });
+        });
+
+        // Audio player events
+        document.getElementById('audioPlayer')?.addEventListener('ewr-analyze', (e) => {
+            logEvent('ewr-analyze', e.detail.title);
+        });
+
+        // Log initialization
+        logEvent('Page loaded', 'Components initializing...');
+        setTimeout(() => {
+            const count = document.querySelectorAll('ewr-btn, ewr-input, ewr-select, ewr-checkbox, ewr-card, ewr-collapsible, ewr-status-pill, ewr-spinner, ewr-modal, ewr-chat-message, ewr-chat-input, ewr-document-row, ewr-file-drop-zone, ewr-file-row, ewr-file-grid, ewr-audio-player').length;
+            logEvent('Ready', `${count} component instances`);
+        }, 200);
+    </script>
+</body>
+</html>

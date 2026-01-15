@@ -1,0 +1,41 @@
+Metadata-Version: 2.4
+Name: ewr-document-agent
+Version: 1.0.0
+Summary: EWR Document Agent - Document processing, chunking, embedding, and retrieval
+Author: EWR Development Team
+License: MIT
+Project-URL: Homepage, https://github.com/ewr/ewr-agents
+Keywords: agents,documents,etl,embeddings,rag,chunking
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: ewr-agent-core>=1.0.0
+Requires-Dist: aiofiles>=23.0.0
+Requires-Dist: pypdf>=3.0.0
+Requires-Dist: python-docx>=0.8.11
+Requires-Dist: beautifulsoup4>=4.12.0
+Requires-Dist: lxml>=4.9.0
+Requires-Dist: motor>=3.0.0
+Requires-Dist: numpy>=1.24.0
+Provides-Extra: api
+Requires-Dist: fastapi>=0.104.0; extra == "api"
+Requires-Dist: uvicorn>=0.24.0; extra == "api"
+Requires-Dist: python-multipart>=0.0.6; extra == "api"
+Provides-Extra: ocr
+Requires-Dist: pytesseract>=0.3.10; extra == "ocr"
+Requires-Dist: pdf2image>=1.16.0; extra == "ocr"
+Provides-Extra: audio
+Requires-Dist: openai-whisper>=20230918; extra == "audio"
+Requires-Dist: pydub>=0.25.1; extra == "audio"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Provides-Extra: all
+Requires-Dist: ewr-document-agent[api,dev,ocr]; extra == "all"

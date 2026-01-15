@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Repository Analysis - EWR AI Assistant</title>
+    <link rel="stylesheet" href="../css/layout.css">
+    <style>
+        /* Git-specific styles */
+        .control-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-row label {
+            font-weight: 500;
+            min-width: 120px;
+            color: var(--text-secondary);
+        }
+
+        .control-row select,
+        .control-row input[type="date"] {
+            background-color: #0f172a;
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            padding: 10px 15px;
+            font-size: 14px;
+            flex: 1;
+            max-width: 300px;
+            border-radius: 4px;
+        }
+
+        .control-row select:focus,
+        .control-row input[type="date"]:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .date-inputs {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .action-button {
+            background-color: var(--accent-blue);
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 8px;
+        }
+
+        .action-button:hover:not(:disabled) {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .action-button:disabled {
+            background-color: var(--card-border);
+            color: var(--text-dark);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .pull-repo-button {
+            background-color: var(--accent-green);
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 8px;
+            margin-left: 15px;
+        }
+
+        .pull-repo-button:hover:not(:disabled) {
+            background-color: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .pull-repo-button:disabled {
+            background-color: var(--card-border);
+            color: var(--text-dark);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .footer-button {
+            background-color: var(--accent-green);
+            color: #ffffff;
+            border: none;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 8px;
+            min-width: 150px;
+        }
+
+        .footer-button:hover:not(:disabled) {
+            background-color: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .footer-button:disabled {
+            background-color: var(--card-border);
+            color: var(--text-dark);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error {
+            background-color: #7f1d1d;
+            border: 1px solid #991b1b;
+            color: #fecaca;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #064e3b;
+            border: 1px solid #065f46;
+            color: #a7f3d0;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .git-output {
+            background-color: #0f172a;
+            border: 1px solid var(--card-border);
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dark);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .empty-state-text {
+            font-size: 1.1rem;
+        }
+
+        /* Hierarchical commit view styles */
+        .commit-tree {
+            margin-top: 20px;
+        }
+
+        .commit-level1 {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .commit-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            border-left: 4px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .commit-header:hover {
+            background-color: #0f172a;
+            border-left-color: var(--accent-cyan);
+        }
+
+        .modified-classes-highlight {
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .class-badge {
+            background: #7c3aed;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .commit-header-left {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .commit-header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .commit-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .commit-hash-small {
+            font-family: 'Courier New', monospace;
+            color: #60a5fa;
+            font-size: 11px;
+        }
+
+        .commit-expand-icon {
+            font-size: 16px;
+            transition: transform 0.2s;
+            color: var(--text-muted);
+        }
+
+        .commit-expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .commit-level2 {
+            display: none;
+            padding: 0 20px 15px 20px;
+        }
+
+        .commit-level2.show {
+            display: block;
+        }
+
+        .file-item {
+            background-color: #0f172a;
+            border: 1px solid var(--card-border);
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .file-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .file-item-header:hover {
+            opacity: 0.8;
+        }
+
+        .file-name {
+            font-family: 'Courier New', monospace;
+            color: #60a5fa;
+            font-size: 13px;
+        }
+
+        .file-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 11px;
+        }
+
+        .file-additions {
+            color: var(--accent-green);
+        }
+
+        .file-deletions {
+            color: var(--accent-red);
+        }
+
+        .commit-level3 {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .commit-level3.show {
+            display: block;
+        }
+
+        .impact-loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .impact-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .impact-section {
+            margin-bottom: 12px;
+        }
+
+        .impact-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #f59e0b;
+            margin-bottom: 5px;
+        }
+
+        .impact-list {
+            margin-left: 15px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .impact-list li {
+            margin: 3px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .no-impact {
+            font-size: 11px;
+            color: var(--text-dark);
+            font-style: italic;
+        }
+
+        .show-impact-btn {
+            background-color: #8b5cf6;
+            color: #ffffff;
+            border: none;
+            padding: 6px 12px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+
+        .show-impact-btn:hover {
+            background-color: #7c3aed;
+        }
+
+        /* Roslyn Analysis Results Styles */
+        .analysis-summary {
+            background-color: #064e3b;
+            border: 1px solid #065f46;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 4px;
+        }
+
+        .analysis-stats {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            color: #a7f3d0;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-number {
+            font-weight: 600;
+            font-size: 18px;
+            color: var(--accent-green);
+        }
+
+        .analysis-file-list {
+            margin-top: 20px;
+        }
+
+        .analysis-file-item {
+            background-color: #0f172a;
+            border: 1px solid var(--card-border);
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+
+        .analysis-file-header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .analysis-file-header:hover {
+            background-color: var(--card-bg);
+        }
+
+        .analysis-file-name {
+            font-family: 'Courier New', monospace;
+            color: #60a5fa;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .analysis-file-badges {
+            display: flex;
+            gap: 10px;
+        }
+
+        .analysis-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-classes {
+            background-color: #7c3aed;
+            color: #ffffff;
+        }
+
+        .badge-methods {
+            background-color: #f59e0b;
+            color: #ffffff;
+        }
+
+        .badge-error {
+            background-color: #dc2626;
+            color: #ffffff;
+        }
+
+        .analysis-file-content {
+            display: none;
+            padding: 0 15px 15px 15px;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .analysis-file-content.show {
+            display: block;
+        }
+
+        .analysis-section {
+            margin: 15px 0;
+        }
+
+        .analysis-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .analysis-items-list {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 12px 15px;
+            border-radius: 4px;
+        }
+
+        .analysis-item {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .analysis-item::before {
+            content: '•';
+            color: #60a5fa;
+            font-weight: bold;
+        }
+
+        .analysis-error-msg {
+            background-color: #7f1d1d;
+            border: 1px solid #991b1b;
+            color: #fecaca;
+            padding: 12px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            border-radius: 4px;
+        }
+
+        .analysis-expand-icon {
+            font-size: 14px;
+            transition: transform 0.2s;
+            color: var(--text-muted);
+            margin-right: 10px;
+        }
+
+        .analysis-expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .callgraph-section {
+            margin-top: 15px;
+        }
+
+        .callgraph-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .callgraph-tree {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 4px;
+        }
+
+        .callgraph-node {
+            color: var(--text-secondary);
+            margin: 3px 0;
+            padding-left: 0;
+        }
+
+        .callgraph-node.level-1 { padding-left: 20px; color: var(--text-muted); }
+        .callgraph-node.level-2 { padding-left: 40px; color: var(--text-dark); }
+        .callgraph-node.level-3 { padding-left: 60px; color: #475569; }
+
+        .callgraph-caller {
+            color: #60a5fa;
+        }
+
+        .callgraph-callee {
+            color: #a78bfa;
+        }
+
+        .footer-section {
+            text-align: center;
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        /* New Commit Card Styles */
+        .commit-list {
+            margin-top: 20px;
+        }
+
+        .commit-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .commit-info-row, .commit-meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .commit-info-row {
+            margin-bottom: 6px;
+        }
+
+        .commit-meta-row {
+            justify-content: flex-end;
+        }
+
+        .commit-date { color: #666; }
+        .commit-author { color: #2c5282; font-weight: 500; }
+        .commit-hash { font-family: monospace; color: #718096; }
+        .commit-repo { color: #38a169; font-weight: 500; }
+        .commit-files { color: #805ad5; }
+        .expand-arrow { color: #999; }
+
+        .commit-message {
+            background: #f8fafc;
+            border-left: 3px solid #3b82f6;
+            padding: 8px 12px;
+            margin: 0;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        /* Inner Card Styles */
+        .commit-details {
+            border-top: 1px solid #eee;
+            padding: 16px;
+            background: #fafafa;
+        }
+
+        .inner-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .file-section {
+            margin-bottom: 16px;
+        }
+
+        .file-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .file-header {
+            font-weight: 600;
+            color: #2d3748;
+            padding: 8px;
+            background: #edf2f7;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .class-section {
+            margin-left: 16px;
+            margin-bottom: 12px;
+        }
+
+        .class-name {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 4px;
+        }
+
+        .method-list {
+            list-style: none;
+            padding-left: 16px;
+            margin: 0;
+        }
+
+        .method-item {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 4px 0;
+        }
+
+        .method-name {
+            font-family: monospace;
+            color: #553c9a;
+        }
+
+        .load-impact-btn {
+            margin-left: 12px;
+            padding: 2px 8px;
+            font-size: 0.8em;
+            background: #edf2f7;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .load-impact-btn:hover {
+            background: #e2e8f0;
+        }
+
+        /* Impact Results Styles */
+        .impact-results {
+            width: 100%;
+            margin-top: 8px;
+            margin-left: 24px;
+            padding: 8px;
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+            border-radius: 4px;
+        }
+
+        .no-files {
+            color: #9ca3af;
+            font-style: italic;
+            padding: 12px;
+        }
+
+        /* Impact Display Formatting */
+        .project-group {
+            margin-bottom: 8px;
+        }
+
+        .project-badge {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-bottom: 4px;
+        }
+
+        .caller-item {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            color: #78350f;
+            padding: 3px 0 3px 12px;
+            border-left: 2px solid #fbbf24;
+            margin-left: 4px;
+            margin-bottom: 2px;
+        }
+
+        .caller-item:hover {
+            background: #fef3c7;
+        }
+
+        .no-callers {
+            font-size: 11px;
+            color: var(--text-dark);
+            font-style: italic;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="app-sidebar">
+            <div class="sidebar-brand">
+                <div class="sidebar-logo">EWR</div>
+                <div class="user-info">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-role" id="userRole">User</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <!-- Navigation generated by sidebar.js -->
+            </nav>
+
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <div>
+                            <h1 class="header-title">Git Repository Analysis</h1>
+                            <p class="header-subtitle">Analyze git repositories and commit history</p>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="header-status" id="systemStatus">
+                            <div class="status-dot" id="statusDot"></div>
+                            <span class="status-text" id="statusText">Connecting...</span>
+                        </div>
+                        <button class="btn-logout" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <!-- Controls Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Repository Controls</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="control-row">
+                                <label for="repo-select">Repository:</label>
+                                <select id="repo-select">
+                                    <option value="">Loading repositories...</option>
+                                </select>
+                                <button id="pull-button" class="pull-repo-button">Pull Repo</button>
+                            </div>
+
+                            <div class="control-row" style="margin-top: 20px;">
+                                <label>Date Range:</label>
+                                <div class="date-inputs">
+                                    <input type="date" id="start-date" title="Start date">
+                                    <span>to</span>
+                                    <input type="date" id="end-date" title="End date">
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <button id="analyze-button" class="action-button">Analyze</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title" id="results-title">Results</h2>
+                        </div>
+                        <div class="card-body" id="results-content">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📊</div>
+                                <div class="empty-state-text">Select an action to analyze the repository</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/auth-client.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+
+        function logout() {
+            auth.logout();
+        }
+
+        // DOM Elements
+        const repoSelect = document.getElementById('repo-select');
+        const pullButton = document.getElementById('pull-button');
+        const analyzeButton = document.getElementById('analyze-button');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const resultsTitle = document.getElementById('results-title');
+        const resultsContent = document.getElementById('results-content');
+
+        // Initialize dates (last 7 days by default)
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        endDateInput.valueAsDate = today;
+        startDateInput.valueAsDate = weekAgo;
+
+        // Store loaded repositories for path lookup
+        let loadedRepositories = [];
+
+        // Load repositories on page load - uses same API as Git Monitor page
+        async function loadRepositories() {
+            try {
+                // Try admin API first (same as Git Monitor page)
+                let response = await fetch('/api/admin/git/repositories', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`
+                    }
+                });
+
+                // Fall back to public API if admin fails
+                if (!response.ok) {
+                    response = await fetch('/api/git/repositories');
+                }
+
+                const data = await response.json();
+                const repositories = data.repositories || [];
+                loadedRepositories = repositories; // Store for path lookup
+
+                if (repositories.length > 0) {
+                    // Clear existing options
+                    repoSelect.innerHTML = '';
+
+                    // Add repository options - use name for value, displayName for label
+                    repositories.forEach(repo => {
+                        const option = document.createElement('option');
+                        option.value = repo.name;
+                        option.textContent = repo.displayName || repo.name;
+                        repoSelect.appendChild(option);
+                    });
+
+                    console.log(`Loaded ${repositories.length} repositories`);
+                } else {
+                    console.error('No repositories found');
+                    repoSelect.innerHTML = '<option value="">No repositories found</option>';
+                }
+            } catch (error) {
+                console.error('Failed to load repositories:', error);
+                repoSelect.innerHTML = '<option value="">Error loading repositories</option>';
+            }
+        }
+
+        // Get repository path by name (case-insensitive)
+        function getRepoPath(repoName) {
+            if (!repoName || loadedRepositories.length === 0) {
+                return `C:\\Projects\\Git\\${repoName || 'Unknown'}`;
+            }
+            const repoNameLower = repoName.toLowerCase();
+            const repo = loadedRepositories.find(r =>
+                r.name === repoName || r.name.toLowerCase() === repoNameLower
+            );
+            return repo?.path || `C:\\Projects\\Git\\${repoName}`;
+        }
+
+        // Load repositories immediately
+        loadRepositories();
+
+        // Utility functions
+        function setLoading(message) {
+            resultsContent.innerHTML = `<div class="loading">${message}</div>`;
+        }
+
+        function showError(message) {
+            resultsContent.innerHTML = `<div class="error"><strong>Error:</strong> ${message}</div>`;
+        }
+
+        function showSuccess(message) {
+            resultsContent.innerHTML = `<div class="success">${message}</div>`;
+        }
+
+        function disableButtons() {
+            pullButton.disabled = true;
+            analyzeButton.disabled = true;
+        }
+
+        function enableButtons() {
+            pullButton.disabled = false;
+            analyzeButton.disabled = false;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Pull Repos Handler
+        pullButton.addEventListener('click', async () => {
+            const repo = repoSelect.value;
+            resultsTitle.textContent = `Pull Results - ${repo}`;
+            setLoading('Pulling latest changes from remote');
+            disableButtons();
+
+            try {
+                const response = await fetch('/api/git/pull', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Pull operation failed');
+                }
+
+                // Check if we have Roslyn analysis results
+                if (data.analysis && data.analysis.length > 0) {
+                    displayPullAnalysisResults(data);
+                } else {
+                    // Legacy display format
+                    let html = '<div class="success">Pull operation completed successfully</div>';
+                    html += '<div class="git-output">' + escapeHtml(data.output || data.message) + '</div>';
+                    resultsContent.innerHTML = html;
+                }
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                enableButtons();
+            }
+        });
+
+        // Analyze Handler - Combined with date range
+        analyzeButton.addEventListener('click', async () => {
+            const repo = repoSelect.value;
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+
+            if (!startDate || !endDate) {
+                showError('Please select both start and end dates');
+                return;
+            }
+
+            resultsTitle.textContent = `Commit History - ${repo}`;
+            setLoading('Fetching commit history');
+            disableButtons();
+
+            try {
+                const response = await fetch('/api/git/analyze-past', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo, startDate, endDate })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Historical analysis failed');
+                }
+
+                displayCommitHistory(data);
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                enableButtons();
+            }
+        });
+
+        // Display Functions
+        function displayPullAnalysisResults(data) {
+            let html = '';
+
+            // Success message with git output
+            html += '<div class="success">Pull operation completed successfully</div>';
+
+            if (data.output) {
+                html += '<div class="git-output">' + escapeHtml(data.output) + '</div>';
+            }
+
+            // Analysis summary
+            const totalClasses = data.analysis.reduce((sum, file) =>
+                sum + (file.classes ? file.classes.length : 0), 0);
+            const totalMethods = data.analysis.reduce((sum, file) =>
+                sum + (file.methods ? file.methods.length : 0), 0);
+            const filesWithErrors = data.analysis.filter(file => file.error).length;
+
+            html += '<div class="analysis-summary">';
+            html += '<div class="analysis-stats">';
+            html += `<div class="stat-item">
+                        <span>Files Analyzed:</span>
+                        <span class="stat-number">${data.filesAnalyzed || data.analysis.length}</span>
+                     </div>`;
+            html += `<div class="stat-item">
+                        <span>Classes Found:</span>
+                        <span class="stat-number">${totalClasses}</span>
+                     </div>`;
+            html += `<div class="stat-item">
+                        <span>Methods Found:</span>
+                        <span class="stat-number">${totalMethods}</span>
+                     </div>`;
+            if (filesWithErrors > 0) {
+                html += `<div class="stat-item">
+                            <span style="color: #fecaca;">Errors:</span>
+                            <span class="stat-number" style="color: #ef4444;">${filesWithErrors}</span>
+                         </div>`;
+            }
+            html += '</div>';
+            html += '</div>';
+
+            // File list with expandable details
+            html += '<div class="analysis-file-list">';
+
+            data.analysis.forEach((file, idx) => {
+                const hasClasses = file.classes && file.classes.length > 0;
+                const hasMethods = file.methods && file.methods.length > 0;
+                const hasCallGraph = file.callGraph && file.callGraph.length > 0;
+                const hasError = file.error;
+
+                html += `<div class="analysis-file-item">`;
+
+                // File header
+                html += `<div class="analysis-file-header" onclick="toggleAnalysisFile(${idx})">`;
+                html += `<div style="display: flex; align-items: center;">`;
+                html += `<span class="analysis-expand-icon" id="analysis-expand-${idx}">▶</span>`;
+                html += `<span class="analysis-file-name">${escapeHtml(file.file)}</span>`;
+                html += `</div>`;
+
+                // Badges
+                html += `<div class="analysis-file-badges">`;
+                if (hasError) {
+                    html += `<span class="analysis-badge badge-error">ERROR</span>`;
+                } else {
+                    if (hasClasses) {
+                        html += `<span class="analysis-badge badge-classes">${file.classes.length} Class${file.classes.length !== 1 ? 'es' : ''}</span>`;
+                    }
+                    if (hasMethods) {
+                        html += `<span class="analysis-badge badge-methods">${file.methods.length} Method${file.methods.length !== 1 ? 's' : ''}</span>`;
+                    }
+                }
+                html += `</div>`;
+                html += `</div>`; // End header
+
+                // File content (expandable)
+                html += `<div class="analysis-file-content" id="analysis-content-${idx}">`;
+
+                if (hasError) {
+                    html += `<div class="analysis-error-msg">${escapeHtml(file.error)}</div>`;
+                } else {
+                    // Classes section
+                    if (hasClasses) {
+                        html += `<div class="analysis-section">`;
+                        html += `<div class="analysis-section-title">Classes</div>`;
+                        html += `<div class="analysis-items-list">`;
+                        file.classes.forEach(className => {
+                            html += `<div class="analysis-item">${escapeHtml(className)}</div>`;
+                        });
+                        html += `</div></div>`;
+                    }
+
+                    // Methods section
+                    if (hasMethods) {
+                        html += `<div class="analysis-section">`;
+                        html += `<div class="analysis-section-title">Methods (${file.methods.length})</div>`;
+                        html += `<div class="analysis-items-list">`;
+                        // Show first 20 methods
+                        const methodsToShow = file.methods.slice(0, 20);
+                        methodsToShow.forEach(method => {
+                            html += `<div class="analysis-item">${escapeHtml(method)}</div>`;
+                        });
+                        if (file.methods.length > 20) {
+                            html += `<div class="analysis-item" style="color: #64748b; font-style: italic;">
+                                        ... and ${file.methods.length - 20} more methods
+                                     </div>`;
+                        }
+                        html += `</div></div>`;
+                    }
+
+                    // Call graph section
+                    if (hasCallGraph) {
+                        html += `<div class="callgraph-section">`;
+                        html += `<div class="callgraph-title">Call Graph</div>`;
+                        html += `<div class="callgraph-tree">`;
+
+                        file.callGraph.forEach(call => {
+                            if (call.caller && call.callees) {
+                                html += `<div class="callgraph-node">`;
+                                html += `<span class="callgraph-caller">${escapeHtml(call.caller)}</span> calls:`;
+                                html += `</div>`;
+
+                                call.callees.forEach(callee => {
+                                    html += `<div class="callgraph-node level-1">`;
+                                    html += `<span class="callgraph-callee">→ ${escapeHtml(callee)}</span>`;
+                                    html += `</div>`;
+                                });
+                            }
+                        });
+
+                        html += `</div></div>`;
+                    }
+
+                    // Empty state if no data
+                    if (!hasClasses && !hasMethods && !hasCallGraph) {
+                        html += `<div class="no-impact">No classes or methods found in this file</div>`;
+                    }
+                }
+
+                html += `</div>`; // End content
+                html += `</div>`; // End file item
+            });
+
+            html += '</div>'; // End file list
+
+            resultsContent.innerHTML = html;
+        }
+
+        // Toggle analysis file expansion
+        function toggleAnalysisFile(idx) {
+            const contentDiv = document.getElementById(`analysis-content-${idx}`);
+            const expandIcon = document.getElementById(`analysis-expand-${idx}`);
+
+            if (contentDiv.classList.contains('show')) {
+                contentDiv.classList.remove('show');
+                expandIcon.classList.remove('expanded');
+            } else {
+                contentDiv.classList.add('show');
+                expandIcon.classList.add('expanded');
+            }
+        }
+
+        function displayAnalysisResults(data) {
+            if (!data.changes || data.changes.length === 0) {
+                resultsContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✓</div>
+                        <div class="empty-state-text">No changes detected since last pull</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="changes-list">';
+
+            data.changes.forEach(change => {
+                html += '<div class="file-change">';
+                html += `<div class="file-change-header">${escapeHtml(change.file)}</div>`;
+
+                if (change.classes && change.classes.length > 0) {
+                    html += '<div><strong>Classes:</strong></div>';
+                    html += '<ul class="affected-items">';
+                    change.classes.forEach(cls => {
+                        html += `<li>${escapeHtml(cls)}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                if (change.methods && change.methods.length > 0) {
+                    html += '<div><strong>Methods:</strong></div>';
+                    html += '<ul class="affected-items">';
+                    change.methods.forEach(method => {
+                        html += `<li>${escapeHtml(method)}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                html += '</div>';
+            });
+
+            html += '</div>';
+            resultsContent.innerHTML = html;
+        }
+
+        function displayCommitHistory(data) {
+            const resultsCard = document.getElementById('results-content');
+            if (!resultsCard) return;
+
+            const commits = data.commits || [];
+            if (commits.length === 0) {
+                resultsCard.innerHTML = '<div class="alert">No commits found in the selected date range.</div>';
+                return;
+            }
+
+            let html = `<div class="commit-list">`;
+
+            commits.forEach((commit, idx) => {
+                // Format date nicely
+                const commitDate = new Date(commit.date);
+                const dateStr = commitDate.toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                // Count files
+                const fileCount = commit.files ? commit.files.length : 0;
+
+                // Get short hash
+                const shortHash = commit.hash ? commit.hash.substring(0, 7) : '';
+
+                html += `
+                <div class="commit-card" data-commit-idx="${idx}">
+                    <!-- OUTER BOX: Always visible -->
+                    <div class="commit-header" onclick="toggleCommitExpand(${idx})">
+                        <div class="commit-info-row">
+                            <span class="commit-date">📅 ${dateStr}</span>
+                            <span class="commit-author">👤 ${commit.author || 'Unknown'}</span>
+                            <span class="commit-hash">🔗 ${shortHash}</span>
+                            <span class="expand-arrow" id="arrow-${idx}">▼</span>
+                        </div>
+                        <div class="commit-meta-row">
+                            <span class="commit-repo">📦 ${data.repo || 'Repository'}</span>
+                            <span class="commit-files">📄 ${fileCount} files changed</span>
+                        </div>
+                    </div>
+
+                    <!-- INNER BOX: Shown on expand -->
+                    <div class="commit-details" id="details-${idx}" style="display: none;">
+                        <div class="commit-message">${escapeHtml(commit.message || '')}</div>
+                        ${generateInnerCardHTML(commit, idx, data.repo)}
+                    </div>
+                </div>`;
+            });
+
+            html += `</div>`;
+            resultsCard.innerHTML = html;
+        }
+
+        function generateInnerCardHTML(commit, commitIdx, repo) {
+            const files = commit.files || [];
+            if (files.length === 0) {
+                return '<div class="no-files">No file changes detected</div>';
+            }
+
+            // Get repo path dynamically from loaded repositories (single source of truth)
+            const repoBasePath = getRepoPath(repo);
+
+            // Group modifications by file, then by class
+            let html = '<div class="inner-card">';
+
+            files.forEach((file, fileIdx) => {
+                const fileName = file.filename || file.file || 'Unknown file';
+                const isSql = fileName.toLowerCase().endsWith('.sql');
+                // Convert Unix-style path to Windows-style and prepend repo base path
+                const fullWindowsPath = `${repoBasePath}\\${fileName.replace(/\//g, '\\')}`;
+
+                html += `
+                <div class="file-section">
+                    <div class="file-header">📄 ${escapeHtml(fullWindowsPath)}</div>`;
+
+                // Group methods by class
+                const classMethods = groupMethodsByClass(commit.modifiedItems || [], fileName);
+
+                if (Object.keys(classMethods).length > 0) {
+                    for (const [className, methods] of Object.entries(classMethods)) {
+                        // Display only the class name (not prefixed with "CLASS:")
+                        html += `
+                        <div class="class-section">
+                            <div class="class-name">${escapeHtml(className)}</div>
+                            <ul class="method-list">`;
+
+                        methods.forEach((method, methodIdx) => {
+                            const methodId = `impact-${commitIdx}-${fileIdx}-${methodIdx}`;
+                            html += `
+                                <li class="method-item">
+                                    <span class="method-name">└─ ${escapeHtml(method)}()</span>
+                                    <button class="load-impact-btn" onclick="loadMethodImpact('${methodId}', '${escapeHtml(className)}', '${escapeHtml(method)}', '${escapeHtml(repo)}', '${commit.hash}')">
+                                        Load Impact
+                                    </button>
+                                    <div class="impact-results" id="${methodId}" style="display: none;"></div>
+                                </li>`;
+                        });
+
+                        html += `</ul></div>`;
+                    }
+                } else if (isSql) {
+                    // For SQL files, show procedures
+                    const sqlObjects = extractSqlObjects(commit.modifiedItems || [], fileName);
+                    if (sqlObjects.length > 0) {
+                        html += `<ul class="method-list">`;
+                        sqlObjects.forEach(obj => {
+                            html += `<li class="method-item"><span class="method-name">└─ ${escapeHtml(obj)}</span></li>`;
+                        });
+                        html += `</ul>`;
+                    }
+                }
+
+                html += `</div>`;
+            });
+
+            html += '</div>';
+            return html;
+        }
+
+        function groupMethodsByClass(modifiedItems, fileName) {
+            const classMethods = {};
+
+            modifiedItems.forEach(item => {
+                if (item.type === 'class' && item.name) {
+                    // Parse "ClassName.MethodName" format
+                    const parts = item.name.split('.');
+                    if (parts.length >= 2) {
+                        const className = parts[0];
+                        const methodName = parts.slice(1).join('.');
+
+                        if (!classMethods[className]) {
+                            classMethods[className] = [];
+                        }
+                        if (!classMethods[className].includes(methodName)) {
+                            classMethods[className].push(methodName);
+                        }
+                    }
+                }
+            });
+
+            return classMethods;
+        }
+
+        function extractSqlObjects(modifiedItems, fileName) {
+            return modifiedItems
+                .filter(item => item.type === 'sql')
+                .map(item => item.name);
+        }
+
+        function toggleCommitExpand(idx) {
+            const details = document.getElementById(`details-${idx}`);
+            const arrow = document.getElementById(`arrow-${idx}`);
+
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                arrow.textContent = '▲';
+            } else {
+                details.style.display = 'none';
+                arrow.textContent = '▼';
+            }
+        }
+
+        // loadMethodImpact is defined below (at line ~1688) - removed duplicate here
+
+        // Toggle commit expansion
+        function toggleCommit(idx) {
+            const filesDiv = document.getElementById(`files-${idx}`);
+            const expandIcon = document.getElementById(`expand-${idx}`);
+
+            if (filesDiv.classList.contains('show')) {
+                filesDiv.classList.remove('show');
+                expandIcon.classList.remove('expanded');
+            } else {
+                filesDiv.classList.add('show');
+                expandIcon.classList.add('expanded');
+            }
+        }
+
+        // Toggle file impact expansion
+        function toggleFileImpact(commitIdx, fileIdx, commitHash) {
+            const impactDiv = document.getElementById(`impact-${commitIdx}-${fileIdx}`);
+
+            if (impactDiv.classList.contains('show')) {
+                impactDiv.classList.remove('show');
+            } else {
+                impactDiv.classList.add('show');
+            }
+        }
+
+        // Load all methods for a commit and display in header
+        async function loadAllCommitMethods(commitIdx, commitHash) {
+            const methodsSpan = document.getElementById(`commit-methods-${commitIdx}`);
+            const repo = repoSelect.value;
+
+            // Show loading state
+            methodsSpan.textContent = 'Analyzing...';
+            methodsSpan.style.color = 'var(--text-muted)';
+
+            try {
+                const response = await fetch('/api/git/analyze-commit-impact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo, commitHash })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Impact analysis failed');
+                }
+
+                // Collect all unique methods from all files in the commit
+                const allMethods = new Set();
+                if (data.impactAnalysis && data.impactAnalysis.length > 0) {
+                    data.impactAnalysis.forEach(fileImpact => {
+                        if (fileImpact.methods && fileImpact.methods.length > 0) {
+                            fileImpact.methods.forEach(method => allMethods.add(method));
+                        }
+                    });
+                }
+
+                // Display methods in header
+                if (allMethods.size > 0) {
+                    const methodArray = Array.from(allMethods);
+                    const displayText = methodArray.join(', ');
+                    methodsSpan.textContent = displayText;
+                    methodsSpan.style.color = '#fbbf24';
+
+                    // Add a badge showing count if multiple methods
+                    if (methodArray.length > 1) {
+                        const countBadge = ` (${methodArray.length} methods)`;
+                        methodsSpan.innerHTML = `${escapeHtml(displayText)} <span style="background: #7c3aed; color: white; padding: 2px 8px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">${methodArray.length}</span>`;
+                    }
+                } else {
+                    methodsSpan.textContent = 'No methods detected';
+                    methodsSpan.style.color = 'var(--text-dark)';
+                }
+
+            } catch (error) {
+                methodsSpan.textContent = `Error: ${error.message}`;
+                methodsSpan.style.color = 'var(--accent-red)';
+            }
+        }
+
+        // Load impact analysis for a specific file
+        async function loadFileImpact(commitIdx, fileIdx, commitHash) {
+            const impactDiv = document.getElementById(`impact-${commitIdx}-${fileIdx}`);
+            const repo = repoSelect.value;
+
+            // Show loading state
+            impactDiv.innerHTML = '<div class="impact-loading">Analyzing impact...</div>';
+            impactDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/git/analyze-commit-impact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo, commitHash })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Impact analysis failed');
+                }
+
+                displayImpactAnalysis(impactDiv, data.impactAnalysis, fileIdx);
+
+            } catch (error) {
+                impactDiv.innerHTML = `<div class="no-impact">Error: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Load method impact - queries MongoDB code_methods collection for called_by data
+        // For library methods, we don't restrict by project to find all callers across projects
+        async function loadMethodImpact(elementId, className, methodName, repo, commitHash) {
+            const container = document.getElementById(elementId);
+            if (!container) return;
+
+            // Toggle visibility if already shown
+            if (container.style.display === 'block' && container.dataset.loaded === 'true') {
+                container.style.display = 'none';
+                return;
+            }
+
+            // Show loading state
+            container.style.display = 'block';
+            container.innerHTML = '<div class="loading">Loading impact analysis...</div>';
+
+            try {
+                // Determine if this is a library method (EWR Library or similar)
+                const isLibraryMethod = repo && (repo.includes('Library') || repo.includes('EWRLibrary'));
+
+                // First try the Roslyn call-chain endpoint which queries MongoDB code_callgraph
+                // For library methods, don't restrict by project to find all callers
+                const roslynBody = {
+                    className: className,
+                    methodName: methodName,
+                    direction: 'callers',
+                    max_depth: 3
+                };
+
+                // Only add project filter for non-library methods
+                if (!isLibraryMethod && repo) {
+                    roslynBody.project = repo;
+                }
+
+                const response = await fetch('/api/roslyn/call-chain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(roslynBody)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.callers && data.callers.length > 0) {
+                        const callers = data.callers.map(c => ({
+                            line: c.line || c.call_site_line || 0,
+                            callerClass: c.class || c.caller_class || 'Unknown',
+                            callerMethod: c.method || c.caller_method || 'Unknown',
+                            filePath: c.file || c.caller_file || '',
+                            project: c.project || repo
+                        }));
+
+                        container.innerHTML = formatCallerDisplay(callers, className, methodName);
+                        container.dataset.loaded = 'true';
+                        return;
+                    }
+                }
+
+                // Fallback: try the git analyze-commit-impact endpoint
+                const fallbackResponse = await fetch('/api/git/analyze-commit-impact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo: repo,
+                        commitHash: commitHash,
+                        targetClass: className,
+                        targetMethod: methodName
+                    })
+                });
+
+                if (fallbackResponse.ok) {
+                    const fallbackData = await fallbackResponse.json();
+                    const callers = findCallersForMethod(fallbackData.impactAnalysis, className, methodName);
+                    container.innerHTML = formatCallerDisplay(callers, className, methodName);
+                    container.dataset.loaded = 'true';
+                } else {
+                    container.innerHTML = `
+                        <div class="impact-header">Impact Analysis for ${escapeHtml(className)}.${escapeHtml(methodName)}():</div>
+                        <div class="no-callers">No callers found. Run Roslyn analysis to populate call graph data.</div>
+                    `;
+                    container.dataset.loaded = 'true';
+                }
+
+            } catch (error) {
+                console.error('Error loading impact:', error);
+                container.innerHTML = `<div class="error">Failed to load impact: ${error.message}</div>`;
+            }
+        }
+
+        function findCallersForMethod(impactAnalysis, targetClass, targetMethod) {
+            const callers = [];
+
+            if (!impactAnalysis || !Array.isArray(impactAnalysis)) {
+                return callers;
+            }
+
+            impactAnalysis.forEach(analysis => {
+                const callersInfo = analysis.callersInfo || {};
+
+                // Check if this method has caller information
+                const methodCallers = callersInfo[targetMethod] || callersInfo[`${targetClass}.${targetMethod}`];
+
+                if (methodCallers && methodCallers.callers) {
+                    methodCallers.callers.forEach(caller => {
+                        callers.push({
+                            line: caller.callLine || caller.call_site_line || caller.lineNumber || 0,
+                            callerClass: caller.callerClass || caller.caller_class || 'Unknown',
+                            callerMethod: caller.callerMethod || caller.caller_method || 'Unknown',
+                            filePath: caller.filePath || caller.file_path || '',
+                            project: caller.project || ''
+                        });
+                    });
+                }
+            });
+
+            // Sort by line number
+            callers.sort((a, b) => a.line - b.line);
+
+            return callers;
+        }
+
+        function formatCallerDisplay(callers, targetClass, targetMethod) {
+            if (!callers || callers.length === 0) {
+                return `
+                    <div class="impact-header">Impact Analysis for ${escapeHtml(targetClass)}.${escapeHtml(targetMethod)}():</div>
+                    <div class="no-callers">No callers found in the codebase</div>
+                `;
+            }
+
+            let html = `<div class="impact-header">Called by (${callers.length}):</div>`;
+
+            // Group by project if there are multiple projects
+            const byProject = {};
+            callers.forEach(caller => {
+                const project = caller.project || 'Current Project';
+                if (!byProject[project]) {
+                    byProject[project] = [];
+                }
+                byProject[project].push(caller);
+            });
+
+            const projectKeys = Object.keys(byProject);
+
+            if (projectKeys.length > 1) {
+                // Multiple projects - show grouped
+                projectKeys.forEach(project => {
+                    html += `<div class="project-group"><span class="project-badge">${escapeHtml(project)}</span>`;
+                    byProject[project].forEach(caller => {
+                        html += formatSingleCaller(caller);
+                    });
+                    html += `</div>`;
+                });
+            } else {
+                // Single project - show flat list
+                callers.forEach(caller => {
+                    html += formatSingleCaller(caller);
+                });
+            }
+
+            return html;
+        }
+
+        function formatSingleCaller(caller) {
+            const line = caller.line ? caller.line : '?';
+            const cls = caller.callerClass || 'Unknown';
+            const method = caller.callerMethod || 'Unknown';
+
+            // Format as ClassName.methodName:lineNumber
+            return `<div class="caller-item">${escapeHtml(cls)}.${escapeHtml(method)}:${line}</div>`;
+        }
+
+        // Load method impact from Roslyn API directly
+        async function loadMethodImpactFromRoslyn(elementId, className, methodName, project) {
+            const container = document.getElementById(elementId);
+            if (!container) return;
+
+            container.style.display = 'block';
+            container.innerHTML = '<div class="loading">Loading from code analysis...</div>';
+
+            try {
+                // Try the Roslyn call-chain endpoint first
+                const response = await fetch('/api/roslyn/call-chain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        className: className,
+                        methodName: methodName,
+                        project: project,
+                        direction: 'callers'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.callers && data.callers.length > 0) {
+                        const callers = data.callers.map(c => ({
+                            line: c.line || c.call_site_line || 0,
+                            callerClass: c.class || c.caller_class,
+                            callerMethod: c.method || c.caller_method,
+                            filePath: c.file || c.caller_file,
+                            project: c.project || project
+                        }));
+
+                        container.innerHTML = formatCallerDisplay(callers, className, methodName);
+                        return;
+                    }
+                }
+
+                container.innerHTML = `
+                    <div class="impact-header">Impact Analysis for ${escapeHtml(className)}.${escapeHtml(methodName)}():</div>
+                    <div class="no-callers">No callers found. Run Roslyn analysis to populate call graph.</div>
+                `;
+
+            } catch (error) {
+                console.error('Error loading from Roslyn:', error);
+                container.innerHTML = `<div class="error">Failed to load: ${error.message}</div>`;
+            }
+        }
+
+        // Display impact analysis results
+        function displayImpactAnalysis(container, impactAnalysis, fileIdx) {
+            if (!impactAnalysis || impactAnalysis.length === 0) {
+                container.innerHTML = '<div class="no-impact">No impact analysis available</div>';
+                return;
+            }
+
+            // Get the specific file's impact
+            const fileImpact = impactAnalysis[fileIdx] || impactAnalysis[0];
+
+            // Update the methods preview in the header
+            const previewDiv = container.closest('.file-item').querySelector('[id^="methods-preview-"]');
+
+            // Handle SQL files specially
+            if (fileImpact.isSql) {
+                const procName = fileImpact.storedProcedure || 'Unknown';
+                if (previewDiv) {
+                    previewDiv.innerHTML = `<span style="color: #22c55e; font-weight: 500;">Stored Procedure:</span> <span style="color: #fbbf24;">${escapeHtml(procName)}</span>`;
+                }
+
+                let html = '<div class="impact-header" style="color: #22c55e;">SQL Impact Analysis:</div>';
+                html += `<div class="impact-section">`;
+                html += `<div class="impact-section-title" style="color: #22c55e;">Stored Procedure Modified:</div>`;
+                html += `<div style="font-weight: 700; color: #fbbf24; font-size: 1.15em; margin: 8px 0;">${escapeHtml(procName)}</div>`;
+                html += `</div>`;
+
+                // Show DataLayer and other callers
+                if (fileImpact.callersInfo && fileImpact.callersInfo[procName]) {
+                    const callers = fileImpact.callersInfo[procName].callers;
+                    if (callers && callers.length > 0) {
+                        // Separate DataLayer callers from other callers
+                        const dataLayerCallers = callers.filter(c => c.targetClass === 'SQL');
+                        const otherCallers = callers.filter(c => c.targetClass !== 'SQL');
+
+                        if (dataLayerCallers.length > 0) {
+                            html += '<div class="impact-section">';
+                            html += '<div class="impact-section-title" style="color: #22c55e;">DataLayer Methods Using This Procedure:</div>';
+                            html += '<ul class="impact-list">';
+                            dataLayerCallers.forEach(caller => {
+                                html += `<li style="font-weight: 600; color: #a5b4fc; margin-bottom: 8px;">`;
+                                html += `<span style="color: #a5b4fc;">${escapeHtml(caller.callerClass)}</span>`;
+                                html += `<span style="color: var(--text-muted);">.</span>`;
+                                html += `<span style="color: #60a5fa;">${escapeHtml(caller.callerMethod)}()</span>`;
+                                if (caller.filePath && caller.filePath !== 'Unknown') {
+                                    html += ` <span style="color: var(--text-dark); font-size: 0.85em;">in ${escapeHtml(caller.filePath)}</span>`;
+                                }
+                                html += '</li>';
+                            });
+                            html += '</ul></div>';
+                        }
+
+                        if (otherCallers.length > 0) {
+                            html += '<div class="impact-section">';
+                            html += '<div class="impact-section-title">Classes/Methods Calling DataLayer:</div>';
+                            html += '<ul class="impact-list">';
+                            otherCallers.forEach(caller => {
+                                html += `<li style="color: #e0e7ff; margin-bottom: 4px;">`;
+                                html += `<span style="color: #a5b4fc; font-weight: 600;">${escapeHtml(caller.callerClass)}</span>`;
+                                html += `<span style="color: var(--text-muted);">.</span>`;
+                                html += `<span style="color: #60a5fa; font-weight: 500;">${escapeHtml(caller.callerMethod)}()</span>`;
+                                html += ` <span style="color: var(--text-dark); font-size: 0.85em;">→ ${escapeHtml(caller.targetClass)}.${escapeHtml(caller.targetMethod)}()</span>`;
+                                html += '</li>';
+                            });
+                            html += '</ul></div>';
+                        }
+                    } else {
+                        html += '<div class="no-impact" style="color: #22c55e;">✓ No DataLayer references found - verify stored procedure usage manually</div>';
+                    }
+                } else {
+                    html += '<div class="no-impact" style="color: #22c55e;">✓ No DataLayer references found - verify stored procedure usage manually</div>';
+                }
+
+                container.innerHTML = html;
+                return;
+            }
+
+            if (previewDiv && fileImpact.methods && fileImpact.methods.length > 0) {
+                const methodNames = fileImpact.methods.map(m => {
+                    const name = m.name || m;
+                    const className = m.className || '';
+                    return className ? `${className}.${name}` : name;
+                }).join(', ');
+                previewDiv.innerHTML = `<span style="color: var(--text-primary); font-weight: 500;">Methods:</span> <span style="color: #fbbf24;">${escapeHtml(methodNames)}</span>`;
+            } else if (previewDiv) {
+                previewDiv.innerHTML = `<span style="font-style: italic; color: var(--text-dark);">No methods detected in this file</span>`;
+            }
+
+            let html = '<div class="impact-header">Impact Analysis:</div>';
+
+            // Show classes found (optional context)
+            if (fileImpact.classes && fileImpact.classes.length > 0) {
+                html += '<div class="impact-section">';
+                html += '<div class="impact-section-title">Classes in File:</div>';
+                html += '<ul class="impact-list">';
+                fileImpact.classes.forEach(cls => {
+                    html += `<li>${escapeHtml(cls)}</li>`;
+                });
+                html += '</ul></div>';
+            }
+
+            // Show methods found (callers are shown via Load Impact button in main view)
+            if (fileImpact.methods && fileImpact.methods.length > 0) {
+                html += '<div class="impact-section">';
+                html += '<div class="impact-section-title">Methods Modified:</div>';
+                html += '<ul class="impact-list">';
+                fileImpact.methods.slice(0, 10).forEach(methodObj => {
+                    // Handle both string and object formats
+                    const method = typeof methodObj === 'string' ? methodObj : methodObj.name;
+                    const className = typeof methodObj === 'object' ? methodObj.className : '';
+                    const displayName = className ? `${className}.${method}` : method;
+
+                    html += `<li style="font-weight: 700; color: #fbbf24; font-size: 1.05em; margin-bottom: 8px;">${escapeHtml(displayName)}()</li>`;
+                });
+                if (fileImpact.methods.length > 10) {
+                    html += `<li style="color: var(--text-dark);">... and ${fileImpact.methods.length - 10} more methods</li>`;
+                }
+                html += '</ul></div>';
+            }
+
+            // Show affected files
+            if (fileImpact.potentiallyAffectedFiles && fileImpact.potentiallyAffectedFiles.length > 0) {
+                html += '<div class="impact-section">';
+                html += '<div class="impact-section-title">⚠️ Other Developers Should Check These Files:</div>';
+                html += '<ul class="impact-list">';
+                fileImpact.potentiallyAffectedFiles.forEach(file => {
+                    html += `<li>${escapeHtml(file)}</li>`;
+                });
+                html += '</ul></div>';
+            } else {
+                html += '<div class="no-impact">No other files appear to reference these changes</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+    <script src="/js/system-status.js"></script>
+    <script src="/js/sidebar-user.js"></script>
+</body>
+</html>

@@ -1,0 +1,804 @@
+/* ============================================
+   MARKDOWN VIEWER COMPONENT STYLES
+============================================ */
+
+:root {
+    --docs-tree-width: 280px;
+    --docs-toc-width: 220px;
+    --docs-accent: #4ecdc4;
+}
+
+/* Override app-content to remove padding for full-width layout */
+.markdown-viewer-layout .app-content {
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Delete button styles */
+.docs-btn.docs-btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+}
+
+.docs-btn.docs-btn-danger:hover {
+    background: var(--accent-red);
+    color: white;
+}
+
+.docs-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Confirmation Modal */
+.docs-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(4px);
+}
+
+.docs-modal {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.docs-modal h3 {
+    color: var(--text-primary);
+    margin: 0 0 0.75rem 0;
+    font-size: 1.125rem;
+}
+
+.docs-modal p {
+    color: var(--text-secondary);
+    margin: 0 0 1.25rem 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.docs-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.docs-modal-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--card-border);
+}
+
+.docs-modal-btn-cancel {
+    background: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.docs-modal-btn-cancel:hover {
+    background: var(--content-bg);
+}
+
+.docs-modal-btn-danger {
+    background: var(--accent-red);
+    color: white;
+    border-color: var(--accent-red);
+}
+
+.docs-modal-btn-danger:hover {
+    background: #dc2626;
+}
+
+/* Drag and Drop Styles */
+.tree-item-content.draggable {
+    cursor: grab;
+}
+
+.tree-item-content.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.tree-item-content.drag-over {
+    background: rgba(0, 212, 255, 0.2);
+    border: 2px dashed var(--accent-cyan);
+    border-radius: 4px;
+}
+
+.tree-item-content.folder.drag-over {
+    background: rgba(0, 212, 255, 0.25);
+}
+
+.drag-indicator {
+    position: fixed;
+    padding: 0.5rem 1rem;
+    background: var(--accent-cyan);
+    color: var(--content-bg);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 3000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Toast notifications */
+.docs-toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 2500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideIn 0.3s ease;
+}
+
+.docs-toast.success {
+    border-color: var(--accent-green);
+}
+
+.docs-toast.success i {
+    color: var(--accent-green);
+}
+
+.docs-toast.error {
+    border-color: var(--accent-red);
+}
+
+.docs-toast.error i {
+    color: var(--accent-red);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================
+   DOCS TREE SIDEBAR (LEFT PANEL IN CONTENT)
+============================================ */
+
+.docs-tree-panel {
+    width: var(--docs-tree-width);
+    background: var(--card-bg);
+    border-right: 1px solid var(--card-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    flex-grow: 0;
+    min-height: 0;
+}
+
+.docs-tree-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--card-border);
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.docs-tree-header h2 {
+    font-size: 1rem;
+    color: var(--accent-cyan);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.docs-tree-search {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.docs-search-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--content-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.docs-search-input:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+
+.docs-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.docs-tree-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem 0;
+}
+
+.docs-tree-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.docs-tree-container::-webkit-scrollbar-track {
+    background: var(--card-bg);
+}
+
+.docs-tree-container::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 3px;
+}
+
+/* Tree Item Styles */
+.tree-item {
+    user-select: none;
+}
+
+.tree-item-content {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+    position: relative;
+    font-size: 0.875rem;
+}
+
+.tree-item-content:hover {
+    background: rgba(0, 212, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.tree-item-content.active {
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--accent-cyan);
+    border-left: 3px solid var(--accent-cyan);
+}
+
+.tree-item-content.folder {
+    font-weight: 500;
+}
+
+.tree-item-icon {
+    margin-right: 0.5rem;
+    width: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.tree-item-toggle {
+    margin-right: 0.25rem;
+    transition: transform 0.2s;
+    color: var(--text-muted);
+}
+
+.tree-item-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.tree-item-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-children {
+    display: none;
+    padding-left: 1rem;
+}
+
+.tree-children.expanded {
+    display: block;
+}
+
+/* ============================================
+   MAIN DOCS CONTENT AREA
+============================================ */
+
+.docs-main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.docs-content-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--card-border);
+    background: var(--content-bg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.docs-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.docs-breadcrumb-item:last-child {
+    color: var(--accent-cyan);
+    font-weight: 500;
+}
+
+.docs-breadcrumb-separator {
+    color: var(--text-muted);
+}
+
+.docs-content-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.docs-btn {
+    padding: 0.4rem 0.75rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.docs-btn:hover {
+    background: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+    color: var(--content-bg);
+}
+
+.docs-content-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    background: var(--content-bg);
+}
+
+.docs-content-body::-webkit-scrollbar {
+    width: 10px;
+}
+
+.docs-content-body::-webkit-scrollbar-track {
+    background: var(--content-bg);
+}
+
+.docs-content-body::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 5px;
+}
+
+/* ============================================
+   TABLE OF CONTENTS SIDEBAR
+============================================ */
+
+.docs-toc-panel {
+    width: var(--docs-toc-width);
+    background: var(--card-bg);
+    border-left: 1px solid var(--card-border);
+    overflow-y: auto;
+    padding: 1.25rem 1rem;
+    display: none;
+    flex-shrink: 0;
+    flex-grow: 0;
+    min-height: 0;
+}
+
+.docs-toc-panel.visible {
+    display: block;
+}
+
+.docs-toc-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+}
+
+.docs-toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.docs-toc-item {
+    margin-bottom: 0.25rem;
+}
+
+.docs-toc-link {
+    display: block;
+    padding: 0.25rem 0.5rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.8rem;
+    border-left: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.docs-toc-link:hover {
+    color: var(--accent-cyan);
+    border-left-color: var(--accent-cyan);
+}
+
+.docs-toc-link.active {
+    color: var(--accent-cyan);
+    border-left-color: var(--accent-cyan);
+    background: rgba(0, 212, 255, 0.08);
+}
+
+.docs-toc-link.level-1 { padding-left: 0.5rem; }
+.docs-toc-link.level-2 { padding-left: 1rem; font-size: 0.75rem; }
+.docs-toc-link.level-3 { padding-left: 1.5rem; font-size: 0.7rem; }
+
+/* ============================================
+   MARKDOWN CONTENT STYLES
+============================================ */
+
+.markdown-content {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.markdown-content h1 {
+    font-size: 2rem;
+    margin-top: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent-cyan);
+}
+
+.markdown-content h2 {
+    font-size: 1.5rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.markdown-content h3 { font-size: 1.25rem; }
+.markdown-content h4 { font-size: 1.125rem; }
+.markdown-content h5 { font-size: 1rem; }
+.markdown-content h6 { font-size: 0.875rem; color: var(--text-secondary); }
+
+.markdown-content p {
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.markdown-content a {
+    color: var(--accent-cyan);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.markdown-content a:hover {
+    border-bottom-color: var(--accent-cyan);
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+    color: var(--text-secondary);
+}
+
+.markdown-content li {
+    margin-bottom: 0.4rem;
+    line-height: 1.6;
+}
+
+.markdown-content blockquote {
+    margin: 1.25rem 0;
+    padding: 1rem 1.25rem;
+    background: rgba(0, 212, 255, 0.05);
+    border-left: 4px solid var(--accent-cyan);
+    color: var(--text-secondary);
+}
+
+.markdown-content blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+/* Code Blocks */
+.markdown-content pre {
+    position: relative;
+    margin: 1.25rem 0;
+    background: #0d1117;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.markdown-content code {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.markdown-content pre code {
+    display: block;
+    padding: 1.25rem;
+    overflow-x: auto;
+    line-height: 1.5;
+}
+
+.markdown-content :not(pre) > code {
+    padding: 0.15rem 0.4rem;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    color: var(--accent-cyan);
+    font-size: 0.875em;
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--card-border);
+}
+
+.code-language {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.copy-button {
+    padding: 0.2rem 0.6rem;
+    background: transparent;
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.copy-button:hover {
+    background: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+    color: var(--content-bg);
+}
+
+.copy-button.copied {
+    background: var(--accent-green);
+    border-color: var(--accent-green);
+    color: white;
+}
+
+/* Tables */
+.markdown-content table {
+    width: 100%;
+    margin: 1.25rem 0;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--card-border);
+}
+
+.markdown-content thead {
+    background: rgba(0, 212, 255, 0.08);
+}
+
+.markdown-content th,
+.markdown-content td {
+    padding: 0.6rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.markdown-content th {
+    font-weight: 600;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.markdown-content td {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.markdown-content tbody tr:hover {
+    background: rgba(0, 212, 255, 0.03);
+}
+
+/* Images */
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1.25rem 0;
+    border: 1px solid var(--card-border);
+}
+
+/* Horizontal Rule */
+.markdown-content hr {
+    margin: 2rem 0;
+    border: none;
+    border-top: 1px solid var(--card-border);
+}
+
+/* ============================================
+   LOADING & EMPTY STATES
+============================================ */
+
+.docs-loading-container,
+.docs-error-container,
+.docs-empty-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 2rem;
+}
+
+.docs-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--card-border);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.docs-loading-text,
+.docs-error-text,
+.docs-empty-text {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.docs-error-container i,
+.docs-empty-container i {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.docs-error-container i {
+    color: var(--accent-red);
+}
+
+.docs-empty-container i {
+    color: var(--text-muted);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+============================================ */
+
+@media (max-width: 1400px) {
+    .docs-toc-panel {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .docs-tree-panel {
+        width: 240px;
+    }
+}
+
+@media (max-width: 768px) {
+    .docs-tree-panel {
+        display: none;
+    }
+
+    .docs-content-body {
+        padding: 1rem;
+    }
+
+    .docs-content-header {
+        padding: 0.75rem 1rem;
+    }
+}
+
+/* ============================================
+   PRINT STYLES
+============================================ */
+
+@media print {
+    .app-sidebar,
+    .docs-tree-panel,
+    .docs-toc-panel,
+    .docs-content-header,
+    .app-header {
+        display: none !important;
+    }
+
+    .app-main {
+        margin-left: 0;
+    }
+
+    .markdown-viewer-layout .app-content {
+        display: block;
+    }
+
+    .docs-main-content {
+        width: 100%;
+    }
+
+    .markdown-content {
+        max-width: 100%;
+    }
+
+    body {
+        background: white;
+        color: black;
+    }
+}

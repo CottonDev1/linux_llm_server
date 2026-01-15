@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EWR AI Assistant</title>
+    <link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+    <!-- Main Layout -->
+    <div class="app-layout">
+        <!-- Sidebar Component -->
+        <ewr-sidebar></ewr-sidebar>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Header Component -->
+            <ewr-page-header title="EWR AI Assistant" subtitle="AI-powered development tools and services"></ewr-page-header>
+
+            <!-- Content -->
+            <main class="app-content">
+                <div class="content-wrapper">
+                    <div class="dashboard-grid">
+                        <a href="/sql" class="dashboard-card">
+                            <div class="dashboard-card-icon">SC</div>
+                            <div class="dashboard-card-title">SQL Chat</div>
+                            <div class="dashboard-card-description">Ask questions about your data in plain English</div>
+                        </a>
+
+                        <!-- Disabled - not ready yet
+                        <a href="git/index.html" class="dashboard-card">
+                            <div class="dashboard-card-icon">GA</div>
+                            <div class="dashboard-card-title">Git Analysis</div>
+                            <div class="dashboard-card-description">Analyze git repositories and commit history</div>
+                        </a>
+                        -->
+
+                                                <a href="knowledge-base/index.html" class="dashboard-card">
+                            <div class="dashboard-card-icon">KB</div>
+                            <div class="dashboard-card-title">Knowledge Base Assistant</div>
+                            <div class="dashboard-card-description">AI-powered knowledge base chat</div>
+                        </a>
+
+<a href="admin/index.html" class="dashboard-card">
+                            <div class="dashboard-card-icon">AS</div>
+                            <div class="dashboard-card-title">Admin</div>
+                            <div class="dashboard-card-description">System administration and configuration</div>
+                        </a>
+
+                        <a href="knowledge-base/documents.html" class="dashboard-card">
+                            <div class="dashboard-card-icon">DB</div>
+                            <div class="dashboard-card-title">Document Browser</div>
+                            <div class="dashboard-card-description">Browse and search stored documents</div>
+                        </a>
+
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/auth-client.js"></script>
+    <script src="js/ewr-components.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script>
+        // Initialize auth client
+        const auth = new AuthClient();
+
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+
+        function logout() {
+            auth.logout();
+        }
+    </script>
+    <script src="/js/system-status.js"></script>
+</body>
+</html>

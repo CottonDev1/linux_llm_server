@@ -1,0 +1,113 @@
+/**
+ * EWR Cards Component
+ * Card layouts for chat interfaces and content displays
+ */
+
+/* ============================================
+   Full-Width Layout Overrides
+   When using ewr_chat-card-full, parent containers
+   should expand to use all available space
+   ============================================ */
+
+/* Remove max-width constraint when chat card is used */
+.content-wrapper:has(.ewr_chat-card-full) {
+    max-width: none;
+}
+
+/* Ensure parent layout containers are flex-enabled */
+.app-content:has(.ewr_chat-card-full) {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================
+   Chat Card Components
+   ============================================ */
+
+/* Chat Interface Card - 75% Width */
+.ewr_chat-card-75 {
+    width: 75%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-primary);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    transition: all 0.3s ease;
+}
+
+/* Chat Interface Card - 100% Width (fills available space) */
+.ewr_chat-card-full {
+    width: 100%;
+    flex: 1;
+    min-height: 0; /* Critical for nested flex containers */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-primary);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    transition: all 0.3s ease;
+    /* Override .card base class defaults */
+    padding: 0;
+    margin-bottom: 0;
+}
+
+/* ============================================
+   Content Card Component (Non-Chat)
+   ============================================ */
+
+/* Standard content card for non-chat master content areas */
+.ewr-content-card {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--card-bg, #1e293b);
+    border-radius: 12px;
+    border: 1px solid var(--card-border, #334155);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    padding: 0; /* Reset padding from .card class */
+}
+
+/* Content body - holds all child elements */
+.ewr-content-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    background: var(--content-bg, #0f172a);
+}
+
+/* Card Header Styles */
+.ewr_chat-card-75 .card-header,
+.ewr_chat-card-full .card-header {
+    padding: 18px 24px 14px;
+    background: var(--bg-secondary);
+    transition: all 0.3s ease;
+}
+
+.ewr_chat-card-75 .card-header .card-title,
+.ewr_chat-card-full .card-header .card-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+    letter-spacing: 0.3px;
+    transition: color 0.3s ease;
+}
+
+/* Card Body Styles */
+.ewr_chat-card-75 .card-body,
+.ewr_chat-card-full .card-body {
+    flex: 1;
+    min-height: 0; /* Critical for nested flex containers */
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
