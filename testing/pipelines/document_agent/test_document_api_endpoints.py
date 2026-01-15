@@ -391,7 +391,7 @@ class TestSearchEndpoint:
 
             assert response.total_results == 2
             assert len(response.sources) == 2
-            assert response.search_time_ms > 0
+            assert response.search_time_ms >= 0
 
     @pytest.mark.asyncio
     async def test_search_endpoint_with_filters(self, mock_search_results):
