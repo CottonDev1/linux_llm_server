@@ -6,8 +6,8 @@ MongoDB is backed up daily using `mongodump` to an external USB drive for offsit
 
 | Setting | Value |
 |---------|-------|
-| **MongoDB Host** | 10.101.20.29 |
-| **MongoDB Port** | 27018 |
+| **MongoDB Host** | 10.101.20.21 |
+| **MongoDB Port** | 27017 |
 | **Backup Location** | `/mnt/usb/mongodb_backups/` |
 | **USB Device** | `/dev/sdd1` (WD Passport) |
 | **Schedule** | Daily 2:00 AM |
@@ -119,8 +119,8 @@ sudo mount /dev/sdd1 /mnt/usb
 
 ```bash
 mongorestore \
-    --host=10.101.20.29 \
-    --port=27018 \
+    --host=10.101.20.21 \
+    --port=27017 \
     --gzip \
     /mnt/usb/mongodb_backups/backup_YYYYMMDD_HHMMSS/
 ```
@@ -129,8 +129,8 @@ mongorestore \
 
 ```bash
 mongorestore \
-    --host=10.101.20.29 \
-    --port=27018 \
+    --host=10.101.20.21 \
+    --port=27017 \
     --gzip \
     --db=rag_server \
     /mnt/usb/mongodb_backups/backup_YYYYMMDD_HHMMSS/rag_server/
@@ -140,8 +140,8 @@ mongorestore \
 
 ```bash
 mongorestore \
-    --host=10.101.20.29 \
-    --port=27018 \
+    --host=10.101.20.21 \
+    --port=27017 \
     --gzip \
     --db=rag_server \
     --collection=code_methods \
@@ -154,8 +154,8 @@ mongorestore \
 
 ```bash
 mongorestore \
-    --host=10.101.20.29 \
-    --port=27018 \
+    --host=10.101.20.21 \
+    --port=27017 \
     --gzip \
     --drop \
     /mnt/usb/mongodb_backups/backup_YYYYMMDD_HHMMSS/
@@ -165,8 +165,8 @@ mongorestore \
 
 ```bash
 mongorestore \
-    --host=10.101.20.29 \
-    --port=27018 \
+    --host=10.101.20.21 \
+    --port=27017 \
     --gzip \
     --db=rag_server_restored \
     /mnt/usb/mongodb_backups/backup_YYYYMMDD_HHMMSS/rag_server/
@@ -209,8 +209,8 @@ lsblk | grep sdd
 The backup script uses these settings (defined at top of script):
 
 ```bash
-MONGO_HOST="10.101.20.29"
-MONGO_PORT="27018"
+MONGO_HOST="10.101.20.21"
+MONGO_PORT="27017"
 USB_MOUNT="/mnt/usb"
 USB_DEVICE="/dev/sdd1"
 BACKUP_DIR="${USB_MOUNT}/mongodb_backups"
@@ -234,13 +234,13 @@ sudo nano /data/projects/llm_website/scripts/mongodb_backup_usb.sh
 | USB device not found | Check drive is connected: `lsblk` |
 | Insufficient space | Remove old backups or use larger drive |
 | mongodump fails | Check MongoDB is running on remote host |
-| Connection refused | Verify host/port: `mongo --host 10.101.20.29 --port 27018` |
+| Connection refused | Verify host/port: `mongo --host 10.101.20.21 --port 27017` |
 | Permission denied | Script must run as root |
 
 ### Verify MongoDB Connection
 
 ```bash
-mongo --host 10.101.20.29 --port 27018 --eval "db.stats()"
+mongo --host 10.101.20.21 --port 27017 --eval "db.stats()"
 ```
 
 ### Check Script Permissions

@@ -84,15 +84,15 @@ sudo systemctl daemon-reload
 cat /mnt/usb/mongodb_backups/LATEST.txt
 
 # Restore entire backup
-mongorestore --host=10.101.20.29 --port=27018 --gzip \
+mongorestore --host=10.101.20.21 --port=27017 --gzip \
     /mnt/usb/mongodb_backups/backup_YYYYMMDD_HHMMSS/
 
 # Restore specific database
-mongorestore --host=10.101.20.29 --port=27018 --gzip --db=rag_server \
+mongorestore --host=10.101.20.21 --port=27017 --gzip --db=rag_server \
     /mnt/usb/mongodb_backups/backup_YYYYMMDD_HHMMSS/rag_server/
 
 # Restore with drop (replace existing)
-mongorestore --host=10.101.20.29 --port=27018 --gzip --drop \
+mongorestore --host=10.101.20.21 --port=27017 --gzip --drop \
     /mnt/usb/mongodb_backups/backup_YYYYMMDD_HHMMSS/
 ```
 
@@ -201,7 +201,7 @@ sudo /usr/local/bin/check_all_backups.sh
 | USB device not found | Check drive connected: `lsblk` |
 | Insufficient space | Remove old backups or use larger drive |
 | mongodump fails | Check MongoDB running: `systemctl status mongod` |
-| Connection refused | Verify: `mongo --host 10.101.20.29 --port 27018` |
+| Connection refused | Verify: `mongo --host 10.101.20.21 --port 27017` |
 
 ### Common Diagnostic Commands
 
@@ -213,7 +213,7 @@ sudo rsnapshot configtest
 sudo rsnapshot -t daily
 
 # Check MongoDB connection
-mongo --host 10.101.20.29 --port 27018 --eval "db.stats()"
+mongo --host 10.101.20.21 --port 27017 --eval "db.stats()"
 
 # Check USB mount
 mountpoint /mnt/usb && echo "Mounted" || echo "Not mounted"
