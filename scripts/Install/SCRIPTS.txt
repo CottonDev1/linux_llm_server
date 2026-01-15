@@ -1,0 +1,124 @@
+INSTALL SCRIPTS
+===============
+This directory contains installation and setup scripts for the RAG Server.
+
+
+SCRIPTS
+-------
+
+install.sh (Linux/macOS - RECOMMENDED)
+    Native bash installation script for Linux and macOS.
+
+    Performs the following:
+    - Checks prerequisites (Node.js, npm, Python, Git)
+    - Installs Node.js dependencies (npm install)
+    - Rebuilds native modules
+    - Installs Poetry for Python dependency management
+    - Installs Python dependencies via Poetry
+    - Installs Prefect separately (Poetry resolver workaround)
+    - Verifies the installation
+
+    Usage:
+        ./scripts/Install/install.sh [options]
+
+    Options:
+        --skip-node      Skip Node.js dependency installation
+        --skip-python    Skip Python dependency installation
+        --skip-audio     Skip audio processing dependencies
+        --skip-prefect   Skip Prefect workflow dependencies
+        --dev            Install development dependencies
+        --help           Show help message
+
+    Examples:
+        ./scripts/Install/install.sh              # Full installation
+        ./scripts/Install/install.sh --skip-audio # Skip large audio deps
+
+
+install.js (Cross-Platform - Windows/Linux/macOS)
+    Node.js installation script that works on all platforms.
+    Use this if you need Windows compatibility or prefer Node.js.
+
+    Usage:
+        node scripts/Install/install.js [options]
+
+    Same options as install.sh
+
+
+SYSTEMD SERVICES (Linux Production)
+-----------------------------------
+
+The systemd/ directory contains service unit files for running
+the RAG Server as system services on Linux.
+
+Files:
+    systemd/rag-node.service    - Node.js backend service
+    systemd/rag-python.service  - Python API service
+    systemd/rag-ctl.sh          - Management convenience script
+    systemd/README.md           - Detailed documentation
+
+Quick Start:
+    # Install services (requires sudo)
+    sudo ./scripts/Install/systemd/rag-ctl.sh install
+    sudo systemctl enable rag-node rag-python
+    sudo systemctl start rag-node rag-python
+
+Management:
+    ./scripts/Install/systemd/rag-ctl.sh start      # Start all
+    ./scripts/Install/systemd/rag-ctl.sh stop       # Stop all
+    ./scripts/Install/systemd/rag-ctl.sh restart    # Restart all
+    ./scripts/Install/systemd/rag-ctl.sh status     # Check status
+    ./scripts/Install/systemd/rag-ctl.sh logs       # Follow logs
+
+
+WINDOWS SERVICES
+----------------
+
+install-llamacpp-services.ps1 (Windows Only)
+    Install llama.cpp servers as Windows Services using NSSM.
+
+    Services installed:
+    - LlamaCppSQL (Port 8080) - SQL generation model
+    - LlamaCppGeneral (Port 8081) - Chat and summarization model
+    - LlamaCppCode (Port 8082) - Code analysis model
+
+    Requires: Administrator privileges
+    Usage: .\install-llamacpp-services.ps1 [-SqlOnly] [-Uninstall] [-Status]
+
+
+QUICK START BY PLATFORM
+-----------------------
+
+Linux (Production):
+    1. ./scripts/Install/install.sh
+    2. sudo ./scripts/Install/systemd/rag-ctl.sh install
+    3. sudo systemctl enable --now rag-node rag-python
+
+Linux (Development):
+    1. ./scripts/Install/install.sh --dev
+    2. node rag-server.js &
+    3. cd python_services && poetry run python main.py
+
+Windows:
+    1. node scripts/Install/install.js
+    2. (Admin) .\scripts\Install\install-llamacpp-services.ps1
+    3. node rag-server.js
+    4. cd python_services && poetry run python main.py
+
+macOS:
+    1. ./scripts/Install/install.sh
+    2. node rag-server.js &
+    3. cd python_services && poetry run python main.py
+
+
+PYTHON DEPENDENCY NOTES
+-----------------------
+Python dependencies are managed with Poetry (pyproject.toml + poetry.lock).
+
+Prefect is installed separately via pip because the Poetry resolver has
+issues with Prefect's self-referential extras declaration. Both install
+scripts handle this automatically.
+
+Manual installation:
+    cd python_services
+    poetry install
+    poetry run pip install "prefect>=3.0.0"

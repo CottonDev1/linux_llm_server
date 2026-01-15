@@ -1,0 +1,22 @@
+[Unit]
+Description=LLaMA General Model Server (Mistral-7B on GPU 0)
+After=network.target
+
+[Service]
+Type=simple
+User=chad
+Group=chad
+Environment="CUDA_VISIBLE_DEVICES=0"
+ExecStart=/data/projects/llama.cpp/build/bin/llama-server \
+    -m /data/models/mistral-7b-instruct-v0.2-q4_k_m.gguf \
+    --host 0.0.0.0 \
+    --port 8081 \
+    --n-gpu-layers 99 \
+    --ctx-size 4096
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/data/logs/llama/general.log
+StandardError=append:/data/logs/llama/general.log
+
+[Install]
+WantedBy=multi-user.target

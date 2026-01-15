@@ -1,0 +1,38 @@
+[Unit]
+Description=RAG Server - Python API Services
+Documentation=https://github.com/your-org/rag-server
+After=network.target mongodb.service
+Wants=mongodb.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/rag-server/python_services
+ExecStart=/opt/rag-server/python_services/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+Environment=HOST=0.0.0.0
+Environment=PORT=8001
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rag-python
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/rag-server/python_services/data /opt/rag-server/python_services/logs
+
+# Resource limits
+MemoryMax=4G
+TasksMax=100
+
+[Install]
+WantedBy=multi-user.target

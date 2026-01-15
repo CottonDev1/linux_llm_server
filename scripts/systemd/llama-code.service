@@ -1,0 +1,22 @@
+[Unit]
+Description=LLaMA Code Model Server (Qwen2.5-Coder-1.5B on GPU 1)
+After=network.target
+
+[Service]
+Type=simple
+User=chad
+Group=chad
+Environment="CUDA_VISIBLE_DEVICES=1"
+ExecStart=/data/projects/llama.cpp/build/bin/llama-server \
+    -m /data/projects/llm_website/models/llamacpp/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf \
+    --host 0.0.0.0 \
+    --port 8082 \
+    --n-gpu-layers 99 \
+    --ctx-size 4096
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/data/logs/llama/code.log
+StandardError=append:/data/logs/llama/code.log
+
+[Install]
+WantedBy=multi-user.target

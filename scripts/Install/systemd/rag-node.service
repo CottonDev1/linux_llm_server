@@ -1,0 +1,37 @@
+[Unit]
+Description=RAG Server - Node.js Backend
+Documentation=https://github.com/your-org/rag-server
+After=network.target mongodb.service
+Wants=mongodb.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/rag-server
+ExecStart=/usr/bin/node rag-server.js
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rag-node
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/rag-server/data /opt/rag-server/logs
+
+# Resource limits
+MemoryMax=2G
+TasksMax=100
+
+[Install]
+WantedBy=multi-user.target

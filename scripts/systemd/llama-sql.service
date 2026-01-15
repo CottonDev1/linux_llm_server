@@ -1,0 +1,22 @@
+[Unit]
+Description=LLaMA SQL Model Server (SQLCoder-7B on GPU 0)
+After=network.target
+
+[Service]
+Type=simple
+User=chad
+Group=chad
+Environment="CUDA_VISIBLE_DEVICES=0"
+ExecStart=/data/projects/llama.cpp/build/bin/llama-server \
+    -m /data/projects/llm_website/models/llamacpp/sqlcoder-7b-2.Q4_K_M.gguf \
+    --host 0.0.0.0 \
+    --port 8080 \
+    --n-gpu-layers 99 \
+    --ctx-size 4096
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/data/logs/llama/sql.log
+StandardError=append:/data/logs/llama/sql.log
+
+[Install]
+WantedBy=multi-user.target
