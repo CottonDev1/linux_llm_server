@@ -1,0 +1,16 @@
+{
+  "name": "llm-website-testing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:admin": "npx playwright test e2e/specs/admin/",
+    "test:sql": "npx playwright test e2e/specs/sql/",
+    "test:audio": "npx playwright test e2e/specs/audio/",
+    "test:smoke": "npx playwright test e2e/specs/admin/admin-pages.spec.js e2e/specs/dashboard/"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "dotenv": "^16.3.1"
+  }
+}
