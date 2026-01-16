@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration
-const DOCS_DIR = path.join(__dirname, '../public/docs');
+const DOCS_DIR = path.join(__dirname, '../../docs');
 const OUTPUT_FILE = path.join(DOCS_DIR, 'docs-manifest.json');
 const IGNORE_FILES = ['.DS_Store', 'Thumbs.db', 'docs-manifest.json'];
 const IGNORE_DIRS = ['.git', 'node_modules'];
@@ -52,14 +52,12 @@ function buildStructure(dirPath, relativePath = '') {
                 // Recursively process directory
                 const children = buildStructure(fullPath, relPath);
 
-                // Only include non-empty directories
-                if (children.length > 0) {
-                    items.push({
-                        name: entry.name,
-                        type: 'folder',
-                        children: children
-                    });
-                }
+                // Include all directories (even empty ones for folder management)
+                items.push({
+                    name: entry.name,
+                    type: 'folder',
+                    children: children
+                });
 
             } else if (entry.isFile()) {
                 // Skip ignored files and non-markdown files

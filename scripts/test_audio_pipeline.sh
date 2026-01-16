@@ -232,18 +232,7 @@ test_analyze_file() {
     # Parse the response - look for the last complete JSON object
     if [ -f "$temp_response" ]; then
         # Extract the final JSON result (after all SSE events)
-        # SSE format: "data: {json}" - need to extract JSON from lines starting with "data: "
-        # The complete result may be wrapped: {"type": "complete", "data": {...}}
-        # or it may be the raw result with "transcription" at the top level
-
-        # First try to get the complete event's result field
-        # Format is: data: {"type": "complete", "result": {...}}
-        ANALYSIS_RESULT=$(grep '^data: ' "$temp_response" | grep '"type": "complete"' | tail -1 | sed 's/^data: //' | jq -r '.result // .' 2>/dev/null)
-
-        # If that didn't work, try direct extraction for transcription field
-        if [ -z "$ANALYSIS_RESULT" ] || [ "$ANALYSIS_RESULT" = "null" ]; then
-            ANALYSIS_RESULT=$(grep '^data: ' "$temp_response" | grep '"transcription"' | tail -1 | sed 's/^data: //')
-        fi
+        ANALYSIS_RESULT=$(grep -o '{.*"transcription".*}' "$temp_response" | tail -1)
 
         if [ -n "$ANALYSIS_RESULT" ] && echo "$ANALYSIS_RESULT" | jq -e '.transcription' > /dev/null 2>&1; then
             log_success "Analysis completed"
@@ -269,56 +258,6 @@ test_analyze_file() {
             # Check for summary (only for longer audio)
             local has_summary=$(echo "$ANALYSIS_RESULT" | jq -r 'if .transcription_summary then "yes" else "no" end')
             log_info "  Has summary: $has_summary"
-
-            # Display full transcription
-            echo ""
-            echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
-            echo -e "${YELLOW}│                    FULL TRANSCRIPTION                       │${NC}"
-            echo -e "${YELLOW}└─────────────────────────────────────────────────────────────┘${NC}"
-            echo "$ANALYSIS_RESULT" | jq -r '.transcription_plain // .transcription' | fold -w 80 -s
-            echo ""
-
-            # Display call content analysis
-            echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
-            echo -e "${YELLOW}│                   CALL CONTENT ANALYSIS                     │${NC}"
-            echo -e "${YELLOW}└─────────────────────────────────────────────────────────────┘${NC}"
-            echo "$ANALYSIS_RESULT" | jq -r '
-                "Subject: \(.call_content.subject // "N/A")",
-                "Outcome: \(.call_content.outcome // "N/A")",
-                "Customer Name: \(.call_content.customer_name // "N/A")",
-                "Confidence: \(.call_content.confidence // "N/A")",
-                "Analysis Model: \(.call_content.analysis_model // "N/A")"
-            '
-            echo ""
-
-            # Display emotions
-            echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
-            echo -e "${YELLOW}│                    EMOTION ANALYSIS                         │${NC}"
-            echo -e "${YELLOW}└─────────────────────────────────────────────────────────────┘${NC}"
-            echo "$ANALYSIS_RESULT" | jq -r '
-                "Primary Emotion: \(.emotions.primary // "N/A")",
-                "Detected Emotions: \(.emotions.detected | join(", ") // "N/A")"
-            '
-            echo ""
-
-            # Display audio metadata
-            echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
-            echo -e "${YELLOW}│                    AUDIO METADATA                           │${NC}"
-            echo -e "${YELLOW}└─────────────────────────────────────────────────────────────┘${NC}"
-            echo "$ANALYSIS_RESULT" | jq -r '
-                "Duration: \(.audio_metadata.duration_seconds // 0)s",
-                "Sample Rate: \(.audio_metadata.sample_rate // "N/A") Hz",
-                "Channels: \(.audio_metadata.channels // "N/A")",
-                "Format: \(.audio_metadata.format // "N/A")",
-                "File Size: \((.audio_metadata.file_size_bytes // 0) / 1024 / 1024 | . * 100 | floor / 100) MB"
-            '
-            echo ""
-
-            # Store additional LLM metrics
-            LLM_METRICS["call_subject"]=$(echo "$ANALYSIS_RESULT" | jq -r '.call_content.subject // "N/A"')
-            LLM_METRICS["call_outcome"]=$(echo "$ANALYSIS_RESULT" | jq -r '.call_content.outcome // "N/A"')
-            LLM_METRICS["customer_name"]=$(echo "$ANALYSIS_RESULT" | jq -r '.call_content.customer_name // "N/A"')
-            LLM_METRICS["confidence"]=$(echo "$ANALYSIS_RESULT" | jq -r '.call_content.confidence // "N/A"')
 
         else
             log_error "Analysis failed - could not parse result"
@@ -464,32 +403,6 @@ test_update_record() {
 
         if echo "$verify" | jq -e '.mood == "Positive"' > /dev/null 2>&1; then
             log_success "Update verified - mood is now 'Positive'"
-
-            # Display full updated document from MongoDB
-            echo ""
-            echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
-            echo -e "${YELLOW}│              UPDATED DOCUMENT FROM MONGODB                  │${NC}"
-            echo -e "${YELLOW}└─────────────────────────────────────────────────────────────┘${NC}"
-            echo "$verify" | jq '{
-                id: .id,
-                filename: .filename,
-                customer_support_staff: .customer_support_staff,
-                ewr_customer: .ewr_customer,
-                mood: .mood,
-                outcome: .outcome,
-                test_notes: .test_notes,
-                updated_by_test: .updated_by_test,
-                call_content: .call_content,
-                emotions: .emotions,
-                language: .language,
-                audio_metadata: .audio_metadata,
-                created_at: .created_at,
-                updated_at: .updated_at
-            }'
-            echo ""
-
-            # Store the full document for reference
-            UPDATED_DOCUMENT="$verify"
         else
             log_warning "Could not verify update"
         fi
@@ -552,73 +465,10 @@ print_metrics_report() {
     echo -e "${CYAN}║${NC} ${YELLOW}LLM Metrics:${NC}                                               ${CYAN}║${NC}"
     printf "${CYAN}║${NC}   %-20s %35s ${CYAN}║${NC}\n" "Analysis Model:" "${LLM_METRICS["analysis_model"]:-N/A}"
     printf "${CYAN}║${NC}   %-20s %35s ${CYAN}║${NC}\n" "LLM Processing:" "$(format_duration ${LLM_METRICS["analysis_duration_ms"]:-0})"
-    printf "${CYAN}║${NC}   %-20s %35s ${CYAN}║${NC}\n" "Confidence:" "${LLM_METRICS["confidence"]:-N/A}"
-
-    echo -e "${CYAN}╠════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${CYAN}║${NC} ${YELLOW}LLM Call Analysis:${NC}                                         ${CYAN}║${NC}"
-    printf "${CYAN}║${NC}   %-20s %35s ${CYAN}║${NC}\n" "Customer Name:" "${LLM_METRICS["customer_name"]:-N/A}"
-    printf "${CYAN}║${NC}   %-20s %35s ${CYAN}║${NC}\n" "Call Outcome:" "${LLM_METRICS["call_outcome"]:-N/A}"
 
     echo -e "${CYAN}╠════════════════════════════════════════════════════════════╣${NC}"
     printf "${CYAN}║${NC}   ${GREEN}%-20s %35s${NC} ${CYAN}║${NC}\n" "TOTAL TIME:" "$(format_duration $total_elapsed)"
     echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
-
-    # Display LLM server statistics
-    echo ""
-    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${YELLOW}│                    LLM SERVER STATISTICS                    │${NC}"
-    echo -e "${YELLOW}└─────────────────────────────────────────────────────────────┘${NC}"
-
-    # Fetch LLM health/stats from all endpoints
-    local general_stats=$(curl -s "http://localhost:8081/health" 2>/dev/null || echo '{"status":"unavailable"}')
-    local sql_stats=$(curl -s "http://localhost:8080/health" 2>/dev/null || echo '{"status":"unavailable"}')
-    local code_stats=$(curl -s "http://localhost:8082/health" 2>/dev/null || echo '{"status":"unavailable"}')
-    local embed_stats=$(curl -s "http://localhost:8083/health" 2>/dev/null || echo '{"status":"unavailable"}')
-
-    echo -e "${BLUE}General LLM (8081):${NC}"
-    echo "$general_stats" | jq -r '
-        if .status == "ok" then
-            "  Status: \(.status)",
-            "  Slots Idle: \(.slots_idle // "N/A")",
-            "  Slots Processing: \(.slots_processing // "N/A")"
-        else
-            "  Status: unavailable"
-        end
-    ' 2>/dev/null || echo "  Status: unavailable"
-
-    echo -e "${BLUE}SQL LLM (8080):${NC}"
-    echo "$sql_stats" | jq -r '
-        if .status == "ok" then
-            "  Status: \(.status)",
-            "  Slots Idle: \(.slots_idle // "N/A")",
-            "  Slots Processing: \(.slots_processing // "N/A")"
-        else
-            "  Status: unavailable"
-        end
-    ' 2>/dev/null || echo "  Status: unavailable"
-
-    echo -e "${BLUE}Code LLM (8082):${NC}"
-    echo "$code_stats" | jq -r '
-        if .status == "ok" then
-            "  Status: \(.status)",
-            "  Slots Idle: \(.slots_idle // "N/A")",
-            "  Slots Processing: \(.slots_processing // "N/A")"
-        else
-            "  Status: unavailable"
-        end
-    ' 2>/dev/null || echo "  Status: unavailable"
-
-    echo -e "${BLUE}Embedding (8083):${NC}"
-    echo "$embed_stats" | jq -r '
-        if .status == "ok" then
-            "  Status: \(.status)",
-            "  Slots Idle: \(.slots_idle // "N/A")",
-            "  Slots Processing: \(.slots_processing // "N/A")"
-        else
-            "  Status: unavailable"
-        end
-    ' 2>/dev/null || echo "  Status: unavailable"
-    echo ""
 
     # Save metrics to JSON file
     cat > "$METRICS_FILE" << EOF

@@ -80,9 +80,15 @@ Respond ONLY with a JSON object in exactly this format, no other text:
 
 {{
   "subject": "brief description of what the call was about (1-2 sentences)",
-  "outcome": "one of: Resolved, Unresolved, Pending Follow-up, Information Provided, Transferred, or Unknown",
+  "outcome": "one of: Issue Resolved, Issue Unresolved, Issue Logged in Central, or Undetermined",
   "customer_name": "the CUSTOMER's name (the person calling for help), NOT the support staff name, otherwise null"
 }}
+
+OUTCOME GUIDELINES:
+- "Issue Resolved": The customer's problem was fully addressed and fixed during the call
+- "Issue Unresolved": The customer's problem was discussed but NOT resolved during the call
+- "Issue Logged in Central": A ticket/case was created in the ticketing system for follow-up
+- "Undetermined": Cannot determine the outcome from the conversation
 
 IMPORTANT: The customer_name should be the person CALLING for support, not the support representative answering the call.
 If someone says "Hi this is [Name] from EWR" or "This is [Name] with support", that is the STAFF, not the customer.
@@ -191,6 +197,147 @@ JSON Response:"""
             return True
 
         return False
+
+
+    async def separate_speakers(
+        self,
+        transcription: str,
+        duration_seconds: float,
+        emotions_data: dict = None
+    ) -> Dict:
+        """
+        Use LLM to separate transcript into Caller 1 and Caller 2 dialogue.
+
+        Args:
+            transcription: The call transcription text
+            duration_seconds: Duration of the audio
+            emotions_data: Optional emotions data with timestamps
+
+        Returns:
+            Dict with segments list and formatted transcript
+        """
+        result = {
+            "segments": [],
+            "formatted_transcript": transcription,
+            "num_speakers": 0
+        }
+
+        if not HTTPX_AVAILABLE:
+            print("httpx not available, skipping speaker separation")
+            return result
+
+        if not transcription or len(transcription.strip()) < 30:
+            print("Transcription too short for speaker separation")
+            return result
+
+        # Truncate very long transcriptions
+        text_to_analyze = transcription[:8000] if len(transcription) > 8000 else transcription
+
+        prompt = f"""You are analyzing a phone call transcription between a Customer Support representative (Caller 1) and a Customer (Caller 2).
+
+Your task is to separate the dialogue by speaker. Format each line as:
+CALLER_1: [text spoken by the support representative]
+CALLER_2: [text spoken by the customer]
+
+Rules:
+1. Caller 1 is typically the support representative who answers the call, introduces themselves, and provides help
+2. Caller 2 is the customer who called for assistance
+3. Look for context clues: greetings like "Thank you for calling...", "How can I help you?", asking for help, etc.
+4. If speaker is unclear, alternate based on conversation flow (questions vs answers)
+5. Each turn should be on a new line
+6. Preserve the original text as much as possible, just add speaker labels
+
+Call Duration: {duration_seconds:.0f} seconds
+
+Original Transcription:
+{text_to_analyze}
+
+Separated Dialogue:"""
+
+        try:
+            timeout_config = httpx.Timeout(connect=10.0, read=180.0, write=10.0, pool=10.0)
+
+            async with httpx.AsyncClient(timeout=timeout_config) as client:
+                response = await client.post(
+                    f"{self.llm_url}/v1/completions",
+                    json={
+                        "prompt": prompt,
+                        "max_tokens": 4000,
+                        "temperature": 0.2,
+                        "stop": ["---", "END"]
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                content = data.get('choices', [{}])[0].get('text', '').strip()
+
+                if content:
+                    # Parse the separated dialogue
+                    segments = []
+                    current_speaker = None
+                    current_text = []
+                    speakers_found = set()
+
+                    for line in content.split('\n'):
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        if line.startswith('CALLER_1:') or line.startswith('Caller 1:') or line.startswith('CALLER 1:'):
+                            # Save previous segment
+                            if current_speaker and current_text:
+                                segments.append({
+                                    "speaker": current_speaker,
+                                    "text": ' '.join(current_text).strip()
+                                })
+                            current_speaker = "Caller 1"
+                            speakers_found.add("Caller 1")
+                            text = line.split(':', 1)[1].strip() if ':' in line else ''
+                            current_text = [text] if text else []
+
+                        elif line.startswith('CALLER_2:') or line.startswith('Caller 2:') or line.startswith('CALLER 2:'):
+                            # Save previous segment
+                            if current_speaker and current_text:
+                                segments.append({
+                                    "speaker": current_speaker,
+                                    "text": ' '.join(current_text).strip()
+                                })
+                            current_speaker = "Caller 2"
+                            speakers_found.add("Caller 2")
+                            text = line.split(':', 1)[1].strip() if ':' in line else ''
+                            current_text = [text] if text else []
+                        elif current_speaker:
+                            # Continuation of current speaker
+                            current_text.append(line)
+
+                    # Save last segment
+                    if current_speaker and current_text:
+                        segments.append({
+                            "speaker": current_speaker,
+                            "text": ' '.join(current_text).strip()
+                        })
+
+                    # Build formatted transcript with visual separation
+                    formatted_lines = []
+                    for i, seg in enumerate(segments):
+                        if seg['text']:
+                            # Add separator line between speakers (except first)
+                            if i > 0:
+                                formatted_lines.append("─" * 40)
+                            formatted_lines.append(f"{seg['speaker']}: {seg['text']}")
+
+                    result["segments"] = segments
+                    result["formatted_transcript"] = '\n'.join(formatted_lines) if formatted_lines else transcription
+                    result["num_speakers"] = len(speakers_found)
+
+                    print(f"Speaker separation complete: {len(segments)} segments, {len(speakers_found)} speakers")
+
+        except httpx.TimeoutException:
+            print("Speaker separation timed out")
+        except Exception as e:
+            print(f"Speaker separation failed: {e}")
+
+        return result
 
 
 def get_content_analysis_service() -> ContentAnalysisService:

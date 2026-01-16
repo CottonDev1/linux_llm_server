@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-01-16T20:33:12.323Z",
+  "stats": {
+    "totalFiles": 11,
+    "totalFolders": 4
+  },
+  "structure": [
+    {
+      "name": "backups",
+      "type": "folder",
+      "children": [
+        {
+          "name": "BackupIndex.md",
+          "type": "file"
+        },
+        {
+          "name": "MongoDB.md",
+          "type": "file"
+        },
+        {
+          "name": "Rsnapshot.md",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": "guide",
+      "type": "folder",
+      "children": [
+        {
+          "name": "audio-pipeline-technical-guide.md",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": "guides",
+      "type": "folder",
+      "children": [
+        {
+          "name": "ACTIVE_DIRECTORY_INTEGRATION.md",
+          "type": "file"
+        },
+        {
+          "name": "document-pipeline-guide.md",
+          "type": "file"
+        },
+        {
+          "name": "UBUNTU_SERVER_GUIDE.md",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": "Server Management",
+      "type": "folder",
+      "children": [
+        {
+          "name": "LLMReplacementGuide.md",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": "ManagementTools.md",
+      "type": "file"
+    },
+    {
+      "name": "ServerMaintenance.md",
+      "type": "file"
+    },
+    {
+      "name": "TestGuide.md",
+      "type": "file"
+    }
+  ]
+}

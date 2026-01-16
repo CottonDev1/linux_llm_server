@@ -248,6 +248,24 @@ class EWRAIDatabase {
         )
       `);
 
+      // Create roles table to store available roles
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS roles (
+          name TEXT PRIMARY KEY NOT NULL,
+          description TEXT,
+          is_built_in INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Insert default built-in roles
+      this.db.exec(`
+        INSERT OR IGNORE INTO roles (name, description, is_built_in) VALUES
+          ('user', 'Basic access for standard users', 1),
+          ('developer', 'Extended access including development tools', 1),
+          ('admin', 'Full access to all system features', 1)
+      `);
+
       // Create role_permissions table for new permission system
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS role_permissions (
@@ -1473,6 +1491,92 @@ class EWRAIDatabase {
     });
 
     transaction();
+  }
+
+  /**
+   * Get all available roles
+   * @returns {string[]} Array of role names
+   */
+  getAllRoles() {
+    const stmt = this.db.prepare(`
+      SELECT name FROM roles ORDER BY is_built_in DESC, name ASC
+    `);
+    const rows = stmt.all();
+    return rows.map(r => r.name);
+  }
+
+  /**
+   * Get role details
+   * @param {string} roleName - Role name
+   * @returns {Object|null} Role details or null if not found
+   */
+  getRole(roleName) {
+    const stmt = this.db.prepare(`
+      SELECT name, description, is_built_in, created_at
+      FROM roles WHERE name = ?
+    `);
+    return stmt.get(roleName);
+  }
+
+  /**
+   * Create a new custom role
+   * @param {string} roleName - Role name (must be unique)
+   * @param {string} [description] - Optional description
+   * @returns {Object} Created role
+   */
+  createRole(roleName, description = 'Custom role') {
+    const stmt = this.db.prepare(`
+      INSERT INTO roles (name, description, is_built_in)
+      VALUES (?, ?, 0)
+    `);
+    stmt.run(roleName, description);
+    return this.getRole(roleName);
+  }
+
+  /**
+   * Delete a custom role
+   * Only allows deleting non-built-in roles
+   * @param {string} roleName - Role name to delete
+   * @returns {boolean} True if deleted, false if role was built-in or not found
+   */
+  deleteRole(roleName) {
+    // Check if role exists and is not built-in
+    const role = this.getRole(roleName);
+    if (!role) {
+      throw new Error('Role not found');
+    }
+    if (role.is_built_in) {
+      throw new Error('Cannot delete built-in roles');
+    }
+
+    const transaction = this.db.transaction(() => {
+      // Delete role permissions
+      const deletePermissionsStmt = this.db.prepare(`
+        DELETE FROM role_permissions WHERE role = ?
+      `);
+      deletePermissionsStmt.run(roleName);
+
+      // Delete the role
+      const deleteRoleStmt = this.db.prepare(`
+        DELETE FROM roles WHERE name = ? AND is_built_in = 0
+      `);
+      deleteRoleStmt.run(roleName);
+    });
+
+    transaction();
+    return true;
+  }
+
+  /**
+   * Check if a role exists
+   * @param {string} roleName - Role name to check
+   * @returns {boolean} True if role exists
+   */
+  roleExists(roleName) {
+    const stmt = this.db.prepare(`
+      SELECT 1 FROM roles WHERE name = ?
+    `);
+    return !!stmt.get(roleName);
   }
 
   /**

@@ -150,8 +150,13 @@ class LLMConfig:
     the model parameter (legacy single-instance mode).
     """
     # Primary endpoints (multi-instance architecture)
+    # Port mapping:
+    #   8080: SQL model (sqlcoder-7b or similar)
+    #   8081: General model (qwen2.5-instruct or similar)
+    #   8082: Code model (qwen2.5-coder or similar)
+    #   8083: Embedding model (nomic-embed-text)
     host: str = "http://localhost:8081"           # General model (chat, summarization)
-    sql_host: str = "http://localhost:8081"       # SQL model (sqlcoder2 on 8081 for testing)
+    sql_host: str = "http://localhost:8080"       # SQL model (sqlcoder on port 8080)
     code_host: str = "http://localhost:8082"      # Code model (optional)
 
     # Model names (used for logging and single-instance fallback)
@@ -489,6 +494,7 @@ class LLMService:
         self._session = aiohttp.ClientSession(timeout=timeout)
         self._initialized = True
         log_info("LLM Service", f"Initialized with host={self.config.host}, model={self.config.model}")
+        log_info("LLM Service", f"Endpoints: general={self.config.host}, sql={self.config.sql_host}, code={self.config.code_host}")
 
     async def close(self):
         """Close the HTTP session and cleanup resources."""
@@ -737,7 +743,7 @@ class LLMService:
             if stop_sequences:
                 payload["stop"] = stop_sequences
 
-            logger.debug(f"Using endpoint: {endpoint} (sql_model={use_sql_model}, code_model={use_code_model})")
+            logger.info(f"LLM Request: endpoint={endpoint}, model={resolved_model}, sql_model={use_sql_model}")
 
             # Retry loop with exponential backoff
             last_error = None

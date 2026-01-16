@@ -1,15 +1,15 @@
 """
 EnrichStoredProcedures.py
 Parses SQL definitions to extract tables_affected and operations for stored procedures.
-Uses port 27017 on EWRSPT-AI.
 """
 
+import os
 import re
 from pymongo import MongoClient
 from typing import List, Set, Tuple
 
-# MongoDB connection
-MONGO_URI = "mongodb://EWRSPT-AI:27017"
+# MongoDB connection - use environment variable with localhost fallback
+MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 DATABASE = "rag_server"
 COLLECTION = "sql_stored_procedures"
 

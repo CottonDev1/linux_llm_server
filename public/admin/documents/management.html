@@ -148,11 +148,43 @@
         </div>
     </div>
 
-    <!-- Document Preview Modal Component (with delete for admin) -->
-    <ewr-document-preview-modal
-        id="documentPreviewModal"
-        show-delete="true">
-    </ewr-document-preview-modal>
+    <!-- Document Preview Modal -->
+    <div class="ewr-document-popup-overlay" id="documentPreviewModal">
+        <div class="ewr-document-popup">
+            <div class="ewr-document-popup-header">
+                <h3 class="ewr-document-popup-title" id="documentPreviewTitle">Document Preview</h3>
+                <button class="ewr-document-popup-close" onclick="closeDocumentPreview()">&times;</button>
+            </div>
+            <div class="ewr-document-popup-body">
+                <div class="ewr-document-popup-meta" id="documentPreviewMeta">
+                    <!-- Document metadata will be inserted here -->
+                </div>
+                <div class="ewr-document-popup-content" id="documentPreviewContent">
+                    Loading document content...
+                </div>
+            </div>
+            <div class="ewr-document-popup-footer">
+                <div class="ewr-document-popup-footer-left">
+                    <button class="ewr-button-action-green-gradient" id="copyDocBtn" onclick="copyDocumentContent()">Copy to Clipboard</button>
+                    <button class="ewr-button-action-green-gradient" id="downloadDocBtn" onclick="downloadDocument()">Download</button>
+                    <button class="ewr-button ewr-button-medium ewr-button-danger admin-only" id="deleteDocBtn" onclick="confirmDeleteDocument()">Delete Document</button>
+                </div>
+                <button class="ewr-button-clear" onclick="closeDocumentPreview()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="ewr-delete-confirm-overlay" id="deleteConfirmModal">
+        <div class="ewr-delete-confirm-dialog">
+            <h3 class="ewr-delete-confirm-title">Confirm Delete</h3>
+            <p class="ewr-delete-confirm-text" id="deleteConfirmText">Are you sure you want to delete this document? This action cannot be undone.</p>
+            <div class="ewr-delete-confirm-buttons">
+                <button class="ewr-button-clear" onclick="cancelDelete()">Cancel</button>
+                <button class="ewr-button ewr-button-medium ewr-button-danger" onclick="executeDelete()" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
 
     <script src="../../js/auth-client.js"></script>
     <script src="../js/sidebar.js"></script>
@@ -338,8 +370,8 @@
                 if (docType) params.append('type', docType);
                 if (subject) params.append('subject', subject);
 
-                // Fetch filtered documents using aggregation (through Node.js proxy)
-                const aggResponse = await fetch(`/api/python/documents/aggregate?${params.toString()}`);
+                // Fetch filtered documents using aggregation
+                const aggResponse = await fetch(`http://localhost:8001/documents/aggregate?${params.toString()}`);
                 const aggData = await aggResponse.json();
 
                 if (aggData.success) {
@@ -377,22 +409,191 @@
 
         // ==================== DOCUMENT PREVIEW FUNCTIONALITY ====================
 
-        // Use the modal component - initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        let currentPreviewDocument = null;
+
+        async function openDocumentPreview(title) {
             const modal = document.getElementById('documentPreviewModal');
-            if (modal) {
-                // Set callback for when document is deleted
-                modal.onDocumentDeleted = function(title, deletedChunks) {
-                    showMessage(`Document "${title}" deleted successfully (${deletedChunks} chunks removed)`, 'success');
-                    loadDocuments(); // Reload the document list
-                };
+            const titleEl = document.getElementById('documentPreviewTitle');
+            const metaEl = document.getElementById('documentPreviewMeta');
+            const contentEl = document.getElementById('documentPreviewContent');
+
+            currentPreviewDocument = null;
+
+            // Show modal
+            modal.classList.add('active');
+            titleEl.textContent = title;
+            metaEl.innerHTML = 'Loading metadata...';
+            contentEl.textContent = 'Loading document content...';
+
+            try {
+                const response = await fetch(`http://localhost:8001/documents/by-title?title=${encodeURIComponent(title)}`);
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch document: ${response.statusText}`);
+                }
+
+                const doc = await response.json();
+                currentPreviewDocument = doc;
+
+                metaEl.innerHTML = `
+                    <div><strong>Department:</strong> ${doc.department || 'N/A'}</div>
+                    <div><strong>Type:</strong> ${doc.type || 'N/A'}</div>
+                    <div><strong>Subject:</strong> ${doc.subject || 'N/A'}</div>
+                    <div><strong>Chunks:</strong> ${doc.total_chunks || 1}</div>
+                    ${doc.file_size ? `<div><strong>Size:</strong> ${(doc.file_size / 1024).toFixed(1)} KB</div>` : ''}
+                    ${doc.created_at ? `<div><strong>Created:</strong> ${new Date(doc.created_at).toLocaleDateString()}</div>` : ''}
+                `;
+
+                contentEl.textContent = doc.content || 'No content available';
+
+            } catch (error) {
+                metaEl.innerHTML = `<span style="color: var(--error);">Error loading document</span>`;
+                contentEl.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function closeDocumentPreview() {
+            const modal = document.getElementById('documentPreviewModal');
+            modal.classList.remove('active');
+            currentPreviewDocument = null;
+        }
+
+        async function copyDocumentContent() {
+            if (!currentPreviewDocument || !currentPreviewDocument.content) {
+                alert('No content available to copy');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(currentPreviewDocument.content);
+                const copyBtn = document.getElementById('copyDocBtn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            } catch (error) {
+                const textArea = document.createElement('textarea');
+                textArea.value = currentPreviewDocument.content;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    const copyBtn = document.getElementById('copyDocBtn');
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                } catch (e) {
+                    alert('Failed to copy to clipboard');
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function downloadDocument() {
+            if (!currentPreviewDocument || !currentPreviewDocument.content) {
+                alert('No content available to download');
+                return;
+            }
+
+            const blob = new Blob([currentPreviewDocument.content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            let filename = currentPreviewDocument.title || 'document';
+            filename = filename.replace(/\.[^/.]+$/, '') + '.txt';
+            a.download = filename;
+
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // ==================== DELETE FUNCTIONALITY ====================
+
+        function confirmDeleteDocument() {
+            if (!currentPreviewDocument) {
+                alert('No document selected');
+                return;
+            }
+
+            const confirmModal = document.getElementById('deleteConfirmModal');
+            const confirmText = document.getElementById('deleteConfirmText');
+
+            confirmText.innerHTML = `Are you sure you want to delete "<strong>${currentPreviewDocument.title}</strong>"?<br><br>This will permanently remove the document and all ${currentPreviewDocument.total_chunks || 1} chunk(s). This action cannot be undone.`;
+
+            confirmModal.classList.add('active');
+        }
+
+        function cancelDelete() {
+            const confirmModal = document.getElementById('deleteConfirmModal');
+            confirmModal.classList.remove('active');
+        }
+
+        async function executeDelete() {
+            if (!currentPreviewDocument) {
+                alert('No document selected');
+                return;
+            }
+
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Deleting...';
+
+            const documentTitle = currentPreviewDocument.title;
+
+            try {
+                const response = await fetch(`http://localhost:8001/documents/by-title?title=${encodeURIComponent(documentTitle)}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Failed to delete document');
+                }
+
+                cancelDelete();
+                closeDocumentPreview();
+
+                showMessage(`Document "${documentTitle}" deleted successfully (${result.deleted_chunks} chunks removed)`, 'success');
+
+                loadDocuments();
+
+            } catch (error) {
+                showMessage(`Error deleting document: ${error.message}`, 'error');
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Delete';
+            }
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('documentPreviewModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDocumentPreview();
             }
         });
 
-        function openDocumentPreview(title) {
-            const modal = document.getElementById('documentPreviewModal');
-            modal.open(title);
-        }
+        document.getElementById('deleteConfirmModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                cancelDelete();
+            }
+        });
+
+        // Close modals with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDocumentPreview();
+                cancelDelete();
+            }
+        });
     </script>
     <script src="/js/sidebar-user.js"></script>
 </body>

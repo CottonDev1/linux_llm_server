@@ -21,5 +21,5 @@ Fixtures (conftest.py):
 - Mock SenseVoice and pyannote services
 - Progress callback tracking
 
-All tests use local llama.cpp endpoints (port 8081) and MongoDB (EWRSPT-AI:27018).
+All tests use local llama.cpp endpoints (port 8081) and MongoDB (localhost:27017).
 """

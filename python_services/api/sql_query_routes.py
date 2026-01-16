@@ -30,6 +30,16 @@ from sql_pipeline.services.rules_service import RulesService
 from mongodb import MongoDBService
 from database_name_parser import normalize_database_name
 
+# Import Prefect flow for SQL query processing
+try:
+    from prefect_pipelines.sql_query_flow import (
+        run_sql_query_flow_async,
+        sql_query_flow
+    )
+    PREFECT_SQL_QUERY_AVAILABLE = True
+except ImportError:
+    PREFECT_SQL_QUERY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # Create router
@@ -241,7 +251,11 @@ class RulesResponse(BaseModel):
 # ============================================================================
 
 @router.post("/query", response_model=SQLQueryResult)
-async def query_non_streaming(request: SQLQueryRequest):
+async def query_non_streaming(
+    request: SQLQueryRequest,
+    use_prefect: bool = QueryParam(default=False, description="Use Prefect flow for tracking and observability"),
+    user_id: Optional[str] = QueryParam(default=None, description="User ID for tracking (used with Prefect)")
+):
     """
     Generate SQL from natural language question (non-streaming).
 
@@ -255,6 +269,10 @@ async def query_non_streaming(request: SQLQueryRequest):
     - `credentials`: Database credentials (required if execute_sql is True)
     - `options`: Query processing options
 
+    **Query Parameters:**
+    - `use_prefect`: Enable Prefect flow for pipeline tracking and observability
+    - `user_id`: User ID for tracking (required when use_prefect is True)
+
     **Returns:**
     - Generated SQL query
     - Explanation of the SQL
@@ -264,6 +282,58 @@ async def query_non_streaming(request: SQLQueryRequest):
     - Processing time
     """
     try:
+        # Use Prefect flow if requested and available
+        if use_prefect and PREFECT_SQL_QUERY_AVAILABLE:
+            logger.info(f"Using Prefect flow for query: {request.natural_language[:50]}...")
+
+            # Extract user_id from request or use default
+            effective_user_id = user_id or "anonymous"
+
+            # Build credentials dict if provided
+            creds_dict = None
+            if request.credentials:
+                creds_dict = {
+                    "server": request.credentials.server,
+                    "database": request.credentials.database,
+                    "username": request.credentials.username,
+                    "password": request.credentials.password,
+                    "domain": request.credentials.domain
+                }
+
+            # Call Prefect flow
+            prefect_result = await run_sql_query_flow_async(
+                question=request.natural_language,
+                database=request.database,
+                server=request.server,
+                user_id=effective_user_id,
+                credentials=creds_dict,
+                execute_sql=request.options.execute_sql,
+                include_schema=request.options.include_schema,
+                use_cache=request.options.use_cache,
+                max_results=request.options.max_results,
+                max_tokens=request.max_tokens,
+                use_prefect=True
+            )
+
+            # Convert Prefect result to SQLQueryResult format
+            execution_result = None
+            if prefect_result.get("execution"):
+                execution_result = prefect_result["execution"]
+
+            return SQLQueryResult(
+                sql=prefect_result.get("sql", ""),
+                explanation=prefect_result.get("explanation", ""),
+                execution_result=execution_result,
+                matched_rules=prefect_result.get("matched_rules", []),
+                confidence=prefect_result.get("confidence", 0.8),
+                processing_time=prefect_result.get("processing_time_ms", 0) / 1000,
+                success=prefect_result.get("success", False),
+                is_exact_match=prefect_result.get("is_exact_match", False),
+                rule_id=prefect_result.get("rule_id"),
+                token_usage=prefect_result.get("token_usage", {})
+            )
+
+        # Use direct pipeline (default behavior)
         pipeline = await get_pipeline()
         result = await pipeline.process_query(request)
         return result
@@ -1558,6 +1628,119 @@ async def generate_rule_with_ai(request: GenerateRuleRequest):
 
 
 # ============================================================================
+# Prefect Flow Endpoint
+# ============================================================================
+
+class PrefectQueryRequest(BaseModel):
+    """Request model for Prefect-tracked SQL query."""
+    question: str = Field(..., description="Natural language question to convert to SQL")
+    database: str = Field(..., description="Target database name")
+    server: str = Field(default="NCSQLTEST", description="SQL Server hostname")
+    user_id: str = Field(default="anonymous", description="User ID for tracking")
+    credentials: Optional[Dict[str, Any]] = Field(default=None, description="Database credentials")
+    execute_sql: bool = Field(default=False, description="Whether to execute generated SQL")
+    include_schema: bool = Field(default=True, description="Include schema context")
+    use_cache: bool = Field(default=True, description="Use cache for responses")
+    max_results: int = Field(default=100, ge=1, le=10000, description="Maximum rows to return")
+    max_tokens: int = Field(default=512, ge=1, le=4096, description="Maximum LLM tokens")
+
+
+class PrefectQueryResponse(BaseModel):
+    """Response model for Prefect-tracked SQL query."""
+    success: bool = Field(..., description="Whether query generation succeeded")
+    sql: str = Field(default="", description="Generated SQL query")
+    explanation: str = Field(default="", description="Explanation of the query")
+    database: str = Field(..., description="Target database")
+    user_id: str = Field(..., description="User ID used for tracking")
+    is_exact_match: bool = Field(default=False, description="Whether SQL came from exact rule match")
+    rule_id: Optional[str] = Field(default=None, description="Rule ID if exact match")
+    matched_rules: List[str] = Field(default_factory=list, description="IDs of matched rules")
+    confidence: float = Field(default=0.8, description="Confidence score")
+    token_usage: Dict[str, int] = Field(default_factory=dict, description="LLM token usage")
+    timing: Dict[str, float] = Field(default_factory=dict, description="Timing breakdown by step")
+    processing_time_ms: float = Field(default=0.0, description="Total processing time in ms")
+    execution: Optional[Dict[str, Any]] = Field(default=None, description="Query execution results")
+    error: Optional[str] = Field(default=None, description="Error message if failed")
+    prefect_flow_used: bool = Field(default=True, description="Whether Prefect flow was used")
+
+
+@router.post("/query-prefect", response_model=PrefectQueryResponse)
+async def query_with_prefect(request: PrefectQueryRequest):
+    """
+    Generate SQL from natural language using Prefect flow for full observability.
+
+    This endpoint uses the Prefect SQL Query Pipeline which provides:
+    - Full task-level tracking in Prefect UI (http://localhost:4200)
+    - Markdown artifacts for each step
+    - Timing metrics at each stage
+    - User tracking through all tasks
+    - Automatic retries and error handling
+
+    **Request Body:**
+    - `question`: Natural language question to convert to SQL
+    - `database`: Target database name
+    - `server`: SQL Server hostname
+    - `user_id`: User ID for tracking in Prefect
+    - `credentials`: Database credentials (required if execute_sql is True)
+    - `execute_sql`: Whether to execute the generated SQL
+    - `include_schema`: Include database schema in LLM context
+    - `use_cache`: Use cached responses if available
+    - `max_results`: Maximum rows to return
+    - `max_tokens`: Maximum LLM tokens
+
+    **Returns:**
+    - Generated SQL query
+    - Timing breakdown by pipeline step
+    - Execution results (if execute_sql was True)
+    - Prefect tracking metadata
+    """
+    if not PREFECT_SQL_QUERY_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Prefect SQL Query flow is not available. Use /query endpoint instead."
+        )
+
+    try:
+        logger.info(f"[{request.user_id}] Prefect query: {request.question[:50]}...")
+
+        result = await run_sql_query_flow_async(
+            question=request.question,
+            database=request.database,
+            server=request.server,
+            user_id=request.user_id,
+            credentials=request.credentials,
+            execute_sql=request.execute_sql,
+            include_schema=request.include_schema,
+            use_cache=request.use_cache,
+            max_results=request.max_results,
+            max_tokens=request.max_tokens,
+            use_prefect=True
+        )
+
+        return PrefectQueryResponse(
+            success=result.get("success", False),
+            sql=result.get("sql", ""),
+            explanation=result.get("explanation", ""),
+            database=request.database,
+            user_id=request.user_id,
+            is_exact_match=result.get("is_exact_match", False),
+            rule_id=result.get("rule_id"),
+            matched_rules=result.get("matched_rules", []),
+            confidence=result.get("confidence", 0.8),
+            token_usage=result.get("token_usage", {}),
+            timing=result.get("timing", {}),
+            processing_time_ms=result.get("processing_time_ms", 0),
+            execution=result.get("execution"),
+            error=result.get("error"),
+            prefect_flow_used=True
+        )
+
+    except Exception as e:
+        logger.error(f"Prefect query error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Prefect query failed: {str(e)}")
+
+
+# ============================================================================
 # Health Check
 # ============================================================================
 
@@ -1581,6 +1764,7 @@ async def health_check():
             "service": "sql_query",
             "mongodb": mongo_initialized,
             "pipeline": pipeline_ready,
+            "prefect_sql_query_available": PREFECT_SQL_QUERY_AVAILABLE,
             "timestamp": datetime.utcnow().isoformat()
         }
 
@@ -1590,6 +1774,7 @@ async def health_check():
             "status": "unhealthy",
             "service": "sql_query",
             "error": str(e),
+            "prefect_sql_query_available": PREFECT_SQL_QUERY_AVAILABLE,
             "timestamp": datetime.utcnow().isoformat()
         }
 

@@ -10,5 +10,5 @@ Test modules:
 - test_document_generation: LLM-powered Q&A and analysis
 - test_document_e2e: End-to-end pipeline tests
 
-All tests use local llama.cpp endpoints (port 8081) and MongoDB (EWRSPT-AI:27018).
+All tests use local llama.cpp endpoints (port 8081) and MongoDB (localhost:27017).
 """

@@ -64,7 +64,7 @@ class DiarizationService:
 
     _instance: Optional['DiarizationService'] = None
 
-    # Hugging Face token for pyannote models
+    # Hugging Face token for pyannote models (loaded from environment)
     HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
     def __init__(self):

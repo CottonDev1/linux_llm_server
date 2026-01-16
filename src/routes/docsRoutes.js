@@ -14,7 +14,7 @@ import { execSync } from 'child_process';
 const router = express.Router();
 
 // Base path for documentation files
-const DOCS_BASE_PATH = path.join(process.cwd(), 'public', 'docs');
+const DOCS_BASE_PATH = path.join(process.cwd(), 'docs');
 
 /**
  * Validate that a path is within the docs directory (prevent path traversal)
@@ -30,7 +30,7 @@ function isValidDocsPath(filePath) {
  */
 async function regenerateManifest() {
     try {
-        const scriptPath = path.join(process.cwd(), 'scripts', 'generate-docs-manifest.js');
+        const scriptPath = path.join(process.cwd(), 'scripts', 'Node', 'generate-docs-manifest.js');
         execSync(`node "${scriptPath}"`, {
             cwd: process.cwd(),
             stdio: 'pipe'

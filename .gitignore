@@ -27,35 +27,46 @@ Thumbs.db
 # Environment files
 .env
 .env.*
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+*.egg-info/
+.eggs/
 
-# Build artifacts
-llamacpp-cuda/
-llamacpp_venv/
-allure-report/
-playwright-report/
-test-results/
+# Node
+node_modules/
+npm-debug.log*
 
-# Runtime data
-data/
-temp/
-uploads/
-testing_data/
-audio-files/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
-# Error logs
+# Logs
+*.log
+logs/
+
+# Build
+dist/
+build/
+
+# Temporary files
+*.pid
 *.err
-$logFile.err
+.cache/
+audio-files/*.json
 
-# Windows artifacts
-nul
+# Local data files
+data/
+*.db
+*.db-wal
+*.db-shm
 
-# Python services runtime
-python_services/.cache/
-python_services/venv_old/
-python_services/audio-files/
-python_services/unanalyzed_uploads/
-python_services/pending_analyses/
-python_services/$logFile.err
-
-# Large binary tools
-tools/ffmpeg/
+# Old virtual environments
+venv_old/

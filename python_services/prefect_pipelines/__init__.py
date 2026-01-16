@@ -5,6 +5,7 @@ This module provides Prefect-based workflow orchestration for:
 - SQL RAG Pipeline: Schema extraction, summarization, embedding, and storage
 - SQL Security Pipeline: Prompt and SQL validation for security
 - Document Pipeline: Document processing, chunking, and embedding
+- Document Q&A Pipeline: RAG-based document retrieval and answer generation
 - Audio Pipeline: Audio transcription with emotion detection
 - Agent Learning Pipeline: Agent learning statistics, accuracy analysis, and corrections
 - Ticket Matching Pipeline: Semantic audio-to-ticket matching with multi-agent architecture
@@ -22,6 +23,7 @@ Usage:
     from prefect_pipelines import (
         run_sql_rag_flow,
         run_document_flow,
+        run_document_qa_flow,
         run_audio_flow,
         run_security_validation,
         run_ticket_matching_flow
@@ -49,6 +51,14 @@ Usage:
         analysis_id="abc123",
         use_summary=True,
         auto_link=False
+    )
+
+    # Run Document Q&A pipeline (RAG-based Q&A)
+    result = run_document_qa_flow(
+        query="How do I configure MongoDB?",
+        user_id="user123",
+        top_k=5,
+        use_prefect=True
     )
 
     # Run with Prefect tracking (async)
@@ -98,6 +108,28 @@ from prefect_pipelines.audio_flow import (
     summarize_audio_task,
     store_audio_task
 )
+
+# SQL Query flow for natural language to SQL conversion
+try:
+    from prefect_pipelines.sql_query_flow import (
+        sql_query_flow,
+        run_sql_query_flow,
+        run_sql_query_flow_async,
+        security_validation_task,
+        cache_check_task,
+        rule_matching_task,
+        schema_retrieval_task as sql_schema_retrieval_task,
+        query_generation_task,
+        syntax_fixing_task,
+        column_validation_task,
+        security_sql_validation_task,
+        query_execution_task,
+        result_formatting_task,
+        learning_storage_task
+    )
+    _sql_query_flow_available = True
+except ImportError:
+    _sql_query_flow_available = False
 
 # Agent Learning flow
 try:
@@ -170,6 +202,29 @@ try:
 except ImportError:
     _ticket_matching_available = False
 
+# Document Q&A flow for RAG-based document query and answer generation
+try:
+    from prefect_pipelines.document_qa_flow import (
+        document_qa_flow,
+        run_document_qa_flow,
+        run_document_qa_flow_async,
+        query_understanding_task,
+        hybrid_retrieval_task,
+        document_grading_task,
+        answer_generation_task,
+        validation_task,
+        learning_feedback_task,
+        QueryUnderstandingResult,
+        HybridRetrievalResult,
+        DocumentGradingResult,
+        AnswerGenerationResult,
+        ValidationResult,
+        LearningFeedbackResult,
+    )
+    _document_qa_available = True
+except ImportError:
+    _document_qa_available = False
+
 __all__ = [
     # SQL RAG
     "sql_rag_flow",
@@ -200,6 +255,21 @@ __all__ = [
     "transcribe_audio_task",
     "summarize_audio_task",
     "store_audio_task",
+    # SQL Query (natural language to SQL conversion)
+    "sql_query_flow",
+    "run_sql_query_flow",
+    "run_sql_query_flow_async",
+    "security_validation_task",
+    "cache_check_task",
+    "rule_matching_task",
+    "sql_schema_retrieval_task",
+    "query_generation_task",
+    "syntax_fixing_task",
+    "column_validation_task",
+    "security_sql_validation_task",
+    "query_execution_task",
+    "result_formatting_task",
+    "learning_storage_task",
     # Agent Learning (conditionally available)
     "run_agent_learning_flow",
     "collect_learning_stats_task",
@@ -231,4 +301,20 @@ __all__ = [
     "compute_embeddings_task",
     "score_candidates_task",
     "store_history_task",
+    # Document Q&A (conditionally available)
+    "document_qa_flow",
+    "run_document_qa_flow",
+    "run_document_qa_flow_async",
+    "query_understanding_task",
+    "hybrid_retrieval_task",
+    "document_grading_task",
+    "answer_generation_task",
+    "validation_task",
+    "learning_feedback_task",
+    "QueryUnderstandingResult",
+    "HybridRetrievalResult",
+    "DocumentGradingResult",
+    "AnswerGenerationResult",
+    "ValidationResult",
+    "LearningFeedbackResult",
 ]

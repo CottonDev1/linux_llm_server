@@ -15,7 +15,7 @@ Usage:
 
     # Or run the flows via CLI
     prefect deployment run 'sql-pipeline-tests/sql-pipeline-tests' \\
-        --param mongodb_uri="mongodb://EWRSPT-AI:27018"
+        --param mongodb_uri="mongodb://localhost:27017"
 
     # Or via Prefect UI (localhost:4200)
 """

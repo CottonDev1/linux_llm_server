@@ -5,7 +5,7 @@ This script demonstrates how to use the SP Analysis Prefect pipeline
 for generating training data from stored procedures.
 
 Prerequisites:
-- MongoDB Atlas Local running on EWRSPT-AI:27018
+- MongoDB Atlas Local running on localhost:27017
 - LLM service (llama.cpp) running on localhost:11434
 - Prefect server running (optional, for dashboard visibility)
 - Stored procedures already extracted and in MongoDB
@@ -146,7 +146,7 @@ async def example_4_custom_configuration():
     print("=" * 60)
 
     # For faster processing with smaller model
-    mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27019")
+    mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
     result = await analyze_sp_batch(
         database="EWRCentral",
         batch_size=20,          # Larger batches for faster throughput

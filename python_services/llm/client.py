@@ -30,7 +30,7 @@ class TracedLLMClient:
     
     Usage:
         client = TracedLLMClient(
-            mongodb_uri="mongodb://EWRSPT-AI:27018",
+            mongodb_uri="mongodb://localhost:27017",
             pipeline=Pipeline.SQL
         )
         

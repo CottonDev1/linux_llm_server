@@ -603,8 +603,17 @@ async def store_audio_analysis(
     """
     Store audio analysis with embeddings for semantic search.
     If pending_filename is provided, deletes the pending JSON file after successful save.
+    Requires customer_support_staff to be set - calls cannot be saved without staff assignment.
     """
     user_ip = request.client.host if request.client else "Unknown"
+
+    # Validate required fields - customer_support_staff is mandatory
+    if not audio_data.customer_support_staff or not audio_data.customer_support_staff.strip():
+        log_error("AUDIO", user_ip, "Store rejected: customer_support_staff is required", audio_data.filename)
+        raise HTTPException(
+            status_code=400,
+            detail="Customer Support Staff is required. Please select a staff member before saving."
+        )
 
     log_pipeline("AUDIO", user_ip, "Storing audio analysis",
                  audio_data.filename,
@@ -936,6 +945,79 @@ async def lookup_staff_by_extension(extension: str, request: Request):
 
     except Exception as e:
         log_error("AUDIO", user_ip, f"Failed to lookup staff by extension {extension}", str(e))
+        raise HTTPException(status_code=500, detail=f"Database lookup failed: {str(e)}")
+
+
+@router.get("/customer-support-staff")
+async def get_customer_support_staff(request: Request):
+    """
+    Get all active Customer Support staff members from EWRCentral database.
+    Returns list of staff in the Customer Support department/role.
+    """
+    user_ip = request.client.host if request.client else "Unknown"
+
+    log_pipeline("AUDIO", user_ip, "Fetching Customer Support staff list")
+
+    try:
+        import pymssql
+
+        # Connect to EWRSQLPROD with domain credentials
+        connection = pymssql.connect(
+            server='EWRSQLPROD',
+            database='EWRCentral',
+            user='EWR\\chad.walker',
+            password='6454@@Christina',
+            port='1433'
+        )
+
+        cursor = connection.cursor(as_dict=True)
+
+        # Query to get all active users who could be Customer Support
+        # Filter by role/department if there's a specific field, otherwise get all active users with phone extensions
+        query = """
+            SELECT
+                cu.CentralUserID,
+                cu.FirstName,
+                cu.LastName,
+                cu.FirstName + ' ' + cu.LastName AS FullName,
+                cu.OfficeEmailAddress AS Email,
+                LTRIM(RTRIM(cu.OfficePhoneExtension)) AS PhoneExtension,
+                cu.Title AS JobTitle
+            FROM CentralUsers cu
+            WHERE cu.IsActive = 1
+              AND cu.OfficePhoneExtension IS NOT NULL
+              AND LTRIM(RTRIM(cu.OfficePhoneExtension)) <> ''
+            ORDER BY cu.LastName, cu.FirstName
+        """
+
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        connection.close()
+
+        staff_list = [
+            {
+                "id": r['CentralUserID'],
+                "name": r['FullName'],
+                "first_name": r['FirstName'],
+                "last_name": r['LastName'],
+                "email": r['Email'],
+                "extension": r['PhoneExtension'],
+                "title": r['JobTitle']
+            }
+            for r in results
+        ]
+
+        log_pipeline("AUDIO", user_ip, f"Found {len(staff_list)} Customer Support staff members")
+
+        return {
+            "success": True,
+            "staff": staff_list,
+            "count": len(staff_list)
+        }
+
+    except Exception as e:
+        log_error("AUDIO", user_ip, "Failed to fetch Customer Support staff", str(e))
         raise HTTPException(status_code=500, detail=f"Database lookup failed: {str(e)}")
 
 

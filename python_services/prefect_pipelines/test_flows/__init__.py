@@ -26,11 +26,11 @@ Shared Utilities:
 Usage:
     # Run via Prefect CLI (manual trigger)
     prefect deployment run 'sql-pipeline-tests/sql-pipeline-tests' \\
-        --param mongodb_uri="mongodb://EWRSPT-AI:27018"
+        --param mongodb_uri="mongodb://localhost:27017"
 
     # Or via Python
     from prefect_pipelines.test_flows.sql_pipeline_test_flow import sql_pipeline_test_flow
-    sql_pipeline_test_flow(mongodb_uri="mongodb://EWRSPT-AI:27018")
+    sql_pipeline_test_flow(mongodb_uri="mongodb://localhost:27017")
 """
 
 from .test_flow_utils import (

@@ -38,6 +38,16 @@ from orchestrator.models import (
     FeedbackType,
 )
 
+# Import Prefect flow (optional - gracefully handle if not available)
+try:
+    from prefect_pipelines.document_qa_flow import (
+        run_document_qa_flow_async,
+        document_qa_flow,
+    )
+    _prefect_available = True
+except ImportError:
+    _prefect_available = False
+
 logger = logging.getLogger(__name__)
 
 # Create router
@@ -60,6 +70,8 @@ class DocumentQueryRequest(BaseModel):
     max_tokens: int = Field(default=500, ge=50, le=2000, description="Maximum response tokens")
     history: List[Dict[str, str]] = Field(default_factory=list, description="Conversation history for context")
     skip_validation: bool = Field(default=False, description="Skip answer validation step")
+    use_prefect: bool = Field(default=False, description="Use Prefect flow for tracking and observability")
+    user_id: Optional[str] = Field(default=None, description="User identifier for tracking")
 
 
 class DocumentSource(BaseModel):
@@ -90,6 +102,8 @@ class DocumentQueryResponse(BaseModel):
     confidence: float = Field(default=0.0, description="Answer confidence score")
     validation_passed: bool = Field(default=True, description="Whether validation checks passed")
     query_intent: Optional[str] = Field(default=None, description="Detected query intent")
+    prefect_used: bool = Field(default=False, description="Whether Prefect flow was used")
+    learning_record_id: Optional[str] = Field(default=None, description="Learning feedback record ID")
 
 
 class SearchRequest(BaseModel):
@@ -134,6 +148,7 @@ class HealthResponse(BaseModel):
     mongodb: bool = Field(..., description="MongoDB connection status")
     llm: bool = Field(..., description="LLM service status")
     orchestrator: bool = Field(default=False, description="Orchestrator status")
+    prefect_available: bool = Field(default=False, description="Prefect flow availability")
     timestamp: str = Field(..., description="Timestamp")
     details: Dict[str, Any] = Field(default_factory=dict, description="Additional details")
 
@@ -194,6 +209,26 @@ def build_filters(request: DocumentQueryRequest) -> Dict[str, Any]:
     if request.subject:
         filters["subject"] = request.subject
     return filters
+
+
+def format_sources_from_prefect(citations: List[Dict[str, Any]], project: Optional[str] = None) -> List[DocumentSource]:
+    """Format Prefect flow citations into DocumentSource models."""
+    formatted = []
+    for citation in citations:
+        formatted.append(DocumentSource(
+            id=citation.get("chunk_id"),
+            parent_id=citation.get("chunk_id"),
+            project=project or "knowledge_base",
+            department=None,
+            type=None,
+            file=citation.get("source"),
+            title=citation.get("source"),
+            snippet=citation.get("excerpt", "")[:200] + "..." if citation.get("excerpt") else "",
+            relevance=citation.get("relevance_score", 0),
+            chunk_index=citation.get("chunk_index"),
+            total_chunks=None
+        ))
+    return formatted
 
 
 # ============================================================================
@@ -267,13 +302,14 @@ async def query_documents(request: DocumentQueryRequest):
     """
     Main RAG query endpoint with LLM generation using CRAG pattern.
 
-    Uses KnowledgeBaseOrchestrator for full pipeline:
+    Uses KnowledgeBaseOrchestrator for full pipeline (or Prefect flow when use_prefect=True):
     1. Query Understanding - Classify intent, expand query
     2. Hybrid Retrieval - Vector + BM25 search (when enabled)
     3. Document Grading - CRAG relevance filtering
     4. Answer Generation - LLM synthesis with context
     5. Answer Validation - Check relevancy, faithfulness, completeness
     6. Self-Correction - Retry if validation fails
+    7. Learning Feedback - Record interaction (Prefect mode)
 
     **Request Body:**
     - `query`: Natural language question
@@ -285,6 +321,8 @@ async def query_documents(request: DocumentQueryRequest):
     - `max_tokens`: Maximum response tokens (default: 500)
     - `history`: Conversation history for context
     - `skip_validation`: Skip answer validation step
+    - `use_prefect`: Use Prefect flow for tracking (default: False)
+    - `user_id`: User identifier for tracking
 
     **Returns:**
     - Generated answer with CRAG validation
@@ -292,9 +330,21 @@ async def query_documents(request: DocumentQueryRequest):
     - Token usage statistics
     - Timing breakdown per stage
     - Confidence score and validation status
+    - Learning record ID (when using Prefect)
     """
     start_time = time.time()
 
+    # Determine user_id from request or default
+    user_id = request.user_id or "anonymous"
+
+    # Check if Prefect flow should be used
+    if request.use_prefect:
+        if not _prefect_available:
+            logger.warning("Prefect flow requested but not available, falling back to orchestrator")
+        else:
+            return await _query_with_prefect(request, user_id)
+
+    # Standard orchestrator path
     try:
         # Get orchestrator instance
         orchestrator = await get_orchestrator()
@@ -352,6 +402,8 @@ async def query_documents(request: DocumentQueryRequest):
             confidence=result.confidence,
             validation_passed=result.validation_passed,
             query_intent=result.query_intent.value if result.query_intent else None,
+            prefect_used=False,
+            learning_record_id=None,
         )
 
     except HTTPException:
@@ -359,6 +411,83 @@ async def query_documents(request: DocumentQueryRequest):
     except Exception as e:
         logger.error(f"Query failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+
+
+async def _query_with_prefect(request: DocumentQueryRequest, user_id: str) -> DocumentQueryResponse:
+    """
+    Execute query using Prefect flow for tracking and observability.
+
+    Args:
+        request: The document query request
+        user_id: User identifier for tracking
+
+    Returns:
+        DocumentQueryResponse with results from Prefect flow
+    """
+    try:
+        # Build filters from request
+        filters = build_filters(request)
+
+        logger.info(f"Query via Prefect flow: '{request.query}' (user={user_id}, project={request.project})")
+
+        # Call Prefect flow
+        result = await run_document_qa_flow_async(
+            query=request.query,
+            user_id=user_id,
+            filters=filters,
+            top_k=request.limit,
+            include_citations=True,
+            skip_validation=request.skip_validation,
+            learning_enabled=True,
+            temperature=request.temperature,
+            max_context_tokens=request.max_tokens * 4,  # Approximate context tokens
+            use_prefect=True
+        )
+
+        if not result.get("success"):
+            error_msg = result.get("error", "Unknown error in Prefect flow")
+            logger.error(f"Prefect flow error: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Query processing failed: {error_msg}")
+
+        # Format citations as sources
+        sources = format_sources_from_prefect(
+            result.get("citations", []),
+            request.project
+        )
+
+        # Get timing info
+        timing = result.get("timing", {})
+
+        # Get validation info
+        validation = result.get("validation", {})
+
+        logger.info(
+            f"Answer generated via Prefect flow in {timing.get('total_ms', 0)}ms "
+            f"(confidence: {result.get('confidence', 0):.2f}, "
+            f"validation: {validation.get('is_valid', True)})"
+        )
+
+        return DocumentQueryResponse(
+            answer=result.get("answer", ""),
+            sources=sources,
+            query=request.query,
+            model="general",
+            search_strategy="prefect-crag-hybrid",
+            cached=False,
+            timing=timing,
+            token_usage=result.get("token_usage", {}),
+            confidence=result.get("confidence", 0.0),
+            validation_passed=validation.get("is_valid", True),
+            query_intent=result.get("query_understanding", {}).get("query_type"),
+            prefect_used=True,
+            learning_record_id=result.get("learning_record_id"),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Prefect query failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Prefect query failed: {str(e)}")
 
 
 @router.post("/query-stream")
@@ -627,6 +756,7 @@ async def health_check():
 
     **Returns:**
     - Service status and component availability
+    - Prefect flow availability status
     """
     try:
         mongo_service = MongoDBService.get_instance()
@@ -659,12 +789,14 @@ async def health_check():
             mongodb=mongo_initialized,
             llm=llm_healthy,
             orchestrator=orchestrator_healthy,
+            prefect_available=_prefect_available,
             timestamp=datetime.utcnow().isoformat(),
             details={
                 "mongodb_initialized": mongo_initialized,
                 "orchestrator_initialized": orchestrator_healthy,
                 "llm_available": llm_healthy,
                 "cache_available": cache_available,
+                "prefect_flow_available": _prefect_available,
                 "pipeline": "crag-hybrid"
             }
         )
@@ -677,6 +809,7 @@ async def health_check():
             mongodb=False,
             llm=False,
             orchestrator=False,
+            prefect_available=_prefect_available,
             timestamp=datetime.utcnow().isoformat(),
             details={"error": str(e)}
         )

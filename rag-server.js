@@ -292,6 +292,7 @@ app.use(cors());
 app.use(express.json());
 app.use(apiAccessLogger);  // Log all API requests with user/IP tracking
 app.use(express.static('public'));
+app.use('/docs', express.static('docs'));
 
 // Configure multer for file uploads
 const upload = multer({

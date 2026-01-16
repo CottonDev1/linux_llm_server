@@ -12,7 +12,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import config first, then override the MongoDB URI
 import config
-config.MONGODB_URI = 'mongodb://EWRSPT-AI:27018/?directConnection=true&serverSelectionTimeoutMS=30000&connectTimeoutMS=10000'
 
 import asyncio
 import httpx

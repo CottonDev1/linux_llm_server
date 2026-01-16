@@ -1,22 +1,43 @@
 /**
  * Role Management JavaScript - Drag & Drop Edition
  * Manages category assignments to roles via drag-and-drop interface
+ * Supports custom role creation
  */
 
 // Initialize auth client
 const auth = new AuthClient();
 
 // Store role-category mappings
-let roleCategoryMappings = {
-    user: [],
-    developer: [],
-    admin: []
+let roleCategoryMappings = {};
+
+// Store categories fetched from navigation API, organized by type
+let adminCategories = [];
+let generalCategories = [];
+
+// Store all available roles (including custom ones)
+let availableRoles = [];
+
+// Default role definitions (built-in roles)
+const DEFAULT_ROLE_DEFINITIONS = {
+    user: {
+        name: 'User',
+        description: 'Basic access for standard users',
+        inherits: null,
+        isBuiltIn: true
+    },
+    developer: {
+        name: 'Developer',
+        description: 'Extended access including development tools',
+        inherits: 'user',
+        isBuiltIn: true
+    },
+    admin: {
+        name: 'Admin',
+        description: 'Full access to all system features',
+        inherits: 'developer',
+        isBuiltIn: true
+    }
 };
-
-// Store categories fetched from navigation API
-let navCategories = [];
-
-let hasUnsavedChanges = false;
 
 // Check authentication
 if (!auth.isAuthenticated()) {
@@ -34,28 +55,9 @@ if (!auth.isAuthenticated()) {
 }
 
 /**
- * Role definitions with descriptions
- */
-const ROLE_DEFINITIONS = {
-    user: {
-        name: 'User',
-        description: 'Basic access for standard users',
-        inherits: null
-    },
-    developer: {
-        name: 'Developer',
-        description: 'Extended access including development tools',
-        inherits: 'user'
-    },
-    admin: {
-        name: 'Admin',
-        description: 'Full access to all system features',
-        inherits: 'developer'
-    }
-};
-
-/**
- * Load categories from navigation API
+ * Load categories from navigation API and organize by admin vs general
+ * Admin categories: Pages in the /admin/ folder
+ * General categories: Pages NOT in the /admin/ folder (public pages)
  */
 async function loadCategoriesFromNav() {
     try {
@@ -64,24 +66,81 @@ async function loadCategoriesFromNav() {
             throw new Error('Failed to fetch navigation');
         }
         const data = await response.json();
+
+        adminCategories = [];
+        generalCategories = [];
+
         if (data.success && data.categories) {
-            navCategories = data.categories.map(cat => ({
-                id: cat.id,
-                name: cat.name,
-                icon: cat.icon || '<ewr-icon name="folder" size="20"></ewr-icon>'
-            }));
+            data.categories.forEach(cat => {
+                const category = {
+                    id: cat.id,
+                    name: cat.name,
+                    icon: cat.icon || '<ewr-icon name="folder" size="14"></ewr-icon>',
+                    requiredRole: cat.defaultRole || 'admin',
+                    pages: cat.pages || [],
+                    isAdmin: cat.isAdmin !== false // Default to true if not specified
+                };
+
+                // Categorize based on isAdmin flag from API
+                if (category.isAdmin) {
+                    adminCategories.push(category);
+                } else {
+                    generalCategories.push(category);
+                }
+            });
         }
     } catch (error) {
         console.error('Error loading categories:', error);
-        navCategories = [];
+        adminCategories = [];
+        generalCategories = [];
     }
 }
 
 /**
- * Get all categories
+ * Get all categories combined
  */
 function getAllCategories() {
-    return navCategories;
+    return [...adminCategories, ...generalCategories];
+}
+
+/**
+ * Load available roles from server
+ */
+async function loadAvailableRoles() {
+    try {
+        const response = await fetch('/api/auth/roles', {
+            headers: {
+                'Authorization': `Bearer ${auth.getAccessToken()}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            availableRoles = data.roles || ['user', 'developer', 'admin'];
+        } else {
+            // Fallback to default roles if endpoint doesn't exist
+            availableRoles = ['user', 'developer', 'admin'];
+        }
+    } catch (error) {
+        console.error('Error loading roles:', error);
+        availableRoles = ['user', 'developer', 'admin'];
+    }
+}
+
+/**
+ * Get role definition (built-in or custom)
+ */
+function getRoleDefinition(role) {
+    if (DEFAULT_ROLE_DEFINITIONS[role]) {
+        return DEFAULT_ROLE_DEFINITIONS[role];
+    }
+    // Custom role
+    return {
+        name: role.charAt(0).toUpperCase() + role.slice(1),
+        description: 'Custom role',
+        inherits: null,
+        isBuiltIn: false
+    };
 }
 
 /**
@@ -89,8 +148,9 @@ function getAllCategories() {
  */
 async function init() {
     await loadCategoriesFromNav();
+    await loadAvailableRoles();
     await loadRoleCategoryMappings();
-    renderBadgePool();
+    renderBadgePools();
     renderRoleCards();
 }
 
@@ -110,55 +170,74 @@ async function loadRoleCategoryMappings() {
         }
 
         const data = await response.json();
-        // API returns { user: [], developer: [], admin: [...] } directly
-        roleCategoryMappings = data || getDefaultMappings();
+        roleCategoryMappings = data || {};
+
+        // Ensure all available roles have an entry
+        availableRoles.forEach(role => {
+            if (!roleCategoryMappings[role]) {
+                roleCategoryMappings[role] = [];
+            }
+        });
 
     } catch (error) {
         console.error('Error loading role categories:', error);
-        // Use defaults if API fails
-        roleCategoryMappings = getDefaultMappings();
+        // Initialize with empty arrays for each role
+        roleCategoryMappings = {};
+        availableRoles.forEach(role => {
+            roleCategoryMappings[role] = [];
+        });
     }
 }
 
 /**
- * Get default role-category mappings
- * Admin gets all categories by default
+ * Render the badge pools (admin and general screens)
  */
-function getDefaultMappings() {
-    const allCategories = getAllCategories();
-    return {
-        user: [],
-        developer: [],
-        admin: allCategories.map(cat => cat.id)
-    };
+function renderBadgePools() {
+    const adminPool = document.getElementById('adminBadgePool');
+    const generalPool = document.getElementById('generalBadgePool');
+    const adminCount = document.getElementById('adminScreenCount');
+    const generalCount = document.getElementById('generalScreenCount');
+
+    // Render admin categories
+    if (adminPool) {
+        adminPool.innerHTML = adminCategories.map(cat => createCategoryBadge(cat)).join('');
+    }
+    if (adminCount) {
+        adminCount.textContent = adminCategories.length;
+    }
+
+    // Render general categories
+    if (generalPool) {
+        if (generalCategories.length > 0) {
+            generalPool.innerHTML = generalCategories.map(cat => createCategoryBadge(cat)).join('');
+        } else {
+            generalPool.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">No general screens configured</span>';
+        }
+    }
+    if (generalCount) {
+        generalCount.textContent = generalCategories.length;
+    }
 }
 
 /**
- * Render the category badge pool at the top
+ * Create a category badge HTML
  */
-function renderBadgePool() {
-    const pool = document.getElementById('badgePool');
-    const categories = getAllCategories();
-
-    let html = '';
-    categories.forEach(cat => {
-        html += `
-            <div class="category-badge ${cat.id}"
-                 draggable="true"
-                 data-category="${cat.id}"
-                 ondragstart="handleDragStart(event)"
-                 ondragend="handleDragEnd(event)">
-                ${cat.icon}
-                <span>${cat.name}</span>
-            </div>
-        `;
-    });
-
-    pool.innerHTML = html;
+function createCategoryBadge(category) {
+    return `
+        <div class="screen-badge"
+             draggable="true"
+             data-category="${category.id}"
+             ondragstart="handleDragStart(event)"
+             ondragend="handleDragEnd(event)"
+             title="${category.name} (${category.pages.length} screens)">
+            ${category.icon}
+            <span>${category.name}</span>
+        </div>
+    `;
 }
 
 /**
- * Render the role cards
+ * Render the role cards including the add role card
  */
 function renderRoleCards() {
     const rolesGrid = document.getElementById('rolesGrid');
@@ -166,8 +245,9 @@ function renderRoleCards() {
 
     let html = '';
 
-    ['user', 'developer', 'admin'].forEach(role => {
-        const roleDef = ROLE_DEFINITIONS[role];
+    // Render existing roles
+    availableRoles.forEach(role => {
+        const roleDef = getRoleDefinition(role);
         const assignedCategories = roleCategoryMappings[role] || [];
 
         html += `
@@ -179,6 +259,7 @@ function renderRoleCards() {
                 <div class="role-card-header">
                     <span class="role-badge ${role}">${roleDef.name}</span>
                     <span class="role-description">${roleDef.description}</span>
+                    ${!roleDef.isBuiltIn ? `<button class="remove-role-btn" onclick="deleteRole('${role}')" title="Delete role"><ewr-icon name="trash-2" size="16"></ewr-icon></button>` : ''}
                 </div>
                 <div class="role-card-body">
                     <div class="role-categories" id="role-${role}">
@@ -196,7 +277,7 @@ function renderRoleCards() {
                 const category = categories.find(c => c.id === categoryId);
                 if (category) {
                     html += `
-                        <div class="role-category-badge ${categoryId}">
+                        <div class="role-category-badge" data-category="${categoryId}">
                             ${category.icon}
                             <span>${category.name}</span>
                             <div class="remove-btn" onclick="removeCategoryFromRole('${role}', '${categoryId}')">
@@ -215,7 +296,176 @@ function renderRoleCards() {
         `;
     });
 
+    // Add the "Add Role" card
+    html += `
+        <div class="add-role-card" id="addRoleCard" onclick="expandAddRoleCard(event)">
+            <div class="add-role-btn">
+                <ewr-icon name="plus" size="32"></ewr-icon>
+                <span>Add New Role</span>
+            </div>
+            <div class="add-role-form">
+                <div class="add-role-form-header">
+                    <input type="text" id="newRoleName" placeholder="Enter role name" onclick="event.stopPropagation()" onkeypress="handleRoleNameKeypress(event)">
+                    <div class="add-role-form-actions">
+                        <button class="btn-save-role" onclick="saveNewRole(event)">Save</button>
+                        <button class="btn-cancel-role" onclick="cancelAddRole(event)">Cancel</button>
+                    </div>
+                </div>
+                <div class="add-role-form-body">
+                    <div class="empty-state">
+                        <ewr-icon name="info" size="24"></ewr-icon>
+                        <div class="empty-state-text">Save role first, then drag categories here</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
     rolesGrid.innerHTML = html;
+}
+
+/**
+ * Expand the add role card
+ */
+function expandAddRoleCard(event) {
+    const card = document.getElementById('addRoleCard');
+    if (!card.classList.contains('expanded')) {
+        card.classList.add('expanded');
+        const input = document.getElementById('newRoleName');
+        if (input) {
+            setTimeout(() => input.focus(), 100);
+        }
+    }
+}
+
+/**
+ * Cancel adding a new role
+ */
+function cancelAddRole(event) {
+    event.stopPropagation();
+    const card = document.getElementById('addRoleCard');
+    card.classList.remove('expanded');
+    const input = document.getElementById('newRoleName');
+    if (input) {
+        input.value = '';
+    }
+}
+
+/**
+ * Handle keypress in role name input
+ */
+function handleRoleNameKeypress(event) {
+    if (event.key === 'Enter') {
+        saveNewRole(event);
+    } else if (event.key === 'Escape') {
+        cancelAddRole(event);
+    }
+}
+
+/**
+ * Save a new role
+ */
+async function saveNewRole(event) {
+    event.stopPropagation();
+
+    const input = document.getElementById('newRoleName');
+    const roleName = input.value.trim().toLowerCase();
+
+    if (!roleName) {
+        showMessage('Please enter a role name', 'error');
+        return;
+    }
+
+    // Validate role name (alphanumeric and underscores only)
+    if (!/^[a-z][a-z0-9_]*$/.test(roleName)) {
+        showMessage('Role name must start with a letter and contain only lowercase letters, numbers, and underscores', 'error');
+        return;
+    }
+
+    // Check if role already exists
+    if (availableRoles.includes(roleName)) {
+        showMessage('A role with this name already exists', 'error');
+        return;
+    }
+
+    updateSaveIndicator('saving');
+
+    try {
+        const response = await fetch('/api/auth/roles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${auth.getAccessToken()}`
+            },
+            body: JSON.stringify({ name: roleName })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create role');
+        }
+
+        // Add to local state
+        availableRoles.push(roleName);
+        roleCategoryMappings[roleName] = [];
+
+        // Reset form and re-render
+        input.value = '';
+        const card = document.getElementById('addRoleCard');
+        card.classList.remove('expanded');
+
+        renderRoleCards();
+        updateSaveIndicator('saved');
+        showMessage(`Role "${roleName}" created successfully`, 'success');
+
+    } catch (error) {
+        console.error('Error creating role:', error);
+        updateSaveIndicator('error');
+        showMessage(error.message || 'Failed to create role', 'error');
+    }
+}
+
+/**
+ * Delete a custom role
+ */
+async function deleteRole(role) {
+    if (DEFAULT_ROLE_DEFINITIONS[role]) {
+        showMessage('Cannot delete built-in roles', 'error');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete the role "${role}"? This cannot be undone.`)) {
+        return;
+    }
+
+    updateSaveIndicator('saving');
+
+    try {
+        const response = await fetch(`/api/auth/roles/${role}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${auth.getAccessToken()}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete role');
+        }
+
+        // Remove from local state
+        availableRoles = availableRoles.filter(r => r !== role);
+        delete roleCategoryMappings[role];
+
+        renderRoleCards();
+        updateSaveIndicator('saved');
+        showMessage(`Role "${role}" deleted successfully`, 'success');
+
+    } catch (error) {
+        console.error('Error deleting role:', error);
+        updateSaveIndicator('error');
+        showMessage(error.message || 'Failed to delete role', 'error');
+    }
 }
 
 /**
@@ -277,9 +527,14 @@ async function handleDrop(event, role) {
  */
 async function addCategoryToRole(role, categoryId) {
     // Check if category already assigned
-    if (roleCategoryMappings[role].includes(categoryId)) {
+    if (roleCategoryMappings[role] && roleCategoryMappings[role].includes(categoryId)) {
         showMessage(`${categoryId} is already assigned to ${role}`, 'error');
         return;
+    }
+
+    // Initialize array if needed
+    if (!roleCategoryMappings[role]) {
+        roleCategoryMappings[role] = [];
     }
 
     // Add category
@@ -375,50 +630,14 @@ async function deleteRoleCategory(role, categoryId) {
 }
 
 /**
- * Save all role categories (manual save button)
- */
-async function saveAllRoles() {
-    updateSaveIndicator('saving');
-
-    try {
-        const promises = [];
-
-        for (const [role, categories] of Object.entries(roleCategoryMappings)) {
-            promises.push(
-                fetch(`/api/auth/role-categories/${role}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${auth.getAccessToken()}`
-                    },
-                    body: JSON.stringify({ categories })
-                })
-            );
-        }
-
-        const results = await Promise.all(promises);
-
-        const allSuccessful = results.every(r => r.ok);
-
-        if (!allSuccessful) {
-            throw new Error('Some role categories failed to save');
-        }
-
-        updateSaveIndicator('saved');
-        showMessage('All role categories saved successfully', 'success');
-
-    } catch (error) {
-        console.error('Error saving all roles:', error);
-        updateSaveIndicator('error');
-        showMessage('Failed to save all roles: ' + error.message, 'error');
-    }
-}
-
-/**
  * Update save indicator
  */
 function updateSaveIndicator(state) {
     const indicator = document.getElementById('saveIndicator');
+    if (!indicator) {
+        console.warn('Save indicator element not found');
+        return;
+    }
 
     switch (state) {
         case 'saving':
@@ -431,19 +650,20 @@ function updateSaveIndicator(state) {
             setTimeout(() => {
                 if (indicator.textContent === 'All changes saved') {
                     indicator.textContent = '';
+                    indicator.className = 'save-indicator';
                 }
             }, 3000);
             break;
         case 'error':
-            indicator.className = 'save-indicator';
-            indicator.style.color = '#ef4444';
+            indicator.className = 'save-indicator error';
             indicator.textContent = 'Save failed';
             setTimeout(() => {
-                indicator.style.color = '';
+                indicator.className = 'save-indicator';
             }, 3000);
             break;
         default:
             indicator.textContent = '';
+            indicator.className = 'save-indicator';
     }
 }
 
@@ -452,6 +672,8 @@ function updateSaveIndicator(state) {
  */
 function showMessage(message, type = 'success') {
     const messageDiv = document.getElementById('roleMessage');
+    if (!messageDiv) return;
+
     messageDiv.className = `message ${type}`;
     messageDiv.textContent = message;
     messageDiv.style.display = 'block';
@@ -463,13 +685,17 @@ function showMessage(message, type = 'success') {
 
 // Make functions available globally
 window.init = init;
-window.saveAllRoles = saveAllRoles;
 window.handleDragStart = handleDragStart;
 window.handleDragEnd = handleDragEnd;
 window.handleDragOver = handleDragOver;
 window.handleDragLeave = handleDragLeave;
 window.handleDrop = handleDrop;
 window.removeCategoryFromRole = removeCategoryFromRole;
+window.expandAddRoleCard = expandAddRoleCard;
+window.cancelAddRole = cancelAddRole;
+window.saveNewRole = saveNewRole;
+window.deleteRole = deleteRole;
+window.handleRoleNameKeypress = handleRoleNameKeypress;
 
 // Initialize when page loads
 window.addEventListener('DOMContentLoaded', async () => {

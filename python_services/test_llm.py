@@ -20,7 +20,6 @@ except Exception as e:
 # Now import motor and config
 print("Importing config and motor...", flush=True)
 import config
-config.MONGODB_URI = 'mongodb://EWRSPT-AI:27018/?directConnection=true&serverSelectionTimeoutMS=30000&connectTimeoutMS=10000'
 from motor.motor_asyncio import AsyncIOMotorClient
 
 print("Testing after motor import...", flush=True)

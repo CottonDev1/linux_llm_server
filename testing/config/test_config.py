@@ -20,7 +20,7 @@ class MongoDBConfig(BaseModel):
     """MongoDB connection configuration."""
 
     uri: str = Field(
-        default_factory=lambda: os.getenv("MONGODB_URI", "mongodb://EWRSPT-AI:27018"),
+        default_factory=lambda: os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
         description="MongoDB connection URI"
     )
     database: str = Field(

@@ -13,8 +13,8 @@ SQL_USER = 'EWR\\chad.walker'
 SQL_PASSWORD = '6454@@Christina'
 
 # MongoDB connection
-MONGO_HOST = 'EWRSPT-AI'
-MONGO_PORT = 27018
+MONGO_HOST = 'localhost'
+MONGO_PORT = 27017
 MONGO_DB = 'rag_server'
 
 def get_sql_connection():

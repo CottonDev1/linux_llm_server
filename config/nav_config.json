@@ -1,4 +1,34 @@
 {
+  "_documentation": {
+    "description": "Navigation configuration for admin/user sidebars. Consumed by /api/admin/navigation endpoint and rendered by public/admin/js/sidebar.js",
+    "topLevelProperties": {
+      "excludeDirs": "Directory names to skip when scanning for pages",
+      "excludeFiles": "Specific filenames to exclude from navigation",
+      "defaultIcon": "SVG icon used for pages without a custom icon",
+      "defaultCategoryIcon": "SVG icon used for categories without a custom icon"
+    },
+    "categoryProperties": {
+      "name": "Display name shown in sidebar",
+      "icon": "SVG markup for the category icon",
+      "order": "Sort order (lower numbers appear first)",
+      "expanded": "Whether category is expanded by default (true/false)",
+      "defaultRole": "Minimum role required to see this category (user/developer/admin)",
+      "disabled": "If true, category appears grayed out and non-clickable",
+      "isAdmin": "If false, shows in user sidebar instead of admin sidebar (default: true)",
+      "externalLink": "URL for external links (renders as direct link, not dropdown)",
+      "openInNewTab": "If true, external links open in new tab",
+      "pages": "Object containing page definitions (key = directory/file name)"
+    },
+    "pageProperties": {
+      "name": "Display name shown in sidebar",
+      "icon": "SVG markup for the page icon",
+      "order": "Sort order within category",
+      "requiredRole": "Minimum role required to access (user/developer/admin)",
+      "disabled": "If true, page appears grayed out with 'Coming soon' tooltip"
+    },
+    "urlResolution": "Page URLs are auto-generated from category key + page key (e.g., 'sql' category + 'dashboard' page = 'sql/dashboard.html')",
+    "roleHierarchy": "user < developer < admin (higher roles inherit lower role access)"
+  },
   "excludeDirs": ["css", "js", "data", "images", "fonts", "system"],
   "excludeFiles": ["login.html", "edit.html", "CallAnalysis.html", "ViewAnalysis.html", "staff-details.html"],
   "defaultIcon": "<svg viewBox=\"0 0 24 24\"><path d=\"M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z\"/></svg>",
@@ -77,6 +107,12 @@
           "order": 3,
           "requiredRole": "admin",
           "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z\"/></svg>"
+        },
+        "reference-docs": {
+          "name": "Reference Documents",
+          "order": 4,
+          "requiredRole": "admin",
+          "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z\"/></svg>"
         }
       }
     },
@@ -125,21 +161,6 @@
           "order": 3,
           "requiredRole": "admin",
           "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z\"/></svg>"
-        }
-      }
-    },
-    "MarkdownViewer": {
-      "name": "Reference Documents",
-      "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z\"/></svg>",
-      "order": 6,
-      "expanded": false,
-      "defaultRole": "admin",
-      "pages": {
-        "index": {
-          "name": "View Documents",
-          "order": 1,
-          "requiredRole": "admin",
-          "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z\"/></svg>"
         }
       }
     },
@@ -229,7 +250,17 @@
       "order": 10,
       "expanded": false,
       "defaultRole": "admin",
-      "externalLink": "http://localhost:4200",
+      "externalLink": "http://10.101.20.21:4200/dashboard",
+      "openInNewTab": true,
+      "pages": {}
+    },
+    "copilot": {
+      "name": "Copilot",
+      "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z\"/></svg>",
+      "order": 11,
+      "expanded": false,
+      "defaultRole": "admin",
+      "externalLink": "http://10.101.20.21:9090",
       "openInNewTab": true,
       "pages": {}
     }

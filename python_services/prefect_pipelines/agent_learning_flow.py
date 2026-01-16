@@ -90,7 +90,7 @@ async def collect_learning_stats_task() -> LearningStatsResult:
         logger.info("Collecting agent learning statistics...")
 
         from services.agent_learning_service import get_learning_service
-        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27019")
+        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
         learning_service = await get_learning_service(
             mongodb_uri=mongodb_uri,
             database_name="agent_learning"
@@ -148,7 +148,7 @@ async def analyze_accuracy_task(days: int = 30) -> AccuracyResult:
         logger.info(f"Analyzing code agent accuracy (last {days} days)...")
 
         from services.agent_learning_service import get_learning_service
-        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27019")
+        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
         learning_service = await get_learning_service(
             mongodb_uri=mongodb_uri,
             database_name="agent_learning"
@@ -198,7 +198,7 @@ async def process_corrections_task() -> CorrectionResult:
         logger.info("Processing pending corrections...")
 
         from services.agent_learning_service import get_learning_service
-        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27019")
+        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
         learning_service = await get_learning_service(
             mongodb_uri=mongodb_uri,
             database_name="agent_learning"

@@ -15,7 +15,7 @@ from pymongo.collection import Collection
 
 
 def get_test_mongodb_client(
-    uri: str = "mongodb://EWRSPT-AI:27018",
+    uri: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
     timeout_ms: int = 30000
 ) -> MongoClient:
     """

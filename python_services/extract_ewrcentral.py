@@ -13,7 +13,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import config first, then override the MongoDB URI
 import config
-config.MONGODB_URI = 'mongodb://EWRSPT-AI:27018/?directConnection=true&serverSelectionTimeoutMS=30000&connectTimeoutMS=10000'
 
 import asyncio
 from sql_pipeline.extraction.schema_extractor import SchemaExtractor
@@ -52,7 +51,7 @@ async def main():
 
     print(f"\n{'='*60}", flush=True)
     print(f"PHASE 1: Extracting schema from {db_config.database}", flush=True)
-    print(f"MongoDB: EWRSPT-AI:27018", flush=True)
+    print(f"MongoDB: localhost:27017", flush=True)
     print(f"Mode: REPLACE existing data (no summaries - will add later)", flush=True)
     print(f"{'='*60}\n", flush=True)
 

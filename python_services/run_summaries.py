@@ -44,7 +44,6 @@ import asyncio
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import config
-config.MONGODB_URI = 'mongodb://EWRSPT-AI:27018/?directConnection=true&serverSelectionTimeoutMS=30000&connectTimeoutMS=10000'
 
 from motor.motor_asyncio import AsyncIOMotorClient
 

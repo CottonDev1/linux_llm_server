@@ -252,27 +252,6 @@ class SyntaxFixer:
             logger.debug("Fixed MySQL comments -> T-SQL comments")
 
 
-
-        logger.info(f"Checking for uvw_ pattern in: {current_sql[:100]}...")
-        # Fix 6.5: Replace uvw_ view prefix with dbo. (LLM hallucination fix)
-        # SQLCoder tends to generate uvw_ views that do not exist
-        uvw_pattern = r"uvw_([a-zA-Z0-9_]+)"
-        uvw_matches = list(re.finditer(uvw_pattern, current_sql, re.IGNORECASE))
-        logger.info(f"uvw_ matches found: {len(uvw_matches)}")
-        if uvw_matches:
-            for match in uvw_matches:
-                applied_fixes.append(FixApplied(
-                    rule_id="common-uvw-fix",
-                    pattern=uvw_pattern,
-                    original=match.group(0),
-                    replacement="dbo." + match.group(1),
-                    description="Replaced uvw_ view with dbo. table (LLM hallucination fix)"
-                ))
-            # Use string replacement instead of re.sub to avoid escaping issues
-            for match in uvw_matches:
-                current_sql = current_sql.replace(match.group(0), "dbo." + match.group(1))
-            logger.info("Fixed uvw_ -> dbo. table names")
-
         # Fix 7: NULLS FIRST/LAST -> Remove (not valid in T-SQL)
         pattern = r"\s+NULLS\s+(FIRST|LAST)"
         matches = list(re.finditer(pattern, current_sql, re.IGNORECASE))
@@ -302,6 +281,77 @@ class SyntaxFixer:
                 ))
             current_sql = re.sub(pattern, "LIKE", current_sql, flags=re.IGNORECASE)
             logger.debug("Fixed ILIKE -> LIKE")
+
+        # Fix 9: CURRENT_DATE -> CAST(GETDATE() AS DATE)
+        pattern = r"\bCURRENT_DATE\b"
+        matches = list(re.finditer(pattern, current_sql, re.IGNORECASE))
+        if matches:
+            for match in matches:
+                applied_fixes.append(FixApplied(
+                    rule_id="common-current-date",
+                    pattern=pattern,
+                    original=match.group(0),
+                    replacement="CAST(GETDATE() AS DATE)",
+                    description="Converted CURRENT_DATE to CAST(GETDATE() AS DATE) (T-SQL)"
+                ))
+            current_sql = re.sub(pattern, "CAST(GETDATE() AS DATE)", current_sql, flags=re.IGNORECASE)
+            logger.debug("Fixed CURRENT_DATE -> CAST(GETDATE() AS DATE)")
+
+        # Fix 10: PostgreSQL interval syntax -> DATEADD (T-SQL)
+        # Pattern: date - interval 'N unit' or date + interval 'N unit'
+        interval_pattern = r"(\w+|\))\s*(-|\+)\s*interval\s+'(\d+)\s+(year|month|day|week|hour|minute|second)s?'"
+        interval_matches = list(re.finditer(interval_pattern, current_sql, re.IGNORECASE))
+        if interval_matches:
+            for match in interval_matches:
+                expr = match.group(1)
+                operator = match.group(2)
+                amount = match.group(3)
+                unit = match.group(4).upper()
+
+                # For subtraction, negate the amount
+                if operator == '-':
+                    amount = f"-{amount}"
+
+                replacement = f"DATEADD({unit}, {amount}, {expr})"
+                applied_fixes.append(FixApplied(
+                    rule_id="common-interval",
+                    pattern=interval_pattern,
+                    original=match.group(0),
+                    replacement=replacement,
+                    description=f"Converted interval to DATEADD({unit}, {amount}, ...)"
+                ))
+                current_sql = current_sql[:match.start()] + replacement + current_sql[match.end():]
+            logger.debug("Fixed interval -> DATEADD")
+
+        # Fix 11: :: type casting -> CAST (PostgreSQL to T-SQL)
+        cast_pattern = r"(\w+)::(\w+)"
+        cast_matches = list(re.finditer(cast_pattern, current_sql))
+        if cast_matches:
+            for match in reversed(cast_matches):  # Process in reverse to maintain positions
+                expr = match.group(1)
+                type_name = match.group(2)
+                # Map PostgreSQL types to T-SQL types
+                type_mapping = {
+                    'text': 'VARCHAR(MAX)',
+                    'integer': 'INT',
+                    'bigint': 'BIGINT',
+                    'date': 'DATE',
+                    'timestamp': 'DATETIME2',
+                    'boolean': 'BIT',
+                    'float': 'FLOAT',
+                    'numeric': 'DECIMAL',
+                }
+                tsql_type = type_mapping.get(type_name.lower(), type_name.upper())
+                replacement = f"CAST({expr} AS {tsql_type})"
+                applied_fixes.append(FixApplied(
+                    rule_id="common-cast",
+                    pattern=cast_pattern,
+                    original=match.group(0),
+                    replacement=replacement,
+                    description=f"Converted :: cast to CAST({expr} AS {tsql_type})"
+                ))
+                current_sql = current_sql[:match.start()] + replacement + current_sql[match.end():]
+            logger.debug("Fixed :: -> CAST")
 
         return current_sql, applied_fixes
 
@@ -381,20 +431,3 @@ class SyntaxFixer:
                 return fixed_sql, applied_fixes
 
         return sql, applied_fixes
-
-        # Fix 9: Add dbo. prefix to common table names without schema
-        # Common table names that should have dbo. prefix
-        common_tables = ['Receipts', 'Warehouses', 'Holders', 'BaleQualities', 'ReceiptBales', 'Contacts', 'Transactions', 'Types']
-        for table in common_tables:
-            # Match table name at word boundary without dbo. prefix
-            pattern = r'(?<!dbo\.)\b' + table + r'\b(?!\.)'
-            if re.search(pattern, current_sql, re.IGNORECASE):
-                applied_fixes.append(FixApplied(
-                    rule_id='common-add-dbo-prefix',
-                    pattern=pattern,
-                    original=table,
-                    replacement=f'dbo.{table}',
-                    description=f'Added dbo. prefix to {table}'
-                ))
-                current_sql = re.sub(pattern, f'dbo.{table}', current_sql, flags=re.IGNORECASE)
-                logger.info(f'Added dbo. prefix to {table}')

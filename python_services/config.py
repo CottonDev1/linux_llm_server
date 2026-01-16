@@ -145,7 +145,7 @@ LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 AUDIO_ANALYSIS_CONFIG = {
     "collection": COLLECTION_AUDIO_ANALYSIS,
     "sensevoice_model": "FunAudioLLM/SenseVoiceSmall",
-    "device": os.getenv("SENSEVOICE_DEVICE", "cuda:0"),
+    "device": os.getenv("SENSEVOICE_DEVICE", "cuda:1"),
     "vad_model": "fsmn-vad",
     "max_segment_time": 30000,  # milliseconds
     "batch_size_s": 60,  # seconds

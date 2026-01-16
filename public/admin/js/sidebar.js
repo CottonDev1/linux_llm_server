@@ -227,6 +227,13 @@ function getAdjustedUrl(pageUrl) {
 }
 
 /**
+ * Check if current page is in admin area
+ */
+function isInAdminArea() {
+    return window.location.pathname.includes('/admin/');
+}
+
+/**
  * Generate navigation items based on user permissions
  */
 function generateNavigation(user, categories) {
@@ -239,6 +246,15 @@ function generateNavigation(user, categories) {
     const userRoleLevel = ROLE_HIERARCHY[user.role] || 0;
     const disabledPages = user.settings?.disabledPages || [];
     const expandedState = getExpandedState();
+
+    // Filter categories based on current location
+    // Admin area shows admin categories, non-admin area shows non-admin categories
+    const inAdmin = isInAdminArea();
+    const filteredCategories = categories.filter(cat => {
+        // isAdmin defaults to true if not specified (backwards compatibility)
+        const catIsAdmin = cat.isAdmin !== false;
+        return inAdmin ? catIsAdmin : !catIsAdmin;
+    });
 
     // Start building HTML
     let navHTML = `
@@ -380,27 +396,52 @@ function generateNavigation(user, categories) {
         </style>
     `;
 
-    // Admin Home link (above User Home)
-    navHTML += `
-        <a href="/admin/index.html" class="nav-item go-to-admin">
-            <span class="nav-icon">
-                <ewr-icon name="layout-dashboard" size="20"></ewr-icon>
-            </span>
-            <span class="nav-text">Admin Home</span>
-        </a>
-        <a href="/index.html" class="nav-item go-to-main">
-            <span class="nav-icon">
-                <ewr-icon name="home" size="20"></ewr-icon>
-            </span>
-            <span class="nav-text">User Home</span>
-        </a>
-        <button class="collapse-all-btn" onclick="collapseAllCategories()">Collapse</button>
-    `;
+    // Show context-appropriate home links
+    if (inAdmin) {
+        // In admin area: show Admin Home and link to User Home
+        navHTML += `
+            <a href="/admin/index.html" class="nav-item go-to-admin">
+                <span class="nav-icon">
+                    <ewr-icon name="layout-dashboard" size="20"></ewr-icon>
+                </span>
+                <span class="nav-text">Admin Home</span>
+            </a>
+            <a href="/index.html" class="nav-item go-to-main">
+                <span class="nav-icon">
+                    <ewr-icon name="home" size="20"></ewr-icon>
+                </span>
+                <span class="nav-text">User Home</span>
+            </a>
+            <button class="collapse-all-btn" onclick="collapseAllCategories()">Collapse</button>
+        `;
+    } else {
+        // In non-admin area: show User Home and link to Admin Home (for admins)
+        navHTML += `
+            <a href="/index.html" class="nav-item go-to-main">
+                <span class="nav-icon">
+                    <ewr-icon name="home" size="20"></ewr-icon>
+                </span>
+                <span class="nav-text">User Home</span>
+            </a>
+        `;
+        // Only show Admin Home link if user is admin
+        if (user.role === 'admin') {
+            navHTML += `
+                <a href="/admin/index.html" class="nav-item go-to-admin">
+                    <span class="nav-icon">
+                        <ewr-icon name="layout-dashboard" size="20"></ewr-icon>
+                    </span>
+                    <span class="nav-text">Admin Home</span>
+                </a>
+            `;
+        }
+        navHTML += `<button class="collapse-all-btn" onclick="collapseAllCategories()">Collapse</button>`;
+    }
 
     navHTML += '<div class="nav-divider"></div>';
 
-    // Generate categories from server data
-    categories.forEach(category => {
+    // Generate categories from server data (filtered by location)
+    filteredCategories.forEach(category => {
         // Handle external links (like Prefect)
         if (category.externalLink) {
             const target = category.openInNewTab ? '_blank' : '_self';

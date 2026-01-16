@@ -641,15 +641,18 @@ router.put('/password', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Invalid permissions data' });
       }
 
-      // Validate structure - must have user, developer, admin keys with arrays
-      const validRoles = ['user', 'developer', 'admin'];
-      for (const role of validRoles) {
+      // Validate structure - each key should be a valid role with an array of permissions
+      const availableRoles = ewraiDatabase.getAllRoles();
+      for (const role of Object.keys(permissions)) {
+        if (!availableRoles.includes(role)) {
+          return res.status(400).json({ error: `Invalid role: ${role}` });
+        }
         if (!Array.isArray(permissions[role])) {
           return res.status(400).json({ error: `Invalid permissions for role: ${role}` });
         }
       }
 
-      await ewraiDatabase.setRolePermissions(permissions);
+      ewraiDatabase.setRolePermissions(permissions);
       console.log(`Role permissions updated by admin ${req.user.username}`);
 
       res.json({ message: 'Role permissions updated successfully', permissions });
@@ -666,13 +669,13 @@ router.put('/password', authenticateToken, async (req, res) => {
   router.get('/role-permissions/:role', authenticateToken, async (req, res) => {
     try {
       const { role } = req.params;
-      const validRoles = ['user', 'developer', 'admin'];
 
-      if (!validRoles.includes(role)) {
+      // Check if role exists
+      if (!ewraiDatabase.roleExists(role)) {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
-      const allPermissions = await ewraiDatabase.getRolePermissions();
+      const allPermissions = ewraiDatabase.getRolePermissions();
       const rolePages = allPermissions[role] || [];
 
       res.json({ role, pages: rolePages });
@@ -683,20 +686,103 @@ router.put('/password', authenticateToken, async (req, res) => {
   });
 
   /**
+   * GET /api/auth/roles
+   * Get all available roles
+   */
+  router.get('/roles', authenticateToken, async (req, res) => {
+    try {
+      const roles = ewraiDatabase.getAllRoles();
+      res.json({ roles });
+    } catch (error) {
+      console.error('Error getting roles:', error);
+      res.status(500).json({ error: 'Failed to get roles' });
+    }
+  });
+
+  /**
+   * POST /api/auth/roles
+   * Create a new custom role (admin only)
+   */
+  router.post('/roles', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { name, description } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ error: 'Role name is required' });
+      }
+
+      // Validate role name format
+      if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+        return res.status(400).json({
+          error: 'Role name must start with a lowercase letter and contain only lowercase letters, numbers, and underscores'
+        });
+      }
+
+      // Check if role already exists
+      if (ewraiDatabase.roleExists(name)) {
+        return res.status(400).json({ error: 'A role with this name already exists' });
+      }
+
+      const role = ewraiDatabase.createRole(name, description);
+      console.log(`Role "${name}" created by admin ${req.user.username}`);
+
+      res.status(201).json({ role });
+    } catch (error) {
+      console.error('Error creating role:', error);
+      res.status(500).json({ error: 'Failed to create role' });
+    }
+  });
+
+  /**
+   * DELETE /api/auth/roles/:roleName
+   * Delete a custom role (admin only)
+   */
+  router.delete('/roles/:roleName', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { roleName } = req.params;
+
+      ewraiDatabase.deleteRole(roleName);
+      console.log(`Role "${roleName}" deleted by admin ${req.user.username}`);
+
+      res.json({ message: 'Role deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      if (error.message === 'Role not found') {
+        return res.status(404).json({ error: 'Role not found' });
+      }
+      if (error.message === 'Cannot delete built-in roles') {
+        return res.status(400).json({ error: 'Cannot delete built-in roles' });
+      }
+      res.status(500).json({ error: 'Failed to delete role' });
+    }
+  });
+
+  /**
    * GET /api/auth/role-categories
    * Get all role->category mappings
    * Returns: { user: [], developer: [], admin: ['documentation', 'documents', ...] }
    */
   router.get('/role-categories', authenticateToken, async (req, res) => {
     try {
-      const rows = await ewraiDatabase.getRoleCategoriesAll();
-      // Transform array of {role, category} into { role: [categories] }
-      const mappings = { user: [], developer: [], admin: [] };
+      const roles = ewraiDatabase.getAllRoles();
+      const rows = ewraiDatabase.getRoleCategoriesAll();
+
+      // Initialize mappings for all roles
+      const mappings = {};
+      for (const role of roles) {
+        mappings[role] = [];
+      }
+
+      // Fill in categories
       for (const row of rows) {
-        if (mappings[row.role]) {
+        if (mappings[row.role] !== undefined) {
           mappings[row.role].push(row.category);
+        } else {
+          // Role exists in permissions but not in roles table - add it
+          mappings[row.role] = [row.category];
         }
       }
+
       res.json(mappings);
     } catch (error) {
       console.error('Error getting role categories:', error);
@@ -711,9 +797,9 @@ router.put('/password', authenticateToken, async (req, res) => {
   router.get('/role-categories/:role', authenticateToken, async (req, res) => {
     try {
       const { role } = req.params;
-      const validRoles = ['user', 'developer', 'admin'];
 
-      if (!validRoles.includes(role)) {
+      // Check if role exists
+      if (!ewraiDatabase.roleExists(role)) {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
@@ -734,9 +820,9 @@ router.put('/password', authenticateToken, async (req, res) => {
     try {
       const { role } = req.params;
       const { categories } = req.body;
-      const validRoles = ['user', 'developer', 'admin'];
 
-      if (!validRoles.includes(role)) {
+      // Check if role exists
+      if (!ewraiDatabase.roleExists(role)) {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
@@ -744,7 +830,7 @@ router.put('/password', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Categories must be an array' });
       }
 
-      await ewraiDatabase.setRoleCategories(role, categories);
+      ewraiDatabase.setRoleCategories(role, categories);
       console.log(`Role categories for ${role} updated by admin ${req.user.username}`);
 
       res.json({ message: 'Role categories updated successfully', role, categories });
@@ -761,9 +847,9 @@ router.put('/password', authenticateToken, async (req, res) => {
   router.post('/role-categories/:role/:category', authenticateToken, requireAdmin, async (req, res) => {
     try {
       const { role, category } = req.params;
-      const validRoles = ['user', 'developer', 'admin'];
 
-      if (!validRoles.includes(role)) {
+      // Check if role exists
+      if (!ewraiDatabase.roleExists(role)) {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
@@ -771,7 +857,7 @@ router.put('/password', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Category cannot be empty' });
       }
 
-      await ewraiDatabase.addRoleCategory(role, category);
+      ewraiDatabase.addRoleCategory(role, category);
       console.log(`Category ${category} added to role ${role} by admin ${req.user.username}`);
 
       res.json({ message: 'Category added successfully', role, category });
@@ -788,9 +874,9 @@ router.put('/password', authenticateToken, async (req, res) => {
   router.delete('/role-categories/:role/:category', authenticateToken, requireAdmin, async (req, res) => {
     try {
       const { role, category } = req.params;
-      const validRoles = ['user', 'developer', 'admin'];
 
-      if (!validRoles.includes(role)) {
+      // Check if role exists
+      if (!ewraiDatabase.roleExists(role)) {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
@@ -798,7 +884,7 @@ router.put('/password', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Category cannot be empty' });
       }
 
-      await ewraiDatabase.removeRoleCategory(role, category);
+      ewraiDatabase.removeRoleCategory(role, category);
       console.log(`Category ${category} removed from role ${role} by admin ${req.user.username}`);
 
       res.json({ message: 'Category removed successfully', role, category });

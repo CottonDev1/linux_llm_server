@@ -78,7 +78,7 @@ def mongodb_client():
         from motor.motor_asyncio import AsyncIOMotorClient
         mongodb_uri = os.environ.get(
             "MONGODB_URI",
-            "mongodb://EWRSPT-AI:27018/?directConnection=true"
+            "mongodb://localhost:27017/?directConnection=true"
         )
         client = AsyncIOMotorClient(mongodb_uri)
         yield client

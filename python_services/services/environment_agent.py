@@ -169,7 +169,7 @@ class EnvironmentAgent:
 
     # MongoDB configuration (parsed from config.MONGODB_URI)
     _parsed_uri = urlparse(MONGODB_URI)
-    MONGODB_HOST = _parsed_uri.hostname or "EWRSPT-AI"
+    MONGODB_HOST = _parsed_uri.hostname or "localhost"
     MONGODB_PORT = _parsed_uri.port or 27017
 
     def __init__(

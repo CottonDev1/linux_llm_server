@@ -73,7 +73,7 @@ export default function initNavigationRoutes(dependencies = {}) {
         };
       };
 
-      // Only scan admin directory - non-admin pages are accessed via "Go to Main" link
+      // Scan admin directory
       const adminDir = path.default.join(publicDir, 'admin');
       const adminConfig = navConfig.categories?.['admin'] || {};
 
@@ -111,8 +111,76 @@ export default function initNavigationRoutes(dependencies = {}) {
           icon: subdirConfig.icon || navConfig.defaultCategoryIcon || '<svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>',
           expanded: subdirConfig.expanded !== false,
           order: subdirConfig.order ?? 999,
-          pages: subPages
+          pages: subPages,
+          isAdmin: true  // Mark as admin category
         });
+      }
+
+      // Scan non-admin (public root) directories for user-accessible pages
+      const publicSubdirs = filterDirs(fs.default.readdirSync(publicDir, { withFileTypes: true }))
+        .filter(d => d.name !== 'admin'); // Exclude admin directory
+
+      for (const subdir of publicSubdirs) {
+        const subdirPath = path.default.join(publicDir, subdir.name);
+        const subdirConfig = navConfig.categories?.[subdir.name] || {};
+
+        const subFiles = filterHtmlFiles(fs.default.readdirSync(subdirPath));
+
+        if (subFiles.length === 0) continue;
+
+        const subPages = subFiles.map(file => {
+          const pageId = file.replace('.html', '');
+          const pageConfig = subdirConfig.pages?.[pageId] || {};
+          const filePath = path.default.join(subdirPath, file);
+          const urlPath = `/${subdir.name}/${file}`;
+
+          return getPageInfo(filePath, pageId, pageConfig, subdirConfig, urlPath);
+        });
+
+        // Sort pages by order
+        subPages.sort((a, b) => {
+          const orderA = subdirConfig.pages?.[a.id]?.order ?? 999;
+          const orderB = subdirConfig.pages?.[b.id]?.order ?? 999;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.name.localeCompare(b.name);
+        });
+
+        categories.push({
+          id: `public-${subdir.name}`,
+          name: subdirConfig.name || subdir.name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          icon: subdirConfig.icon || navConfig.defaultCategoryIcon || '<svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>',
+          expanded: subdirConfig.expanded !== false,
+          order: (subdirConfig.order ?? 999) + 100, // Place after admin categories
+          pages: subPages,
+          isAdmin: false  // Mark as non-admin category
+        });
+      }
+
+      // Also scan root-level public HTML files (non-admin)
+      const publicRootFiles = filterHtmlFiles(fs.default.readdirSync(publicDir));
+      if (publicRootFiles.length > 0) {
+        const publicRootPages = publicRootFiles.map(file => {
+          const pageId = file.replace('.html', '');
+          const pageConfig = navConfig.categories?.['public-root']?.pages?.[pageId] || {};
+          const filePath = path.default.join(publicDir, file);
+
+          return getPageInfo(filePath, pageId, pageConfig, {}, `/${file}`);
+        });
+
+        // Sort pages
+        publicRootPages.sort((a, b) => a.name.localeCompare(b.name));
+
+        if (publicRootPages.length > 0) {
+          categories.push({
+            id: 'public-root',
+            name: 'Main Site',
+            icon: navConfig.defaultCategoryIcon,
+            expanded: false,
+            order: 200,
+            pages: publicRootPages,
+            isAdmin: false
+          });
+        }
       }
 
       // Also scan root-level admin HTML files (like roslyn.html, project.html)

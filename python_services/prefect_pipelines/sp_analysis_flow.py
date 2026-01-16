@@ -141,7 +141,7 @@ async def fetch_sp_batch(
         from config import COLLECTION_SQL_STORED_PROCEDURES
 
         if mongodb_uri is None:
-            mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27019")
+            mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
 
         mongodb = MongoDBService()
         await mongodb.connect()
@@ -384,7 +384,7 @@ async def validate_and_store(
         from config import COLLECTION_SQL_EXAMPLES
 
         if mongodb_uri is None:
-            mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27019")
+            mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
 
         mongodb = MongoDBService()
         await mongodb.connect()
@@ -592,7 +592,7 @@ async def analyze_sp_batch(
     started_at = datetime.now(timezone.utc).isoformat()
 
     if mongodb_uri is None:
-        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27019")
+        mongodb_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
 
     logger.info(f"Starting SP batch analysis for {database}")
     logger.info(f"Batch size: {batch_size}, Max SPs: {max_sps or 'ALL'}")

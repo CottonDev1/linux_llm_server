@@ -16,7 +16,7 @@ SERVICES=(
     "SQL|8080|sqlcoder-7b-2.Q4_K_M.gguf|0||"
     "General|8081|Qwen2.5-7B-Instruct-Q4_K_M.gguf|0||"
     "Code|8082|qwen2.5-coder-1.5b-instruct-q4_k_m.gguf|1||"
-    "Embedding|8083|nomic-embed-text-v1.5-f16.gguf|1|--embedding --ctx-size 2048 --batch-size 2048 --ubatch-size 2048|$EMBED_DIR"
+    "Embedding|8083|nomic-embed-text-v1.5-f16.gguf|1|--embedding|$EMBED_DIR"
 )
 
 is_running() {
@@ -56,7 +56,7 @@ start_service() {
         --host 0.0.0.0 \
         --port $port \
         --n-gpu-layers 99 \
-        --ctx-size 8192 \
+        --ctx-size 4096 \
         --flash-attn \
         $extra \
         > "$LOG_DIR/${name,,}.log" 2>&1 &

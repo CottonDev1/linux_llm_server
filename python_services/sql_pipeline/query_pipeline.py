@@ -235,7 +235,7 @@ class QueryPipeline:
             schema_info = await self._schema_service.get_relevant_schema(
                 database=database,
                 question=question,
-                max_tables=8
+                max_tables=4
             )
             schema = self._schema_service.format_schema_for_prompt(schema_info.tables)
             logger.info(f"Loaded schema with {len(schema_info.tables)} relevant tables")
@@ -475,7 +475,7 @@ class QueryPipeline:
                 schema_info = await self._schema_service.get_relevant_schema(
                     database=database,
                     question=question,
-                    max_tables=8,
+                    max_tables=4,
                     required_tables=list(required_tables) if required_tables else None
                 )
                 schema = self._schema_service.format_schema_for_prompt(schema_info.tables)

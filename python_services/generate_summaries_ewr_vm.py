@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Generate AI summaries for EWR stored procedures using VM's LLM.
-Uses EWRSPT-AI:8081 instead of localhost:8081 to parallelize generation.
+Generate AI summaries for EWR stored procedures using the LLM.
+Uses localhost:8081 (general model) for summary generation.
 """
 import urllib.request
 import json
 import sys
+import os
 
-# Use VM's LLM endpoint
-LLM_URL = 'http://EWRSPT-AI:8081/v1/chat/completions'
-TEST_URL = 'http://EWRSPT-AI:8081/v1/models'
+# Use LLM endpoint from environment or default to localhost
+LLM_HOST = os.environ.get('LLAMACPP_HOST', 'http://localhost:8081')
+LLM_URL = f'{LLM_HOST}/v1/chat/completions'
+TEST_URL = f'{LLM_HOST}/v1/models'
 
 print("Testing VM LLM connectivity...", flush=True)
 try:
@@ -31,7 +33,6 @@ import asyncio
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import config
-config.MONGODB_URI = 'mongodb://EWRSPT-AI:27018/?directConnection=true&serverSelectionTimeoutMS=30000&connectTimeoutMS=10000'
 
 from motor.motor_asyncio import AsyncIOMotorClient
 

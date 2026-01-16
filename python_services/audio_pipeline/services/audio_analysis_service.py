@@ -286,6 +286,39 @@ class AudioAnalysisService:
                     print(f"Phase 2 {step_names[i]} failed with exception: {result}")
 
             # ================================================================
+            # Phase 2.5: LLM-based speaker separation (fallback if pyannote unavailable)
+            # ================================================================
+            llm_speaker_separation = None
+            if not speaker_segments and clean_text and len(clean_text.strip()) >= 50:
+                print("Pyannote diarization unavailable, using LLM-based speaker separation...")
+                if progress_callback:
+                    await progress_callback("speaker_sep", "Separating speakers with LLM...")
+                try:
+                    llm_speaker_separation = await self.content_analysis_service.separate_speakers(
+                        clean_text, duration, {"primary": primary_emotion, "detected": parsed_metadata.get("emotions", [])}
+                    )
+                    if llm_speaker_separation and llm_speaker_separation.get("segments"):
+                        # Convert LLM segments to speaker_segments format
+                        speaker_segments = []
+                        for seg in llm_speaker_separation["segments"]:
+                            from audio_pipeline.services.diarization_service import SpeakerSegment
+                            speaker_segments.append(SpeakerSegment(
+                                speaker=seg["speaker"],
+                                start_time=0,
+                                end_time=0,
+                                text=seg["text"]
+                            ))
+                        speaker_transcription = llm_speaker_separation.get("formatted_transcript")
+                        speaker_statistics = {
+                            "Caller 1": {"segment_count": len([s for s in speaker_segments if s.speaker == "Caller 1"]), "word_count": 0},
+                            "Caller 2": {"segment_count": len([s for s in speaker_segments if s.speaker == "Caller 2"]), "word_count": 0}
+                        }
+                        if progress_callback:
+                            await progress_callback("speaker_sep_done", f"Identified {llm_speaker_separation.get('num_speakers', 0)} speakers")
+                except Exception as e:
+                    print(f"LLM speaker separation failed (non-critical): {e}")
+
+            # ================================================================
             # Phase 3: Content analysis (depends on staff_name from Phase 2)
             # ================================================================
             call_content = {

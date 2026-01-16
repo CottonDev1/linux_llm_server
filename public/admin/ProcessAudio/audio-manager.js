@@ -57,7 +57,6 @@ function initElements() {
         modalFilename: document.getElementById('modalFilename'),
         modalSummary: document.getElementById('modalSummary'),
         modalTranscription: document.getElementById('modalTranscription'),
-        modalRawTranscription: document.getElementById('modalRawTranscription'),
         emotionsGrid: document.getElementById('emotionsGrid'),
         modalAnalysisData: document.getElementById('modalAnalysisData'),
         saveAnalysisBtn: document.getElementById('saveAnalysisBtn')
@@ -190,6 +189,54 @@ async function loadSavedDirectoryPath() {
 
 async function loadMonitoredUsers() {
     try {
+        // Load Customer Support staff from EWRCentral database
+        const response = await fetch('/api/audio/customer-support-staff');
+
+        if (!response.ok) {
+            console.error('Failed to fetch Customer Support staff from EWRCentral');
+            // Fallback to auth users if EWRCentral fails
+            await loadMonitoredUsersFromAuth();
+            return;
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.staff) {
+            console.error('Invalid response from Customer Support staff endpoint');
+            await loadMonitoredUsersFromAuth();
+            return;
+        }
+
+        // Store staff names for name detection in transcripts
+        monitoredStaffNames = data.staff.map(s => s.name);
+
+        // Populate staff dropdown
+        if (elements.modalStaff) {
+            // Clear existing options except the placeholder
+            elements.modalStaff.innerHTML = '<option value="">Select Customer Support Staff...</option>';
+
+            // Add Customer Support staff
+            data.staff.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff.name;
+                option.textContent = `${staff.name}${staff.extension ? ` (Ext: ${staff.extension})` : ''}`;
+                option.dataset.email = staff.email || '';
+                option.dataset.extension = staff.extension || '';
+                elements.modalStaff.appendChild(option);
+            });
+
+            console.log(`Loaded ${data.staff.length} Customer Support staff from EWRCentral`);
+        }
+    } catch (error) {
+        console.error('Failed to load Customer Support staff:', error);
+        // Fallback to auth users if EWRCentral fails
+        await loadMonitoredUsersFromAuth();
+    }
+}
+
+// Fallback function to load from auth if EWRCentral is unavailable
+async function loadMonitoredUsersFromAuth() {
+    try {
         const auth = new AuthClient();
         const response = await fetch('/api/auth/users', {
             headers: {
@@ -198,7 +245,7 @@ async function loadMonitoredUsers() {
         });
 
         if (!response.ok) {
-            console.error('Failed to fetch users for staff dropdown');
+            console.error('Fallback: Failed to fetch users for staff dropdown');
             return;
         }
 
@@ -214,10 +261,8 @@ async function loadMonitoredUsers() {
 
         // Populate staff dropdown
         if (elements.modalStaff) {
-            // Clear existing options except the placeholder
-            elements.modalStaff.innerHTML = '<option value="">Select staff member...</option>';
+            elements.modalStaff.innerHTML = '<option value="">Select Customer Support Staff...</option>';
 
-            // Add monitored users
             monitoredUsers.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.username;
@@ -225,10 +270,10 @@ async function loadMonitoredUsers() {
                 elements.modalStaff.appendChild(option);
             });
 
-            console.log(`Loaded ${monitoredUsers.length} monitored users for staff dropdown`);
+            console.log(`Fallback: Loaded ${monitoredUsers.length} monitored users for staff dropdown`);
         }
     } catch (error) {
-        console.error('Failed to load monitored users:', error);
+        console.error('Fallback: Failed to load monitored users:', error);
     }
 }
 
@@ -1272,11 +1317,8 @@ function openSaveModal(fileId) {
     // Summary tab
     elements.modalSummary.value = analysis.transcription_summary || 'No summary available';
 
-    // Transcription tab
-    elements.modalTranscription.value = transcriptionText;
-
-    // Raw tab
-    elements.modalRawTranscription.value = analysis.raw_transcription || 'No raw transcription available';
+    // Transcription tab - format with speaker separation
+    formatTranscriptionDisplay(analysis, transcriptionText);
 
     // Emotions tab
     populateEmotionsGrid(analysis.emotions);
@@ -1299,6 +1341,105 @@ function switchModalTab(tabName) {
         content.style.display = content.dataset.tab === tabName ? 'block' : 'none';
         content.classList.toggle('active', content.dataset.tab === tabName);
     });
+}
+
+/**
+ * Format and display transcription with speaker separation
+ * @param {Object} analysis - The full analysis object
+ * @param {string} transcriptionText - The raw transcription text
+ */
+function formatTranscriptionDisplay(analysis, transcriptionText) {
+    const container = elements.modalTranscription;
+    if (!container) return;
+
+    const diarization = analysis.speaker_diarization || {};
+    const segments = diarization.segments || [];
+    const emotions = analysis.emotions || {};
+    const primaryEmotion = emotions.primary || '';
+
+    // If we have speaker segments, format them nicely
+    if (segments.length > 0) {
+        let html = '';
+        segments.forEach((segment, index) => {
+            const speaker = segment.speaker || 'Unknown';
+            const text = segment.text || '';
+            const speakerClass = speaker.toLowerCase().replace(' ', '-');
+
+            // Add separator between segments (except first)
+            if (index > 0) {
+                html += '<hr class="transcript-separator">';
+            }
+
+            // Check if this segment has an emotion tag in the text
+            let emotionTag = '';
+            const emotionMatch = text.match(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/i);
+            if (emotionMatch) {
+                emotionTag = `<span class="transcript-emotion">[${emotionMatch[1]}]</span>`;
+            }
+
+            // Clean the text of emotion tags for display
+            const cleanText = text.replace(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/gi, '').trim();
+
+            html += `
+                <div class="transcript-segment">
+                    <span class="transcript-speaker ${speakerClass}">${escapeHtml(speaker)}</span>
+                    ${emotionTag}
+                    <div class="transcript-text">${escapeHtml(cleanText)}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    } else {
+        // Fallback: Try to parse speaker labels from transcription text
+        const lines = transcriptionText.split('\n');
+        let html = '';
+        let lastSpeaker = '';
+
+        lines.forEach((line, index) => {
+            line = line.trim();
+            if (!line || line === '─'.repeat(40)) return;
+
+            // Check for Caller 1/Caller 2 pattern
+            const speakerMatch = line.match(/^(Caller [12]):\s*(.*)/i);
+            if (speakerMatch) {
+                const speaker = speakerMatch[1];
+                const text = speakerMatch[2];
+                const speakerClass = speaker.toLowerCase().replace(' ', '-');
+
+                // Add separator when speaker changes
+                if (lastSpeaker && lastSpeaker !== speaker) {
+                    html += '<hr class="transcript-separator">';
+                }
+                lastSpeaker = speaker;
+
+                // Check for emotion
+                let emotionTag = '';
+                const emotionMatch = text.match(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/i);
+                if (emotionMatch) {
+                    emotionTag = `<span class="transcript-emotion">[${emotionMatch[1]}]</span>`;
+                }
+                const cleanText = text.replace(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/gi, '').trim();
+
+                html += `
+                    <div class="transcript-segment">
+                        <span class="transcript-speaker ${speakerClass}">${escapeHtml(speaker)}</span>
+                        ${emotionTag}
+                        <div class="transcript-text">${escapeHtml(cleanText)}</div>
+                    </div>
+                `;
+            } else if (line) {
+                // Plain text without speaker label
+                html += `<div class="transcript-segment"><div class="transcript-text">${escapeHtml(line)}</div></div>`;
+            }
+        });
+
+        // If no speaker formatting was found, just display as plain text
+        if (!html) {
+            html = `<div class="transcript-text" style="white-space: pre-wrap;">${escapeHtml(transcriptionText)}</div>`;
+        }
+
+        container.innerHTML = html;
+    }
 }
 
 function populateEmotionsGrid(emotions) {
@@ -1375,6 +1516,12 @@ async function saveAnalysis() {
         elements.saveAnalysisBtn.disabled = true;
         elements.saveAnalysisBtn.textContent = 'Saving...';
 
+        // Validate customer support staff is selected (client-side check)
+        if (!elements.modalStaff.value.trim()) {
+            showToast('Customer Support Staff is required. Please select a staff member.', 'error');
+            return;
+        }
+
         const response = await fetch('/api/audio/store', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1382,7 +1529,9 @@ async function saveAnalysis() {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to save analysis');
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.detail || 'Failed to save analysis';
+            throw new Error(errorMsg);
         }
 
         // Remove from pending list

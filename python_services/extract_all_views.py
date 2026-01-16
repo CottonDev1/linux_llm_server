@@ -7,8 +7,8 @@ from pymongo import MongoClient
 from datetime import datetime
 
 # MongoDB connection
-MONGO_HOST = 'EWRSPT-AI'
-MONGO_PORT = 27018
+MONGO_HOST = 'localhost'
+MONGO_PORT = 27017
 MONGO_DB = 'rag_server'
 
 # Database configurations

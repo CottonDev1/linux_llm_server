@@ -37,17 +37,6 @@ const PUBLIC_NAV_CONFIG = {
                 icon: '<ewr-icon name="folder" size="20"></ewr-icon>'
             }
         ]
-    },
-    system: {
-        title: 'System',
-        items: [
-            {
-                id: 'admin',
-                name: 'Admin',
-                url: '/admin/index.html',
-                icon: '<ewr-icon name="settings" size="20"></ewr-icon>'
-            }
-        ]
     }
 };
 
@@ -88,8 +77,9 @@ function isActivePage(itemUrl) {
 
 /**
  * Generate the sidebar HTML
+ * @param {string|null} userRole - The current user's role
  */
-function generateSidebarHTML() {
+function generateSidebarHTML(userRole = null) {
     let html = '';
 
     for (const [sectionKey, section] of Object.entries(PUBLIC_NAV_CONFIG)) {
@@ -110,6 +100,16 @@ function generateSidebarHTML() {
             `;
         }
 
+        // Add Admin Dashboard link after Main section for admin users
+        if (sectionKey === 'main' && userRole === 'admin') {
+            html += `
+                <a href="/admin/index.html" class="nav-item" data-nav-id="admin-dashboard">
+                    <span class="nav-icon"><ewr-icon name="settings" size="20"></ewr-icon></span>
+                    <span class="nav-text">Admin Dashboard</span>
+                </a>
+            `;
+        }
+
         html += '</div>';
     }
 
@@ -119,15 +119,29 @@ function generateSidebarHTML() {
 /**
  * Initialize the sidebar navigation
  */
-function initPublicSidebar() {
+async function initPublicSidebar() {
     const navContainer = document.querySelector('.sidebar-nav');
     if (!navContainer) {
         console.warn('Sidebar nav container (.sidebar-nav) not found');
         return;
     }
 
-    // Generate and insert navigation
-    navContainer.innerHTML = generateSidebarHTML();
+    // Get user role for conditional navigation
+    let userRole = null;
+    try {
+        if (typeof AuthClient !== 'undefined') {
+            const auth = new AuthClient();
+            const user = await auth.getUser();
+            if (user) {
+                userRole = user.role;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to get user role for sidebar:', error);
+    }
+
+    // Generate and insert navigation with user role
+    navContainer.innerHTML = generateSidebarHTML(userRole);
 
     // Add footer with logout button if not already present
     const sidebar = navContainer.closest('.app-sidebar') || navContainer.parentElement;
@@ -196,12 +210,13 @@ function getSidebarFooterHTML() {
 
 /**
  * Get the complete sidebar HTML
+ * @param {string|null} userRole - The current user's role
  */
-function getCompleteSidebarHTML() {
+function getCompleteSidebarHTML(userRole = null) {
     return `
         ${getSidebarBrandHTML()}
         <nav class="sidebar-nav">
-            ${generateSidebarHTML()}
+            ${generateSidebarHTML(userRole)}
         </nav>
         ${getSidebarFooterHTML()}
     `;

@@ -30,7 +30,7 @@ def mongodb_uri() -> str:
     Note: Uses directConnection=true for MongoDB Atlas Local which runs as a replica set
     with internal Docker hostnames that aren't resolvable from outside the container.
     """
-    default_uri = "mongodb://EWRSPT-AI:27018/?directConnection=true"
+    default_uri = "mongodb://localhost:27017/?directConnection=true"
     return os.environ.get("MONGODB_URI", default_uri)
 
 

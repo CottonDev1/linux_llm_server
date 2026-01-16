@@ -13,7 +13,6 @@ from datetime import datetime
 
 sys.path.insert(0, '.')
 import config
-config.MONGODB_URI = 'mongodb://EWRSPT-AI:27018/?directConnection=true&serverSelectionTimeoutMS=30000&connectTimeoutMS=10000'
 
 async def update(record_type: str, record_id: str, summary_data: dict):
     from mongodb import get_mongodb_service

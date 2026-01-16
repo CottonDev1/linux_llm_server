@@ -17,7 +17,7 @@ class LLMService:
     Centralized LLM service for all pipelines.
     
     Usage:
-        service = LLMService(mongodb_uri="mongodb://EWRSPT-AI:27018")
+        service = LLMService(mongodb_uri="mongodb://localhost:27017")
         
         # Get client for a pipeline
         sql_client = service.get_client(Pipeline.SQL)

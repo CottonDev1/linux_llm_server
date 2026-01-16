@@ -85,12 +85,24 @@ class TranscriptionService:
     def __init__(self):
         self.model = None
         self.is_initialized = False
-        self.device = "cuda:0" if self._check_cuda() else "cpu"
+        self.device = self._get_device()
         self.is_windows = sys.platform == 'win32'
         self.vad_available = False
         self.parallel_enabled = PARALLEL_ENABLED
         self.max_parallel_chunks = MAX_PARALLEL_CHUNKS
         self._executor = None  # Lazy-initialized ThreadPoolExecutor
+
+    def _get_device(self) -> str:
+        """Get the device to use for the model, checking config and CUDA availability"""
+        # Check environment variable first (e.g., SENSEVOICE_DEVICE=cuda:1)
+        env_device = os.environ.get("SENSEVOICE_DEVICE")
+        if env_device:
+            return env_device
+
+        # Default to cuda:1 to avoid conflicts with other models on cuda:0
+        if self._check_cuda():
+            return "cuda:1"
+        return "cpu"
 
     @classmethod
     def get_instance(cls) -> 'TranscriptionService':
@@ -160,35 +172,63 @@ class TranscriptionService:
         # Set offline mode to prevent any network access
         os.environ["MODELSCOPE_OFFLINE"] = "1"
 
-        try:
-            if self.is_windows:
-                print("Windows detected - initializing without VAD model")
-                print("Long audio files will be processed using manual chunking")
-                self.model = AutoModel(
-                    model=str(model_path),
-                    device=self.device,
-                    disable_pbar=True,
-                    disable_update=True
-                )
-                self.vad_available = False
-            else:
-                print("Linux/Mac detected - initializing with VAD model")
-                self.model = AutoModel(
-                    model=str(model_path),
-                    vad_model="fsmn-vad",
-                    vad_kwargs={"max_single_segment_time": 30000},
-                    device=self.device,
-                    disable_pbar=True,
-                    disable_update=True
-                )
-                self.vad_available = True
+        # Try loading on configured device, fall back to CPU if OOM
+        devices_to_try = [self.device]
+        if self.device != "cpu":
+            devices_to_try.append("cpu")  # Add CPU as fallback
 
-            self.is_initialized = True
-            print("SenseVoice model initialized successfully")
+        last_error = None
+        for device in devices_to_try:
+            try:
+                print(f"Attempting to load SenseVoice model on device: {device}")
 
-        except Exception as e:
-            print(f"Error initializing SenseVoice model: {e}")
-            raise
+                if self.is_windows:
+                    print("Windows detected - initializing without VAD model")
+                    print("Long audio files will be processed using manual chunking")
+                    self.model = AutoModel(
+                        model=str(model_path),
+                        device=device,
+                        disable_pbar=True,
+                        disable_update=True
+                    )
+                    self.vad_available = False
+                else:
+                    print("Linux/Mac detected - initializing with VAD model")
+                    self.model = AutoModel(
+                        model=str(model_path),
+                        vad_model="fsmn-vad",
+                        vad_kwargs={"max_single_segment_time": 30000},
+                        device=device,
+                        disable_pbar=True,
+                        disable_update=True
+                    )
+                    self.vad_available = True
+
+                self.device = device  # Update to the device that worked
+                self.is_initialized = True
+                print(f"SenseVoice model initialized successfully on {device}")
+                return  # Success, exit the method
+
+            except Exception as e:
+                error_str = str(e)
+                last_error = e
+                if "CUDA out of memory" in error_str or "OutOfMemoryError" in error_str:
+                    print(f"GPU out of memory on {device}, trying next option...")
+                    # Clear CUDA cache before trying next device
+                    try:
+                        import torch
+                        torch.cuda.empty_cache()
+                    except:
+                        pass
+                    continue
+                else:
+                    # Non-OOM error, don't retry
+                    print(f"Error initializing SenseVoice model: {e}")
+                    raise
+
+        # If we get here, all devices failed
+        print(f"Failed to initialize SenseVoice on any device. Last error: {last_error}")
+        raise last_error
 
     def get_audio_metadata(self, audio_path: str) -> Dict:
         """

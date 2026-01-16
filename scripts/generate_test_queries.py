@@ -4,6 +4,7 @@ Creates a markdown document with queries for pipeline testing.
 """
 
 import json
+import os
 import re
 from pymongo import MongoClient
 from typing import List, Dict, Optional
@@ -137,7 +138,8 @@ def generate_question(table_name: str, summary: str, columns: List[Dict], foreig
 def main():
     """Generate test queries document."""
     print("Connecting to MongoDB...")
-    client = MongoClient('mongodb://EWRSPT-AI:27017')
+    mongodb_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+    client = MongoClient(mongodb_uri)
     db = client['rag_server']
     tables_collection = db['sql_schema_context']
 
