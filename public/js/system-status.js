@@ -7,7 +7,8 @@
  */
 
 // Configuration
-const PYTHON_SERVICE_URL = 'http://localhost:8001';
+// Use relative URL to go through Node.js proxy - works from any browser
+const PYTHON_SERVICE_URL = '/api/python';
 const STATUS_CHECK_INTERVAL = 5000; // 5 seconds - polls cached server status
 
 // Status state
