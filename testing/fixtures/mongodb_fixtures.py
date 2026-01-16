@@ -6,6 +6,7 @@ Fixtures for MongoDB testing with proper isolation and cleanup.
 All test data is prefixed with 'test_' for easy identification and cleanup.
 """
 
+import os
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional

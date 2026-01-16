@@ -262,7 +262,13 @@ def run_test_category(
     """
     logger = get_run_logger()
 
-    module_path = f"tests/pipelines/{pipeline}/test_{pipeline}_{category}.py"
+    # Tests are in /data/projects/llm_website/testing/pipelines/, not python_services/tests/
+    # Handle special case where directory name differs from test file prefix
+    test_file_prefix = {
+        "document_agent": "document",  # directory is document_agent, files are test_document_*.py
+    }.get(pipeline, pipeline)
+
+    module_path = f"/data/projects/llm_website/testing/pipelines/{pipeline}/test_{test_file_prefix}_{category}.py"
     logger.info(f"Running {pipeline}/{category} tests: {module_path}")
 
     result = run_pytest_module(module_path, config, config.timeout_seconds)
