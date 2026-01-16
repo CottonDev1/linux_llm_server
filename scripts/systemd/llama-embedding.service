@@ -13,7 +13,7 @@ ExecStart=/data/projects/llama.cpp/build/bin/llama-server \
     --port 8083 \
     --n-gpu-layers 99 \
     --embedding \
-    --ctx-size 512
+    --metrics --ctx-size 512
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:/data/logs/llama/embedding.log

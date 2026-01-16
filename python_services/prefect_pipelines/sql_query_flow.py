@@ -30,6 +30,71 @@ from datetime import datetime
 
 from prefect import flow, task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
+from prefect.variables import Variable
+
+
+# =============================================================================
+# Prefect Variables Support
+# =============================================================================
+
+async def get_prefect_variable(name: str, default: Any = None) -> Any:
+    """
+    Get a Prefect Variable value with fallback to default.
+
+    Args:
+        name: Variable name in Prefect
+        default: Default value if variable not found
+
+    Returns:
+        Variable value or default
+    """
+    try:
+        value = await Variable.get(name, default=default)
+        return value
+    except Exception:
+        return default
+
+
+def get_prefect_variable_sync(name: str, default: Any = None) -> Any:
+    """
+    Synchronous wrapper for getting Prefect Variables.
+
+    Args:
+        name: Variable name in Prefect
+        default: Default value if variable not found
+
+    Returns:
+        Variable value or default
+    """
+    try:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If we're already in an async context, create a new thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, Variable.get(name, default=default))
+                    return future.result(timeout=5)
+            else:
+                return asyncio.run(Variable.get(name, default=default))
+        except RuntimeError:
+            return asyncio.run(Variable.get(name, default=default))
+    except Exception:
+        return default
+
+
+# Prefect Variable names for SQL pipeline configuration
+SQL_PIPELINE_VARIABLES = {
+    "database": "sql_pipeline_database",           # Default database name
+    "server": "sql_pipeline_server",               # Default SQL Server
+    "llm_endpoint": "sql_pipeline_llm_endpoint",   # LLM endpoint URL
+    "mongodb_uri": "sql_pipeline_mongodb_uri",     # MongoDB connection string
+    "max_tokens": "sql_pipeline_max_tokens",       # Default max tokens
+    "execute_sql": "sql_pipeline_execute_sql",     # Default execute flag
+    "include_schema": "sql_pipeline_include_schema", # Include schema context
+    "use_cache": "sql_pipeline_use_cache",         # Use cache lookup
+}
 
 
 # =============================================================================

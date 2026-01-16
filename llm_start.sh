@@ -11,10 +11,11 @@ PID_DIR="/data/run"
 mkdir -p "$LOG_DIR" "$PID_DIR"
 
 # Service definitions: name|port|model|gpu|extra_args|model_dir_override
-# GPU 0 = RTX 3050 (8GB), GPU 1 = GTX 1660 (6GB)
+# GPU 0 = RTX 3050 (8GB) - SQL model only
+# GPU 1 = GTX 1660 (6GB) - General, Code, Embedding models
 SERVICES=(
     "SQL|8080|sqlcoder-7b-2.Q4_K_M.gguf|0||"
-    "General|8081|Qwen2.5-7B-Instruct-Q4_K_M.gguf|0||"
+    "General|8081|qwen2.5-3b-instruct-q4_k_m.gguf|1||$EMBED_DIR"
     "Code|8082|qwen2.5-coder-1.5b-instruct-q4_k_m.gguf|1||"
     "Embedding|8083|nomic-embed-text-v1.5-f16.gguf|1|--embedding|$EMBED_DIR"
 )
