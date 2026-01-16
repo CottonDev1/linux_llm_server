@@ -303,8 +303,11 @@ async def create_test_artifact(
         title=f"{pipeline.title()} Pipeline Test Report",
     )
 
+    # Artifact keys must only contain lowercase letters, numbers, and dashes
+    artifact_key = f"{pipeline.replace('_', '-')}-test-results"
+
     await create_markdown_artifact(
-        key=f"{pipeline}-test-results",
+        key=artifact_key,
         markdown=report,
         description=f"Test results for {pipeline} pipeline",
     )
