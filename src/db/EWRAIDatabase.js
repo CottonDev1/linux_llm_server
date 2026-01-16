@@ -248,6 +248,22 @@ class EWRAIDatabase {
         )
       `);
 
+      // Create sql_connection_settings table for per-user SQL connection preferences
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS sql_connection_settings (
+          user_id TEXT PRIMARY KEY,
+          server TEXT,
+          database_name TEXT,
+          auth_type TEXT DEFAULT 'sql',
+          domain TEXT,
+          username TEXT,
+          encrypted_password TEXT,
+          trust_cert INTEGER DEFAULT 1,
+          encrypt INTEGER DEFAULT 0,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       // Create roles table to store available roles
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS roles (
@@ -1664,6 +1680,69 @@ class EWRAIDatabase {
       )
     `);
     stmt.run(category, role);
+  }
+
+  /**
+   * Save SQL connection settings for a user
+   * @param {string} userId - User ID
+   * @param {Object} settings - Connection settings object
+   */
+  saveSqlConnectionSettings(userId, settings) {
+    const stmt = this.db.prepare(`
+      INSERT INTO sql_connection_settings (user_id, server, database_name, auth_type, domain, username, encrypted_password, trust_cert, encrypt, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id) DO UPDATE SET
+        server = excluded.server,
+        database_name = excluded.database_name,
+        auth_type = excluded.auth_type,
+        domain = excluded.domain,
+        username = excluded.username,
+        encrypted_password = excluded.encrypted_password,
+        trust_cert = excluded.trust_cert,
+        encrypt = excluded.encrypt,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+
+    stmt.run(
+      userId,
+      settings.server || null,
+      settings.database || null,
+      settings.authType || 'sql',
+      settings.domain || null,
+      settings.username || null,
+      settings.encryptedPassword || null,
+      settings.trustCert ? 1 : 0,
+      settings.encrypt ? 1 : 0
+    );
+
+    return { success: true };
+  }
+
+  /**
+   * Get SQL connection settings for a user
+   * @param {string} userId - User ID
+   * @returns {Object|null} Connection settings or null if not found
+   */
+  getSqlConnectionSettings(userId) {
+    const stmt = this.db.prepare(`
+      SELECT server, database_name, auth_type, domain, username, encrypted_password, trust_cert, encrypt
+      FROM sql_connection_settings
+      WHERE user_id = ?
+    `);
+
+    const row = stmt.get(userId);
+    if (!row) return null;
+
+    return {
+      server: row.server,
+      database: row.database_name,
+      authType: row.auth_type,
+      domain: row.domain,
+      username: row.username,
+      encryptedPassword: row.encrypted_password,
+      trustCert: row.trust_cert === 1,
+      encrypt: row.encrypt === 1
+    };
   }
 
   /**

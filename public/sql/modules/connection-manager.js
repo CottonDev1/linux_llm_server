@@ -62,7 +62,7 @@ export async function saveConnectionSettings() {
 }
 
 /**
- * Load saved connection settings from localStorage
+ * Load saved connection settings from database first, then localStorage as fallback
  * Automatically decrypts saved passwords if CryptoUtils is available
  *
  * @async
@@ -71,12 +71,41 @@ export async function saveConnectionSettings() {
 export async function loadSavedConnectionSettings() {
     const userStr = localStorage.getItem('user');
     const userId = userStr ? JSON.parse(userStr).id || 'default' : 'default';
+    let settings = null;
 
-    const savedSettings = localStorage.getItem(`sqlConnectionSettings_${userId}`);
-    if (savedSettings) {
+    // Try loading from database first
+    try {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+            const response = await fetch('/api/auth/sql-connection-settings', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (result.success && result.settings) {
+                settings = result.settings;
+                console.log('Loaded settings from database');
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load settings from database:', e.message);
+    }
+
+    // Fallback to localStorage
+    if (!settings) {
+        const savedSettings = localStorage.getItem(`sqlConnectionSettings_${userId}`);
+        if (savedSettings) {
+            try {
+                settings = JSON.parse(savedSettings);
+                console.log('Loaded settings from localStorage');
+            } catch (e) {
+                console.error('Failed to parse localStorage settings:', e);
+            }
+        }
+    }
+
+    // Apply settings to form
+    if (settings) {
         try {
-            const settings = JSON.parse(savedSettings);
-
             if (settings.server) document.getElementById('server').value = settings.server;
             if (settings.authType) {
                 document.getElementById('authType').value = settings.authType;
@@ -97,20 +126,86 @@ export async function loadSavedConnectionSettings() {
                     }
                 } catch (e) {
                     console.error('Failed to decrypt password:', e);
-                    // Password field remains empty - user will need to re-enter
                 }
             }
 
-            // Note: Database will be loaded after connection test
             // Store database preference for after connection
             if (settings.database) {
                 window._savedDatabasePreference = settings.database;
             }
 
-            console.log('Loaded saved connection settings for user:', userId);
+            console.log('Applied saved connection settings for user:', userId);
         } catch (e) {
-            console.error('Failed to load saved connection settings:', e);
+            console.error('Failed to apply saved connection settings:', e);
         }
+    }
+}
+
+/**
+ * Save connection settings to the server database
+ * @async
+ * @returns {Promise<void>}
+ */
+export async function saveSettingsToDatabase() {
+    const connectionMessage = document.getElementById('connectionMessage');
+    const userStr = localStorage.getItem('user');
+    const userId = userStr ? JSON.parse(userStr).id || 'default' : 'default';
+
+    // Get password and encrypt it
+    const password = document.getElementById('password').value;
+    let encryptedPassword = null;
+
+    if (password && window.CryptoUtils && CryptoUtils.isSupported()) {
+        try {
+            encryptedPassword = await CryptoUtils.encrypt(password, userId);
+        } catch (e) {
+            console.error('Failed to encrypt password:', e);
+        }
+    }
+
+    const settings = {
+        server: document.getElementById('server').value,
+        database: document.getElementById('database').value,
+        authType: document.getElementById('authType').value,
+        domain: document.getElementById('domain').value,
+        username: document.getElementById('username').value,
+        encryptedPassword: encryptedPassword,
+        trustCert: document.getElementById('trustCert').checked,
+        encrypt: document.getElementById('encrypt').checked
+    };
+
+    try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+            showMessage(connectionMessage, 'error', 'Please log in to save settings');
+            return;
+        }
+
+        const response = await fetch('/api/auth/sql-connection-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Also save to localStorage as backup
+            localStorage.setItem(`sqlConnectionSettings_${userId}`, JSON.stringify(settings));
+            showMessage(connectionMessage, 'success', 'Settings saved to database');
+            setTimeout(() => hideConnectionMessage(), 3000);
+        } else {
+            showMessage(connectionMessage, 'error', result.error || 'Failed to save settings');
+        }
+    } catch (error) {
+        console.error('Failed to save settings to database:', error);
+        // Fallback to localStorage
+        await saveConnectionSettings();
+        showMessage(connectionMessage, 'info', 'Settings saved locally (server unavailable)');
+        setTimeout(() => hideConnectionMessage(), 3000);
     }
 }
 

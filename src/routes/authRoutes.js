@@ -348,6 +348,40 @@ router.put('/password', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/sql-connection-settings
+ * Save SQL connection settings for the authenticated user
+ */
+router.post('/sql-connection-settings', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const settings = req.body;
+
+    ewraiDatabase.saveSqlConnectionSettings(userId, settings);
+
+    res.json({ success: true, message: 'SQL connection settings saved' });
+  } catch (error) {
+    console.error('Error saving SQL connection settings:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/auth/sql-connection-settings
+ * Get SQL connection settings for the authenticated user
+ */
+router.get('/sql-connection-settings', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const settings = ewraiDatabase.getSqlConnectionSettings(userId);
+
+    res.json({ success: true, settings: settings || null });
+  } catch (error) {
+    console.error('Error getting SQL connection settings:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
   // Admin middleware
   const requireAdmin = (req, res, next) => {
     if (req.user.role !== 'admin') {
