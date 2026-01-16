@@ -2617,7 +2617,7 @@ class EwrDocumentList extends HTMLElement {
         count.textContent = docCount;
 
         if (docCount > 0) {
-            // Build THREE-ROW grid HTML (no icon - cleaner modern look)
+            // Build THREE-ROW grid HTML with file type icons
             const gridHtml = `
                 <div class="ewr-document-grid-3row">
                     ${titles.map(title => {
@@ -2625,10 +2625,12 @@ class EwrDocumentList extends HTMLElement {
                         const escapedForClick = title.replace(/'/g, "\\'");
                         const clickHandler = onClickAttr ? `${onClickAttr}('${escapedForClick}')` :
                                            onItemClick ? `(${onItemClick})('${escapedForClick}')` : '';
+                        const fileIcon = this._getFileIcon(title);
                         return `
                             <div class="ewr-document-grid-item"
                                  title="${escapedTitle}"
                                  ${clickHandler ? `onclick="${clickHandler}"` : ''}>
+                                <span class="ewr-document-grid-icon">${fileIcon}</span>
                                 <div class="ewr-document-grid-title">${escapedTitle}</div>
                             </div>
                         `;
@@ -2639,6 +2641,61 @@ class EwrDocumentList extends HTMLElement {
         } else {
             this.showEmpty();
         }
+    }
+
+    // Get file type icon based on extension
+    _getFileIcon(filename) {
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        const iconMap = {
+            // Documents
+            'pdf': '📕',
+            'doc': '📘',
+            'docx': '📘',
+            'odt': '📘',
+            'rtf': '📘',
+            // Spreadsheets
+            'xls': '📗',
+            'xlsx': '📗',
+            'csv': '📗',
+            'ods': '📗',
+            // Presentations
+            'ppt': '📙',
+            'pptx': '📙',
+            'odp': '📙',
+            // Images
+            'jpg': '🖼️',
+            'jpeg': '🖼️',
+            'png': '🖼️',
+            'gif': '🖼️',
+            'svg': '🖼️',
+            'webp': '🖼️',
+            // Text
+            'txt': '📄',
+            'md': '📝',
+            'json': '📋',
+            'xml': '📋',
+            'html': '🌐',
+            'htm': '🌐',
+            // Code
+            'js': '⚙️',
+            'py': '🐍',
+            'sql': '🗃️',
+            // Archives
+            'zip': '📦',
+            'rar': '📦',
+            '7z': '📦',
+            // Audio
+            'mp3': '🎵',
+            'wav': '🎵',
+            'ogg': '🎵',
+            'm4a': '🎵',
+            // Video
+            'mp4': '🎬',
+            'avi': '🎬',
+            'mov': '🎬',
+            'mkv': '🎬'
+        };
+        return iconMap[ext] || '📄';
     }
 
     // Helper to escape HTML
