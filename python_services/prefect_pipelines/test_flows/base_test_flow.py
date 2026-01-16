@@ -18,6 +18,7 @@ from datetime import datetime
 
 from prefect import flow, task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
+from prefect.variables import Variable
 from pydantic import BaseModel, Field, field_validator
 
 # Add python_services to path
@@ -33,6 +34,56 @@ from prefect_pipelines.test_flows.test_flow_utils import (
     create_test_report_markdown,
     create_metrics_from_results,
 )
+
+
+# =============================================================================
+# Prefect Variables Support
+# =============================================================================
+
+async def load_base_test_config() -> Dict[str, Any]:
+    """
+    Load test configuration from Prefect Variables.
+
+    Returns:
+        Dict with configuration values loaded from Variables
+    """
+    config = {}
+
+    # MongoDB configuration
+    config["mongodb_uri"] = await Variable.get(
+        "mongodb_uri",
+        default="mongodb://localhost:27017"
+    )
+    config["mongodb_database"] = await Variable.get(
+        "mongodb_database",
+        default="llm_website"
+    )
+
+    # LLM endpoints
+    config["llm_sql_endpoint"] = await Variable.get(
+        "llm_sql_endpoint",
+        default="http://localhost:8080"
+    )
+    config["llm_general_endpoint"] = await Variable.get(
+        "llm_general_endpoint",
+        default="http://localhost:8081"
+    )
+    config["llm_code_endpoint"] = await Variable.get(
+        "llm_code_endpoint",
+        default="http://localhost:8082"
+    )
+
+    # Test execution settings
+    config["timeout_seconds"] = await Variable.get(
+        "test_timeout_seconds",
+        default=300
+    )
+    config["cleanup_after_test"] = await Variable.get(
+        "test_cleanup_after_test",
+        default=True
+    )
+
+    return config
 
 
 class TestFlowConfig(BaseModel):
@@ -260,9 +311,9 @@ async def create_test_artifact(
 
 
 @flow(name="pipeline_test_base", log_prints=True)
-def pipeline_test_base_flow(
+async def pipeline_test_base_flow(
     pipeline: str,
-    mongodb_uri: str,
+    mongodb_uri: str = "mongodb://localhost:27017",
     llm_endpoint: str = "http://localhost:8081",
     timeout_seconds: int = 300,
     run_storage: bool = True,
@@ -279,7 +330,7 @@ def pipeline_test_base_flow(
 
     Args:
         pipeline: Pipeline name
-        mongodb_uri: MongoDB connection URI
+        mongodb_uri: MongoDB connection URI (default: mongodb://localhost:27017)
         llm_endpoint: LLM endpoint URL
         timeout_seconds: Test timeout
         run_storage: Run storage tests
@@ -294,16 +345,25 @@ def pipeline_test_base_flow(
     logger = get_run_logger()
     logger.info(f"Starting {pipeline} pipeline tests")
 
+    # Load configuration from Prefect Variables (overrides defaults)
+    var_config = await load_base_test_config()
+
+    # Use parameter values if provided, otherwise use Variable values
+    effective_mongodb_uri = mongodb_uri if mongodb_uri != "mongodb://localhost:27017" else var_config.get("mongodb_uri", mongodb_uri)
+    effective_llm_endpoint = llm_endpoint if llm_endpoint != "http://localhost:8081" else var_config.get("llm_general_endpoint", llm_endpoint)
+    effective_timeout = timeout_seconds if timeout_seconds != 300 else var_config.get("timeout_seconds", timeout_seconds)
+    effective_cleanup = cleanup_after_test if cleanup_after_test is not True else var_config.get("cleanup_after_test", cleanup_after_test)
+
     # Validate LLM endpoint is local
-    if not llm_endpoint.startswith(("http://localhost", "http://127.0.0.1")):
-        raise ValueError(f"Only local LLM endpoints allowed. Got: {llm_endpoint}")
+    if not effective_llm_endpoint.startswith(("http://localhost", "http://127.0.0.1")):
+        raise ValueError(f"Only local LLM endpoints allowed. Got: {effective_llm_endpoint}")
 
     # Create config
     config = TestFlowConfig(
-        mongodb_uri=mongodb_uri,
-        llm_general_endpoint=llm_endpoint,
-        timeout_seconds=timeout_seconds,
-        cleanup_after_test=cleanup_after_test,
+        mongodb_uri=effective_mongodb_uri,
+        llm_general_endpoint=effective_llm_endpoint,
+        timeout_seconds=effective_timeout,
+        cleanup_after_test=effective_cleanup,
         run_storage_tests=run_storage,
         run_retrieval_tests=run_retrieval,
         run_generation_tests=run_generation,
@@ -334,9 +394,8 @@ def pipeline_test_base_flow(
 
     metrics.end_time = datetime.utcnow().isoformat()
 
-    # Create artifact
-    import asyncio
-    asyncio.run(create_test_artifact(metrics, results, pipeline))
+    # Create artifact (already async)
+    await create_test_artifact(metrics, results, pipeline)
 
     logger.info(f"Pipeline tests complete: {metrics.passed}/{metrics.total} passed")
 
@@ -346,3 +405,33 @@ def pipeline_test_base_flow(
         "metrics": metrics.to_dict(),
         "results": [r.to_dict() for r in results],
     }
+
+
+if __name__ == "__main__":
+    import asyncio
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run base pipeline tests")
+    parser.add_argument("--pipeline", required=True, help="Pipeline name to test")
+    parser.add_argument("--mongodb-uri", default="mongodb://localhost:27017")
+    parser.add_argument("--llm-endpoint", default="http://localhost:8081")
+    parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--skip-storage", action="store_true")
+    parser.add_argument("--skip-retrieval", action="store_true")
+    parser.add_argument("--skip-generation", action="store_true")
+    parser.add_argument("--skip-e2e", action="store_true")
+    parser.add_argument("--no-cleanup", action="store_true")
+
+    args = parser.parse_args()
+
+    asyncio.run(pipeline_test_base_flow(
+        pipeline=args.pipeline,
+        mongodb_uri=args.mongodb_uri,
+        llm_endpoint=args.llm_endpoint,
+        timeout_seconds=args.timeout,
+        run_storage=not args.skip_storage,
+        run_retrieval=not args.skip_retrieval,
+        run_generation=not args.skip_generation,
+        run_e2e=not args.skip_e2e,
+        cleanup_after_test=not args.no_cleanup,
+    ))

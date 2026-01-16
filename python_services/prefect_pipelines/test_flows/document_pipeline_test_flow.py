@@ -16,11 +16,13 @@ Tests:
 4. E2E: Upload → Parse → Chunk → Embed → Query → Generate
 """
 
+import asyncio
 import os
 import sys
 from typing import Dict, Any
 
 from prefect import flow, get_run_logger
+from prefect.variables import Variable
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -34,13 +36,46 @@ from prefect_pipelines.test_flows.test_flow_utils import (
 )
 
 
+# =============================================================================
+# Prefect Variables Support
+# =============================================================================
+
+async def load_document_test_config() -> Dict[str, Any]:
+    """
+    Load document test configuration from Prefect Variables.
+
+    Loads test-related settings with sensible defaults.
+
+    Returns:
+        Dict with mongodb_uri, llm_endpoint, timeout settings
+    """
+    mongodb_uri = await Variable.get(
+        "mongodb_uri",
+        default="mongodb://localhost:27017/?directConnection=true"
+    )
+    llm_endpoint = await Variable.get(
+        "llm_general_endpoint",
+        default="http://localhost:8081"
+    )
+    timeout_seconds = await Variable.get(
+        "test_timeout_seconds",
+        default=300
+    )
+
+    return {
+        "mongodb_uri": mongodb_uri,
+        "llm_endpoint": llm_endpoint,
+        "timeout_seconds": int(timeout_seconds) if timeout_seconds else 300,
+    }
+
+
 @flow(
     name="document-pipeline-tests",
     description="Run document agent pipeline tests - manual trigger only",
     log_prints=True,
 )
-def document_pipeline_test_flow(
-    mongodb_uri: str,
+async def document_pipeline_test_flow(
+    mongodb_uri: str = "mongodb://localhost:27017/?directConnection=true",
     llm_endpoint: str = "http://localhost:8081",
     timeout_seconds: int = 300,
     run_storage: bool = True,
@@ -53,7 +88,7 @@ def document_pipeline_test_flow(
     Run document agent pipeline tests.
 
     Args:
-        mongodb_uri: MongoDB connection URI (required)
+        mongodb_uri: MongoDB connection URI (default: mongodb://localhost:27017)
         llm_endpoint: Local General LLM endpoint (llama.cpp port 8081)
         timeout_seconds: Test timeout per category
         run_storage: Run storage tests
@@ -67,6 +102,17 @@ def document_pipeline_test_flow(
     """
     logger = get_run_logger()
     logger.info("Starting Document Agent Pipeline Tests")
+
+    # Load configuration from Prefect Variables (overrides defaults if set)
+    test_config = await load_document_test_config()
+
+    # Use Prefect Variables values if parameters are at their defaults
+    if mongodb_uri == "mongodb://localhost:27017/?directConnection=true":
+        mongodb_uri = test_config["mongodb_uri"]
+    if llm_endpoint == "http://localhost:8081":
+        llm_endpoint = test_config["llm_endpoint"]
+    if timeout_seconds == 300:
+        timeout_seconds = test_config["timeout_seconds"]
 
     if not llm_endpoint.startswith(("http://localhost", "http://127.0.0.1")):
         raise ValueError(f"Only local LLM endpoints allowed. Got: {llm_endpoint}")
@@ -113,8 +159,7 @@ def document_pipeline_test_flow(
         metrics.add_result(result)
         logger.info(f"  E2E: {result.status.value}")
 
-    import asyncio
-    asyncio.run(create_test_artifact(metrics, results, "document_agent"))
+    await create_test_artifact(metrics, results, "document_agent")
 
     success = metrics.failed == 0 and metrics.errors == 0
     logger.info(f"Document Agent Pipeline Tests Complete: {metrics.passed}/{metrics.total} passed")
@@ -131,16 +176,20 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Run Document Agent Pipeline Tests")
-    parser.add_argument("--mongodb-uri", required=True, help="MongoDB URI")
+    parser.add_argument(
+        "--mongodb-uri",
+        default="mongodb://localhost:27017/?directConnection=true",
+        help="MongoDB URI (default: mongodb://localhost:27017)"
+    )
     parser.add_argument("--llm-endpoint", default="http://localhost:8081")
     parser.add_argument("--timeout", type=int, default=300)
 
     args = parser.parse_args()
 
-    result = document_pipeline_test_flow(
+    result = asyncio.run(document_pipeline_test_flow(
         mongodb_uri=args.mongodb_uri,
         llm_endpoint=args.llm_endpoint,
         timeout_seconds=args.timeout,
-    )
+    ))
 
     print(f"Result: {result}")

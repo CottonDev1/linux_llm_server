@@ -22,6 +22,7 @@ from typing import Dict, Any
 
 from prefect import flow, task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
+from prefect.variables import Variable
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -36,13 +37,29 @@ from prefect_pipelines.test_flows.test_flow_utils import (
 )
 
 
+async def load_audio_test_config() -> Dict[str, Any]:
+    """
+    Load audio test configuration from Prefect Variables.
+
+    Returns:
+        Dict with configuration values from Prefect Variables
+    """
+    config = {
+        "audio_file_path": await Variable.get("audio_file_path", default=""),
+        "audio_customer_name": await Variable.get("audio_customer_name", default="Customer"),
+        "audio_support_name": await Variable.get("audio_support_name", default="Support"),
+        "default_max_tokens": await Variable.get("default_max_tokens", default="2048"),
+    }
+    return config
+
+
 @flow(
     name="audio-pipeline-tests",
     description="Run audio pipeline tests - manual trigger only",
     log_prints=True,
 )
-def audio_pipeline_test_flow(
-    mongodb_uri: str,
+async def audio_pipeline_test_flow(
+    mongodb_uri: str = "mongodb://localhost:27017",
     llm_endpoint: str = "http://localhost:8081",
     timeout_seconds: int = 300,
     run_storage: bool = True,
@@ -55,7 +72,7 @@ def audio_pipeline_test_flow(
     Run audio pipeline tests.
 
     Args:
-        mongodb_uri: MongoDB connection URI (required)
+        mongodb_uri: MongoDB connection URI (default: mongodb://localhost:27017)
         llm_endpoint: Local General LLM endpoint (llama.cpp port 8081)
         timeout_seconds: Test timeout per category
         run_storage: Run storage tests
@@ -69,6 +86,10 @@ def audio_pipeline_test_flow(
     """
     logger = get_run_logger()
     logger.info("Starting Audio Pipeline Tests")
+
+    # Load configuration from Prefect Variables
+    audio_config = await load_audio_test_config()
+    logger.info(f"Loaded audio test config: {audio_config}")
 
     if not llm_endpoint.startswith(("http://localhost", "http://127.0.0.1")):
         raise ValueError(f"Only local LLM endpoints allowed. Got: {llm_endpoint}")
@@ -111,8 +132,7 @@ def audio_pipeline_test_flow(
         results.append(result)
         metrics.add_result(result)
 
-    import asyncio
-    asyncio.run(create_test_artifact(metrics, results, "audio"))
+    await create_test_artifact(metrics, results, "audio")
 
     success = metrics.failed == 0 and metrics.errors == 0
     logger.info(f"Audio Pipeline Tests Complete: {metrics.passed}/{metrics.total} passed")
@@ -123,3 +143,31 @@ def audio_pipeline_test_flow(
         "metrics": metrics.to_dict(),
         "results": [r.to_dict() for r in results],
     }
+
+
+if __name__ == "__main__":
+    import asyncio
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run audio pipeline tests")
+    parser.add_argument("--mongodb-uri", default="mongodb://localhost:27017")
+    parser.add_argument("--llm-endpoint", default="http://localhost:8081")
+    parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--skip-storage", action="store_true")
+    parser.add_argument("--skip-retrieval", action="store_true")
+    parser.add_argument("--skip-generation", action="store_true")
+    parser.add_argument("--skip-e2e", action="store_true")
+    parser.add_argument("--no-cleanup", action="store_true")
+
+    args = parser.parse_args()
+
+    asyncio.run(audio_pipeline_test_flow(
+        mongodb_uri=args.mongodb_uri,
+        llm_endpoint=args.llm_endpoint,
+        timeout_seconds=args.timeout,
+        run_storage=not args.skip_storage,
+        run_retrieval=not args.skip_retrieval,
+        run_generation=not args.skip_generation,
+        run_e2e=not args.skip_e2e,
+        cleanup_after_test=not args.no_cleanup,
+    ))
