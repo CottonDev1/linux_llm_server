@@ -133,18 +133,12 @@
                             </div>
 
                             <!-- Document List Section -->
-                            <div class="card-body ewr-document-list-container">
-                                <div class="ewr-document-list-header">
-                                    <span class="ewr-document-list-title">Matching Documents: <span class="ewr-document-list-count" id="documentCount">0</span></span>
-                                </div>
-                                <div class="ewr-document-list-content" id="documentList">
-                                    <div class="ewr-document-list-empty">
-                                        <div class="ewr-document-list-empty-icon">📄</div>
-                                        <div class="ewr-document-list-empty-title">No Documents Loaded</div>
-                                        <div class="ewr-document-list-empty-text">Select filters and click "Load Documents" to see matching documents</div>
-                                    </div>
-                                </div>
-                            </div>
+                            <ewr-document-list
+                                id="documentList"
+                                title="Matching Documents"
+                                empty-message="Select filters and click &quot;Load Documents&quot; to see matching documents"
+                                on-item-click="openDocumentPreview">
+                            </ewr-document-list>
                         </div>
                     </div>
                 </div>
@@ -275,9 +269,11 @@
 
         // ==================== DOCUMENT BROWSER FUNCTIONALITY ====================
 
+        // Store all loaded documents for client-side filtering
+        let allLoadedDocuments = [];
+
         async function loadDocuments() {
-            const documentList = document.getElementById('documentList');
-            const documentCount = document.getElementById('documentCount');
+            const documentListComponent = document.getElementById('documentList');
 
             // Get filter values
             const department = document.getElementById('browserDepartmentFilter')?.value || '';
@@ -285,14 +281,8 @@
             const subject = document.getElementById('browserSubjectFilter')?.value || '';
             const search = document.getElementById('searchFilter')?.value?.trim() || '';
 
-            // Show loading state
-            documentList.innerHTML = `
-                <div class="ewr-document-list-loading">
-                    <div class="ewr-document-list-spinner"></div>
-                    <span>Loading documents...</span>
-                </div>
-            `;
-            documentCount.textContent = '...';
+            // Show loading state using component API
+            documentListComponent.showLoading();
 
             try {
                 // Build query parameters
@@ -308,49 +298,51 @@
 
                 if (data.success) {
                     const titles = data.titles || [];
-                    documentCount.textContent = titles.length;
+                    allLoadedDocuments = titles;
 
                     if (titles.length === 0) {
-                        documentList.innerHTML = `
-                            <div class="ewr-document-list-empty">
-                                <div class="ewr-document-list-empty-icon">🔍</div>
-                                <div class="ewr-document-list-empty-title">No Documents Found</div>
-                                <div class="ewr-document-list-empty-text">Try adjusting your filter criteria</div>
-                            </div>
-                        `;
+                        documentListComponent.showEmpty('No documents found. Try adjusting your filter criteria.');
                     } else {
-                        documentList.innerHTML = titles.map(title => `
-                            <div class="ewr-document-row-item" onclick="openDocumentPreview('${escapeHtml(title)}')">
-                                <div class="ewr-document-row-icon">📄</div>
-                                <div class="ewr-document-row-info">
-                                    <div class="ewr-document-row-title">${escapeHtml(title)}</div>
-                                    <div class="ewr-document-row-meta">Click to preview</div>
-                                </div>
-                                <div class="ewr-document-row-arrow">→</div>
-                            </div>
-                        `).join('');
+                        documentListComponent.setDocuments(titles);
                     }
                 } else {
-                    documentList.innerHTML = `
-                        <div class="ewr-document-list-empty">
-                            <div class="ewr-document-list-empty-icon">⚠️</div>
-                            <div class="ewr-document-list-empty-title">Error Loading Documents</div>
-                            <div class="ewr-document-list-empty-text">${data.error || 'Unknown error occurred'}</div>
-                        </div>
-                    `;
-                    documentCount.textContent = '!';
+                    allLoadedDocuments = [];
+                    documentListComponent.showError(data.error || 'Failed to load documents');
                 }
             } catch (error) {
-                documentList.innerHTML = `
-                    <div class="ewr-document-list-empty">
-                        <div class="ewr-document-list-empty-icon">⚠️</div>
-                        <div class="ewr-document-list-empty-title">Connection Error</div>
-                        <div class="ewr-document-list-empty-text">${error.message}</div>
-                    </div>
-                `;
-                documentCount.textContent = 'Error';
+                allLoadedDocuments = [];
+                documentListComponent.showError(error.message);
             }
         }
+
+        // Real-time search filtering
+        let searchTimeout = null;
+        function applySearchFilter() {
+            const searchTerm = document.getElementById('searchFilter')?.value?.trim().toLowerCase() || '';
+            const documentListComponent = document.getElementById('documentList');
+
+            if (allLoadedDocuments.length === 0) {
+                return; // No documents loaded yet
+            }
+
+            // Filter documents based on search term
+            const filteredTitles = searchTerm
+                ? allLoadedDocuments.filter(title => title.toLowerCase().includes(searchTerm))
+                : allLoadedDocuments;
+
+            // Update display using component API
+            if (filteredTitles.length > 0) {
+                documentListComponent.setDocuments(filteredTitles);
+            } else {
+                documentListComponent.showEmpty('No documents match your search criteria');
+            }
+        }
+
+        // Add debounced search listener
+        document.getElementById('searchFilter')?.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(applySearchFilter, 300);
+        });
 
         function escapeHtml(text) {
             const div = document.createElement('div');
