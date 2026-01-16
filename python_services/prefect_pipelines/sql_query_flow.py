@@ -86,15 +86,87 @@ def get_prefect_variable_sync(name: str, default: Any = None) -> Any:
 
 # Prefect Variable names for SQL pipeline configuration
 SQL_PIPELINE_VARIABLES = {
-    "database": "sql_pipeline_database",           # Default database name
-    "server": "sql_pipeline_server",               # Default SQL Server
-    "llm_endpoint": "sql_pipeline_llm_endpoint",   # LLM endpoint URL
-    "mongodb_uri": "sql_pipeline_mongodb_uri",     # MongoDB connection string
-    "max_tokens": "sql_pipeline_max_tokens",       # Default max tokens
-    "execute_sql": "sql_pipeline_execute_sql",     # Default execute flag
-    "include_schema": "sql_pipeline_include_schema", # Include schema context
-    "use_cache": "sql_pipeline_use_cache",         # Use cache lookup
+    # Connection settings
+    "server": "sql_server",
+    "database": "sql_database",
+    "username": "sql_username",
+    "password": "sql_password",
+    "domain": "sql_domain",
+    "auth_type": "sql_auth_type",  # "windows" or "sql"
+    # Pipeline settings
+    "max_tokens": "default_max_tokens",
+    "max_results": "max_results",
+    "query_timeout": "query_timeout_ms",
 }
+
+
+async def load_sql_credentials_from_variables() -> Dict[str, Any]:
+    """
+    Load SQL credentials from Prefect Variables.
+
+    Handles auth_type logic:
+    - If auth_type is "windows": username becomes "domain\\username"
+    - If auth_type is "sql": username is used as-is (no domain)
+
+    Returns:
+        Dict with server, database, username, password, domain, auth_type
+    """
+    server = await get_prefect_variable("sql_server", "NCSQLTEST")
+    database = await get_prefect_variable("sql_database", "EWRCentral")
+    username = await get_prefect_variable("sql_username", "")
+    password = await get_prefect_variable("sql_password", "")
+    domain = await get_prefect_variable("sql_domain", "")
+    auth_type = await get_prefect_variable("sql_auth_type", "windows")
+
+    # Build the effective username based on auth_type
+    if auth_type.lower() == "windows" and domain:
+        effective_username = f"{domain}\\{username}"
+    else:
+        # SQL auth - no domain prefix
+        effective_username = username
+
+    return {
+        "server": server,
+        "database": database,
+        "username": effective_username,
+        "password": password,
+        "domain": domain if auth_type.lower() == "windows" else None,
+        "auth_type": auth_type,
+        "raw_username": username,  # Original username without domain
+    }
+
+
+def load_sql_credentials_from_variables_sync() -> Dict[str, Any]:
+    """
+    Synchronous version of load_sql_credentials_from_variables.
+
+    Returns:
+        Dict with server, database, username, password, domain, auth_type
+    """
+    try:
+        return asyncio.run(load_sql_credentials_from_variables())
+    except RuntimeError:
+        # Already in async context, use thread pool
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, load_sql_credentials_from_variables())
+            return future.result(timeout=10)
+
+
+async def load_pipeline_settings_from_variables() -> Dict[str, Any]:
+    """
+    Load pipeline settings from Prefect Variables.
+
+    Returns:
+        Dict with max_tokens, max_results, timeout settings
+    """
+    return {
+        "max_tokens": int(await get_prefect_variable("default_max_tokens", 512)),
+        "max_results": int(await get_prefect_variable("max_results", 50)),
+        "query_timeout_ms": int(await get_prefect_variable("query_timeout_ms", 60000)),
+        "default_temperature": float(await get_prefect_variable("default_temperature", 0.3)),
+        "similarity_threshold": float(await get_prefect_variable("similarity_threshold", 0.5)),
+    }
 
 
 # =============================================================================
@@ -1479,61 +1551,106 @@ async def sql_query_flow(
 
 def run_sql_query_flow(
     question: str,
-    database: str,
-    server: str = "NCSQLTEST",
+    database: Optional[str] = None,
+    server: Optional[str] = None,
     user_id: str = "anonymous",
     credentials: Optional[Dict[str, Any]] = None,
     execute_sql: bool = False,
     include_schema: bool = True,
     use_cache: bool = True,
-    max_results: int = 100,
-    max_tokens: int = 512,
-    use_prefect: bool = True
+    max_results: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    use_prefect: bool = True,
+    load_from_variables: bool = True
 ) -> Dict[str, Any]:
     """
     Run the SQL query flow and return structured results.
 
     This is the main entry point for the API to use Prefect-tracked SQL query processing.
+    Automatically loads defaults from Prefect Variables when load_from_variables=True.
     Includes fallback to direct pipeline if Prefect fails.
+
+    Prefect Variables used (when load_from_variables=True):
+        - sql_server: Default SQL Server hostname
+        - sql_database: Default database name
+        - sql_username: SQL username
+        - sql_password: SQL password
+        - sql_domain: Windows domain (only used if auth_type="windows")
+        - sql_auth_type: "windows" or "sql" (determines if domain is prefixed)
+        - default_max_tokens: Default max LLM tokens
+        - max_results: Default max results
 
     Args:
         question: Natural language question
-        database: Target database name
-        server: SQL Server hostname
+        database: Target database name (loaded from sql_database if None)
+        server: SQL Server hostname (loaded from sql_server if None)
         user_id: User ID for tracking
-        credentials: Database credentials (required if execute_sql=True)
+        credentials: Database credentials (auto-loaded from variables if None and execute_sql=True)
         execute_sql: Whether to execute the generated SQL
         include_schema: Whether to include schema context
         use_cache: Whether to use cache
-        max_results: Maximum rows to return
-        max_tokens: Maximum LLM tokens
+        max_results: Maximum rows to return (loaded from max_results variable if None)
+        max_tokens: Maximum LLM tokens (loaded from default_max_tokens if None)
         use_prefect: If True, run through Prefect flow for tracking
+        load_from_variables: If True, load defaults from Prefect Variables
 
     Returns:
         Dict with SQL, execution results, and metadata
     """
-    if use_prefect:
-        try:
-            result = asyncio.run(sql_query_flow(
-                question=question,
-                database=database,
-                server=server,
-                user_id=user_id,
-                credentials=credentials,
-                execute_sql=execute_sql,
-                include_schema=include_schema,
-                use_cache=use_cache,
-                max_results=max_results,
-                max_tokens=max_tokens
-            ))
-            return result
-        except Exception as e:
-            # Log Prefect failure and fall through to direct execution
-            import logging
-            logging.getLogger(__name__).warning(f"Prefect flow failed, falling back to direct pipeline: {e}")
+    async def _run():
+        nonlocal database, server, credentials, max_results, max_tokens
 
-    # Fallback to direct pipeline execution
-    async def run_direct():
+        # Load defaults from Prefect Variables if enabled
+        if load_from_variables:
+            sql_creds = await load_sql_credentials_from_variables()
+            settings = await load_pipeline_settings_from_variables()
+
+            # Use Prefect variables as defaults if not provided
+            if database is None:
+                database = sql_creds["database"]
+            if server is None:
+                server = sql_creds["server"]
+            if max_tokens is None:
+                max_tokens = settings["max_tokens"]
+            if max_results is None:
+                max_results = settings["max_results"]
+
+            # Auto-load credentials if executing SQL and none provided
+            if execute_sql and credentials is None:
+                credentials = {
+                    "server": sql_creds["server"],
+                    "database": sql_creds["database"],
+                    "username": sql_creds["username"],  # Already has domain if windows auth
+                    "password": sql_creds["password"],
+                    "domain": sql_creds["domain"],
+                    "auth_type": sql_creds["auth_type"],
+                }
+        else:
+            # Use hardcoded defaults
+            database = database or "EWRCentral"
+            server = server or "NCSQLTEST"
+            max_tokens = max_tokens or 512
+            max_results = max_results or 100
+
+        if use_prefect:
+            try:
+                return await sql_query_flow(
+                    question=question,
+                    database=database,
+                    server=server,
+                    user_id=user_id,
+                    credentials=credentials,
+                    execute_sql=execute_sql,
+                    include_schema=include_schema,
+                    use_cache=use_cache,
+                    max_results=max_results,
+                    max_tokens=max_tokens
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Prefect flow failed, falling back to direct pipeline: {e}")
+
+        # Fallback to direct pipeline execution
         from sql_pipeline.query_pipeline import get_query_pipeline
         from sql_pipeline.models.query_models import (
             SQLQueryRequest,
@@ -1573,7 +1690,7 @@ def run_sql_query_flow(
         return result.model_dump()
 
     try:
-        return asyncio.run(run_direct())
+        return asyncio.run(_run())
     except Exception as e:
         return {
             "success": False,
@@ -1584,26 +1701,73 @@ def run_sql_query_flow(
 
 async def run_sql_query_flow_async(
     question: str,
-    database: str,
-    server: str = "NCSQLTEST",
+    database: Optional[str] = None,
+    server: Optional[str] = None,
     user_id: str = "anonymous",
     credentials: Optional[Dict[str, Any]] = None,
     execute_sql: bool = False,
     include_schema: bool = True,
     use_cache: bool = True,
-    max_results: int = 100,
-    max_tokens: int = 512,
-    use_prefect: bool = True
+    max_results: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    use_prefect: bool = True,
+    load_from_variables: bool = True
 ) -> Dict[str, Any]:
     """
     Async version of run_sql_query_flow for use in async contexts.
 
+    Automatically loads defaults from Prefect Variables when load_from_variables=True.
+    See run_sql_query_flow for full documentation.
+
     Args:
-        Same as run_sql_query_flow
+        question: Natural language question
+        database: Target database (loaded from Prefect variables if None)
+        server: SQL Server (loaded from Prefect variables if None)
+        user_id: User ID for tracking
+        credentials: Database credentials (auto-loaded if None and execute_sql=True)
+        execute_sql: Whether to execute the generated SQL
+        include_schema: Whether to include schema context
+        use_cache: Whether to use cache
+        max_results: Maximum rows (loaded from Prefect variables if None)
+        max_tokens: Maximum LLM tokens (loaded from Prefect variables if None)
+        use_prefect: If True, run through Prefect flow for tracking
+        load_from_variables: If True, load defaults from Prefect Variables
 
     Returns:
         Dict with SQL, execution results, and metadata
     """
+    # Load defaults from Prefect Variables if enabled
+    if load_from_variables:
+        sql_creds = await load_sql_credentials_from_variables()
+        settings = await load_pipeline_settings_from_variables()
+
+        # Use Prefect variables as defaults if not provided
+        if database is None:
+            database = sql_creds["database"]
+        if server is None:
+            server = sql_creds["server"]
+        if max_tokens is None:
+            max_tokens = settings["max_tokens"]
+        if max_results is None:
+            max_results = settings["max_results"]
+
+        # Auto-load credentials if executing SQL and none provided
+        if execute_sql and credentials is None:
+            credentials = {
+                "server": sql_creds["server"],
+                "database": sql_creds["database"],
+                "username": sql_creds["username"],  # Already has domain if windows auth
+                "password": sql_creds["password"],
+                "domain": sql_creds["domain"],
+                "auth_type": sql_creds["auth_type"],
+            }
+    else:
+        # Use hardcoded defaults
+        database = database or "EWRCentral"
+        server = server or "NCSQLTEST"
+        max_tokens = max_tokens or 512
+        max_results = max_results or 100
+
     if use_prefect:
         try:
             return await sql_query_flow(
