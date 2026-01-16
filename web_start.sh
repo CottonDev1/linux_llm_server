@@ -60,6 +60,30 @@ is_port_open() {
     return $?
 }
 
+clear_port() {
+    local port="$1"
+    local service_name="$2"
+
+    if is_port_open "$port"; then
+        log_warning "Port $port is in use, clearing for $service_name..."
+
+        # Get PIDs using the port and kill them
+        local pids=$(lsof -ti :$port 2>/dev/null)
+        if [ -n "$pids" ]; then
+            echo "$pids" | xargs kill -9 2>/dev/null || true
+            sleep 2
+        fi
+
+        # Verify port is free
+        if is_port_open "$port"; then
+            log_error "Failed to clear port $port"
+            return 1
+        fi
+        log_success "Port $port cleared"
+    fi
+    return 0
+}
+
 wait_for_port() {
     local port="$1"
     local timeout="${2:-30}"
@@ -207,10 +231,11 @@ stop_mongodb() {
 start_python_service() {
     log_info "Starting Python FastAPI service..."
 
-    if is_port_open $PYTHON_PORT; then
-        log_success "Python service is already running on port $PYTHON_PORT"
-        return 0
-    fi
+    # Clear port if in use
+    clear_port $PYTHON_PORT "Python FastAPI" || return 1
+
+    # Also clean up any stale PID files
+    rm -f "$PROJECT_DIR/python_services/.python_service_${PYTHON_PORT}"*.pid 2>/dev/null
 
     cd "$PROJECT_DIR/python_services"
     source "$PYTHON_VENV/bin/activate"
@@ -262,10 +287,8 @@ stop_python_service() {
 start_node_service() {
     log_info "Starting Node.js RAG server..."
 
-    if is_port_open $NODE_PORT; then
-        log_success "Node.js service is already running on port $NODE_PORT"
-        return 0
-    fi
+    # Clear port if in use
+    clear_port $NODE_PORT "Node.js RAG server" || return 1
 
     cd "$PROJECT_DIR"
 
