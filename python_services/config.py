@@ -20,7 +20,7 @@ IS_LINUX = sys.platform.startswith("linux")
 
 # MongoDB Configuration
 # Default to local MongoDB on port 2017 unless overridden by .env
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:2017")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "rag_server")
 MONGODB_REPLICA_SET = os.getenv("MONGODB_REPLICA_SET", "")  # Set to "rs0" for replica set
 
@@ -66,6 +66,12 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "384"))
 # Remote embedding service URL (if set, uses remote API instead of local model)
 EMBEDDING_SERVICE_URL = os.getenv("EMBEDDING_SERVICE_URL", "")
+
+# Document Chunking Configuration (token-aware)
+CHUNK_MAX_TOKENS = int(os.getenv("CHUNK_MAX_TOKENS", "400"))
+CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", "50"))
+CHUNK_METADATA_OVERHEAD = int(os.getenv("CHUNK_METADATA_OVERHEAD", "50"))
+CHARS_PER_TOKEN = float(os.getenv("CHARS_PER_TOKEN", "4.0"))
 
 # Server Configuration
 HOST = os.getenv("PYTHON_SERVICE_HOST", "0.0.0.0")

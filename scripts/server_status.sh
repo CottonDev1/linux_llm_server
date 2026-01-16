@@ -14,6 +14,21 @@ get_status() {
     fi
 }
 
+get_mongo_status() {
+    # Check Docker container first
+    if docker ps --filter "name=mongodb" --format "{{.Status}}" 2>/dev/null | grep -q "Up"; then
+        echo -e "${GREEN}Active${NC} (Docker)"
+    # Fall back to systemd service check
+    elif systemctl is-active --quiet mongod 2>/dev/null; then
+        echo -e "${GREEN}Active${NC}"
+    # Check if port is responding as last resort
+    elif nc -z localhost 27017 2>/dev/null; then
+        echo -e "${GREEN}Active${NC} (port)"
+    else
+        echo -e "${RED}Inactive${NC}"
+    fi
+}
+
 get_health() {
     local code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://localhost:$1/health" 2>/dev/null)
     if [ "$code" = "200" ]; then
@@ -50,7 +65,7 @@ printf "  %-24s %-12b\n" "sssd (AD Auth)" "$(get_status sssd)"
 echo ""
 echo "DATABASE & MONITORING"
 echo "------------------------------------------"
-printf "  %-24s %-12b %s\n" "mongod" "$(get_status mongod)" "27017"
+printf "  %-24s %-12b %s\n" "mongodb" "$(get_mongo_status)" "27017"
 printf "  %-24s %-12b %s\n" "grafana-server" "$(get_status grafana-server)" "3000"
 printf "  %-24s %-12b %s\n" "cockpit" "$(get_status cockpit)" "9090"
 printf "  %-24s %-12b %s\n" "prefect-server" "$(get_status prefect-server)" "4200"
