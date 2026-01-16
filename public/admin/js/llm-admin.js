@@ -8,9 +8,10 @@
 // ============================================================================
 
 const SERVERS = {
-    sql: { port: 8080, name: 'SQL Model Server', serviceName: 'LlamaCppSql' },
-    general: { port: 8081, name: 'General Model Server', serviceName: 'LlamaCppGeneral' },
-    code: { port: 8082, name: 'Code Model Server', serviceName: 'LlamaCppCode' }
+    sql: { port: 8080, name: 'SQL Model Server', serviceName: 'LlamaCppSql', gpu: 0, color: '#3b82f6' },
+    general: { port: 8081, name: 'General Model Server', serviceName: 'LlamaCppGeneral', gpu: 1, color: '#10b981' },
+    code: { port: 8082, name: 'Code Model Server', serviceName: 'LlamaCppCode', gpu: 1, color: '#8b5cf6' },
+    embedding: { port: 8083, name: 'Embedding Server', serviceName: 'LlamaCppEmbedding', gpu: 1, color: '#f59e0b' }
 };
 
 // Refresh interval loaded from server config (default 60 seconds)
@@ -30,19 +31,22 @@ let requestsChart = null;
 let miniCharts = {
     sql: { tps: null, requests: null },
     general: { tps: null, requests: null },
-    code: { tps: null, requests: null }
+    code: { tps: null, requests: null },
+    embedding: { tps: null, requests: null }
 };
 let metricsHistory = {
     sql: { tps: [], requests: [], timestamps: [] },
     general: { tps: [], requests: [], timestamps: [] },
-    code: { tps: [], requests: [], timestamps: [] }
+    code: { tps: [], requests: [], timestamps: [] },
+    embedding: { tps: [], requests: [], timestamps: [] }
 };
 let availableModels = [];
 let currentConfig = {};
 let runningModels = {
     sql: null,
     general: null,
-    code: null
+    code: null,
+    embedding: null
 };
 
 // ============================================================================
@@ -153,6 +157,45 @@ function updateRefreshCountdown() {
     }
 }
 
+/**
+ * Refresh metrics for a single server
+ */
+async function refreshServerMetrics(serverType) {
+    const card = document.getElementById(`${serverType}ServerCard`);
+    const refreshBtn = card?.querySelector('.refresh-server-btn');
+
+    if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.querySelector('svg')?.classList.add('spin');
+    }
+
+    try {
+        const response = await fetch('/api/admin/llm/all-models', {
+            signal: AbortSignal.timeout(5000)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.models) {
+                const serverInfo = data.models.find(m => m.server.toLowerCase() === serverType);
+                if (serverInfo) {
+                    updateServerFromApiData(serverType, serverInfo);
+                    updateCharts();
+                    showToast(`${SERVERS[serverType].name} refreshed`, 'success');
+                }
+            }
+        }
+    } catch (error) {
+        console.error(`Error refreshing ${serverType}:`, error);
+        showToast(`Error refreshing ${SERVERS[serverType].name}`, 'error');
+    } finally {
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+            refreshBtn.querySelector('svg')?.classList.remove('spin');
+        }
+    }
+}
+
 // ============================================================================
 // DATA REFRESH
 // ============================================================================
@@ -182,7 +225,7 @@ async function refreshAllData() {
             }
         } else {
             // API failed, mark all as offline
-            ['sql', 'general', 'code'].forEach(serverType => {
+            ['sql', 'general', 'code', 'embedding'].forEach(serverType => {
                 const statusEl = document.getElementById(`${serverType}Status`);
                 updateServerStatusUI(statusEl, 'offline', 'API Error');
                 resetServerMetrics(serverType);
@@ -193,7 +236,7 @@ async function refreshAllData() {
     } catch (error) {
         console.error('Error refreshing data:', error);
         // On error, mark all as offline
-        ['sql', 'general', 'code'].forEach(serverType => {
+        ['sql', 'general', 'code', 'embedding'].forEach(serverType => {
             const statusEl = document.getElementById(`${serverType}Status`);
             updateServerStatusUI(statusEl, 'offline', 'Offline');
             resetServerMetrics(serverType);
@@ -517,7 +560,7 @@ function initializeMiniCharts() {
         // TPS mini chart
         const tpsCtx = document.getElementById(`${serverType}TpsChart`)?.getContext('2d');
         if (tpsCtx) {
-            const color = serverType === 'sql' ? '#3b82f6' : (serverType === 'general' ? '#10b981' : '#8b5cf6');
+            const color = SERVERS[serverType].color;
             miniCharts[serverType].tps = new Chart(tpsCtx, {
                 type: 'line',
                 data: {
@@ -539,7 +582,7 @@ function initializeMiniCharts() {
         // Requests mini chart
         const reqCtx = document.getElementById(`${serverType}RequestsChart`)?.getContext('2d');
         if (reqCtx) {
-            const color = serverType === 'sql' ? '#3b82f6' : (serverType === 'general' ? '#10b981' : '#8b5cf6');
+            const color = SERVERS[serverType].color;
             miniCharts[serverType].requests = new Chart(reqCtx, {
                 type: 'bar',
                 data: {
@@ -615,6 +658,14 @@ function initializeCharts() {
                         backgroundColor: 'rgba(139, 92, 246, 0.1)',
                         fill: true,
                         tension: 0.4
+                    },
+                    {
+                        label: 'Embedding',
+                        data: [],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.4
                     }
                 ]
             },
@@ -628,10 +679,10 @@ function initializeCharts() {
         requestsChart = new Chart(reqCtx, {
             type: 'bar',
             data: {
-                labels: ['SQL', 'General', 'Code'],
+                labels: ['SQL', 'General', 'Code', 'Embedding'],
                 datasets: [{
-                    data: [0, 0, 0],
-                    backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6']
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b']
                 }]
             },
             options: {
@@ -661,6 +712,7 @@ function updateCharts() {
         tpsChart.data.datasets[0].data = metricsHistory.sql.tps.slice(-30);
         tpsChart.data.datasets[1].data = metricsHistory.general.tps.slice(-30);
         tpsChart.data.datasets[2].data = metricsHistory.code.tps.slice(-30);
+        tpsChart.data.datasets[3].data = metricsHistory.embedding.tps.slice(-30);
         tpsChart.update('none');
     }
 
@@ -669,7 +721,8 @@ function updateCharts() {
         const latestRequests = [
             metricsHistory.sql.requests[metricsHistory.sql.requests.length - 1] || 0,
             metricsHistory.general.requests[metricsHistory.general.requests.length - 1] || 0,
-            metricsHistory.code.requests[metricsHistory.code.requests.length - 1] || 0
+            metricsHistory.code.requests[metricsHistory.code.requests.length - 1] || 0,
+            metricsHistory.embedding.requests[metricsHistory.embedding.requests.length - 1] || 0
         ];
         requestsChart.data.datasets[0].data = latestRequests;
         requestsChart.update('none');

@@ -31,11 +31,11 @@
         /* Server Cards Row */
         .servers-row {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
         }
 
-        @media (max-width: 1200px) {
+        @media (max-width: 1400px) {
             .servers-row {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -91,6 +91,7 @@
         .server-icon.sql { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
         .server-icon.general { background: linear-gradient(135deg, #10b981, #047857); }
         .server-icon.code { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .server-icon.embedding { background: linear-gradient(135deg, #f59e0b, #d97706); }
 
         .server-name {
             font-weight: 600;
@@ -142,6 +143,33 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
+        }
+
+        .refresh-server-btn {
+            padding: 4px 8px;
+            background: transparent;
+            border: 1px solid var(--card-border);
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .refresh-server-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--accent-cyan);
+        }
+
+        .refresh-server-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--text-muted);
+        }
+
+        .refresh-server-btn:hover svg {
+            fill: var(--accent-cyan);
         }
 
         .server-card-body {
@@ -1024,6 +1052,11 @@
             color: #8b5cf6;
         }
 
+        .pipeline-badge.embedding {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
         /* Backend Services Section */
         .backend-services-grid {
             display: grid;
@@ -1796,6 +1829,9 @@
                                                 <div class="server-port">localhost:8080</div>
                                             </div>
                                         </div>
+                                        <button class="refresh-server-btn" onclick="refreshServerMetrics('sql')" title="Refresh metrics">
+                                            <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                        </button>
                                         <div class="server-status loading" id="sqlStatus">
                                             <span class="status-dot"></span>
                                             <span>Checking...</span>
@@ -1849,6 +1885,9 @@
                                                 <div class="server-port">localhost:8081</div>
                                             </div>
                                         </div>
+                                        <button class="refresh-server-btn" onclick="refreshServerMetrics('general')" title="Refresh metrics">
+                                            <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                        </button>
                                         <div class="server-status loading" id="generalStatus">
                                             <span class="status-dot"></span>
                                             <span>Checking...</span>
@@ -1902,6 +1941,9 @@
                                                 <div class="server-port">localhost:8082</div>
                                             </div>
                                         </div>
+                                        <button class="refresh-server-btn" onclick="refreshServerMetrics('code')" title="Refresh metrics">
+                                            <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                        </button>
                                         <div class="server-status loading" id="codeStatus">
                                             <span class="status-dot"></span>
                                             <span>Checking...</span>
@@ -1944,6 +1986,62 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Embedding Server Card -->
+                                <div class="server-card" id="embeddingServerCard">
+                                    <div class="server-card-header">
+                                        <div class="server-info">
+                                            <div class="server-icon embedding">EMB</div>
+                                            <div>
+                                                <div class="server-name">Embedding Server</div>
+                                                <div class="server-port">localhost:8083</div>
+                                            </div>
+                                        </div>
+                                        <button class="refresh-server-btn" onclick="refreshServerMetrics('embedding')" title="Refresh metrics">
+                                            <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                        </button>
+                                        <div class="server-status loading" id="embeddingStatus">
+                                            <span class="status-dot"></span>
+                                            <span>Checking...</span>
+                                        </div>
+                                    </div>
+                                    <div class="server-card-body">
+                                        <div class="model-info-section">
+                                            <div class="model-name-display" id="embeddingModelName">Loading...</div>
+                                            <div class="model-details">
+                                                <span id="embeddingModelSize">--</span>
+                                                <span id="embeddingModelQuant">--</span>
+                                            </div>
+                                        </div>
+                                        <div class="ram-usage-section">
+                                            <div class="ram-usage-header">
+                                                <span class="ram-usage-label">RAM Usage</span>
+                                                <span class="ram-usage-value" id="embeddingRamUsage">--</span>
+                                            </div>
+                                            <div class="ram-usage-bar">
+                                                <div class="ram-usage-fill" id="embeddingRamBar" style="width: 0%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="metrics-grid">
+                                            <div class="metric-item">
+                                                <div class="metric-label">Tokens/sec</div>
+                                                <div class="metric-value cyan" id="embeddingTPS">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Context</div>
+                                                <div class="metric-value" id="embeddingContext">--</div>
+                                            </div>
+                                            <div class="metric-item">
+                                                <div class="metric-label">Requests</div>
+                                                <div class="metric-value green" id="embeddingRequests">--</div>
+                                            </div>
+                                        </div>
+                                        <div class="server-actions">
+                                            <button class="btn btn-sm btn-secondary" onclick="restartAllServers()">Restart</button>
+                                            <button class="btn btn-sm btn-primary" onclick="openServerSettings('embedding')">Settings</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Performance Charts -->
@@ -1963,6 +2061,10 @@
                                             <div class="legend-item">
                                                 <span class="legend-dot" style="background: #8b5cf6;"></span>
                                                 <span>Code</span>
+                                            </div>
+                                            <div class="legend-item">
+                                                <span class="legend-dot" style="background: #f59e0b;"></span>
+                                                <span>Embedding</span>
                                             </div>
                                         </div>
                                     </div>
