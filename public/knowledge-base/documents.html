@@ -179,13 +179,31 @@
         // Initialize auth client
         const auth = new AuthClient();
 
-        // Check authentication
-        if (!auth.isAuthenticated()) {
-            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
-        } else {
-            initSidebar();
-            updateUserInfo();
-        }
+        // Store all loaded documents for client-side filtering (declare early to avoid TDZ)
+        let allLoadedDocuments = [];
+        let searchTimeout = null;
+
+        // Check authentication and initialize after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!auth.isAuthenticated()) {
+                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+            } else {
+                if (typeof initSidebar === 'function') {
+                    initSidebar();
+                }
+                updateUserInfo();
+                loadCategories();
+
+                // Set up search filter listener
+                const searchInput = document.getElementById('searchFilter');
+                if (searchInput) {
+                    searchInput.addEventListener('input', function() {
+                        clearTimeout(searchTimeout);
+                        searchTimeout = setTimeout(applySearchFilter, 300);
+                    });
+                }
+            }
+        });
 
         async function updateUserInfo() {
             try {
@@ -264,13 +282,7 @@
             }
         }
 
-        // Load categories on page load
-        loadCategories();
-
         // ==================== DOCUMENT BROWSER FUNCTIONALITY ====================
-
-        // Store all loaded documents for client-side filtering
-        let allLoadedDocuments = [];
 
         async function loadDocuments() {
             const documentListComponent = document.getElementById('documentList');
@@ -316,7 +328,6 @@
         }
 
         // Real-time search filtering
-        let searchTimeout = null;
         function applySearchFilter() {
             const searchTerm = document.getElementById('searchFilter')?.value?.trim().toLowerCase() || '';
             const documentListComponent = document.getElementById('documentList');
@@ -337,12 +348,6 @@
                 documentListComponent.showEmpty('No documents match your search criteria');
             }
         }
-
-        // Add debounced search listener
-        document.getElementById('searchFilter')?.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(applySearchFilter, 300);
-        });
 
         function escapeHtml(text) {
             const div = document.createElement('div');
