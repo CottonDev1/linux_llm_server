@@ -153,6 +153,23 @@ def load_sql_credentials_from_variables_sync() -> Dict[str, Any]:
             return future.result(timeout=10)
 
 
+def sanitize_artifact_key(key: str) -> str:
+    """
+    Sanitize a string for use in Prefect artifact keys.
+
+    Artifact keys can only contain lowercase letters, numbers, and dashes.
+    """
+    import re
+    # Replace periods, underscores, spaces with dashes
+    sanitized = re.sub(r'[._\s@]+', '-', key.lower())
+    # Remove any remaining invalid characters
+    sanitized = re.sub(r'[^a-z0-9-]', '', sanitized)
+    # Remove consecutive dashes
+    sanitized = re.sub(r'-+', '-', sanitized)
+    # Remove leading/trailing dashes
+    return sanitized.strip('-')
+
+
 async def load_pipeline_settings_from_variables() -> Dict[str, Any]:
     """
     Load pipeline settings from Prefect Variables.
@@ -327,7 +344,7 @@ async def security_validation_task(
 
     # Create artifact
     await create_markdown_artifact(
-        key=f"security-check-{user_id[:8]}",
+        key=f"security-check-{sanitize_artifact_key(user_id)[:8]}",
         markdown=f"""
 ## Security Validation
 - **User**: {user_id}
@@ -496,7 +513,7 @@ async def rule_matching_task(
         rule_summary = "No matching rules found"
 
     await create_markdown_artifact(
-        key=f"rule-match-{user_id[:8]}",
+        key=f"rule-match-{sanitize_artifact_key(user_id)[:8]}",
         markdown=f"""
 ## Rule Matching
 - **User**: {user_id}
@@ -588,7 +605,7 @@ async def schema_retrieval_task(
 
     # Create artifact
     await create_markdown_artifact(
-        key=f"schema-retrieval-{user_id[:8]}",
+        key=f"schema-retrieval-{sanitize_artifact_key(user_id)[:8]}",
         markdown=f"""
 ## Schema Retrieval
 - **User**: {user_id}
@@ -701,7 +718,7 @@ async def query_generation_task(
 
     # Create artifact
     await create_markdown_artifact(
-        key=f"query-generation-{user_id[:8]}",
+        key=f"query-generation-{sanitize_artifact_key(user_id)[:8]}",
         markdown=f"""
 ## Query Generation
 - **User**: {user_id}
@@ -956,7 +973,7 @@ async def query_execution_task(
 
     # Create artifact
     await create_markdown_artifact(
-        key=f"query-execution-{user_id[:8]}",
+        key=f"query-execution-{sanitize_artifact_key(user_id)[:8]}",
         markdown=f"""
 ## Query Execution
 - **User**: {user_id}
@@ -1339,7 +1356,7 @@ async def sql_query_flow(
 
         # Create final summary artifact
         await create_markdown_artifact(
-            key=f"pipeline-summary-{user_id[:8]}",
+            key=f"pipeline-summary-{sanitize_artifact_key(user_id)[:8]}",
             markdown=f"""
 # SQL Query Pipeline Complete (Exact Match)
 
@@ -1482,7 +1499,7 @@ async def sql_query_flow(
 
     # Create final summary artifact
     await create_markdown_artifact(
-        key=f"pipeline-summary-{user_id[:8]}",
+        key=f"pipeline-summary-{sanitize_artifact_key(user_id)[:8]}",
         markdown=f"""
 # SQL Query Pipeline Complete
 
