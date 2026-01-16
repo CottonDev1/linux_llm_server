@@ -4,6 +4,7 @@
  */
 
 // Navigation configuration - edit this to add/remove navigation items
+// Icons from Lucide: https://lucide.dev/icons/
 const PUBLIC_NAV_CONFIG = {
     main: {
         title: 'Main',
@@ -12,7 +13,7 @@ const PUBLIC_NAV_CONFIG = {
                 id: 'dashboard',
                 name: 'Dashboard',
                 url: '/',
-                icon: '<ewr-icon name="layout-dashboard" size="20"></ewr-icon>'
+                icon: '<ewr-icon name="home" size="20"></ewr-icon>'
             }
         ]
     },
@@ -29,12 +30,13 @@ const PUBLIC_NAV_CONFIG = {
                 id: 'kb-assistant',
                 name: 'Knowledge Base Assistant',
                 url: '/knowledge-base/index.html',
-                icon: '<ewr-icon name="message-circle" size="20"></ewr-icon>'
+                icon: '<ewr-icon name="book-open" size="20"></ewr-icon>'
             },
-            { id: 'document-browser',
+            {
+                id: 'document-browser',
                 name: 'Document Browser',
                 url: '/knowledge-base/documents.html',
-                icon: '<ewr-icon name="folder" size="20"></ewr-icon>'
+                icon: '<ewr-icon name="folder-open" size="20"></ewr-icon>'
             }
         ]
     }

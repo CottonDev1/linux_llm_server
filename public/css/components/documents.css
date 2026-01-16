@@ -317,11 +317,14 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Grid item icon - file type emoji */
+/* Grid item icon - Lucide icon via ewr-icon component */
 .ewr-document-grid-icon {
-    font-size: 20px;
     flex-shrink: 0;
     line-height: 1;
+    color: var(--accent-primary, #5a9fe6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Grid item title - flex to fill remaining space */

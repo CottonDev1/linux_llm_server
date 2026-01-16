@@ -2643,59 +2643,69 @@ class EwrDocumentList extends HTMLElement {
         }
     }
 
-    // Get file type icon based on extension
+    // Get file type icon based on extension (returns Lucide icon name)
     _getFileIcon(filename) {
         const ext = (filename.split('.').pop() || '').toLowerCase();
         const iconMap = {
             // Documents
-            'pdf': '📕',
-            'doc': '📘',
-            'docx': '📘',
-            'odt': '📘',
-            'rtf': '📘',
+            'pdf': 'file-text',
+            'doc': 'file-text',
+            'docx': 'file-text',
+            'odt': 'file-text',
+            'rtf': 'file-text',
             // Spreadsheets
-            'xls': '📗',
-            'xlsx': '📗',
-            'csv': '📗',
-            'ods': '📗',
+            'xls': 'file-spreadsheet',
+            'xlsx': 'file-spreadsheet',
+            'csv': 'file-spreadsheet',
+            'ods': 'file-spreadsheet',
             // Presentations
-            'ppt': '📙',
-            'pptx': '📙',
-            'odp': '📙',
+            'ppt': 'presentation',
+            'pptx': 'presentation',
+            'odp': 'presentation',
             // Images
-            'jpg': '🖼️',
-            'jpeg': '🖼️',
-            'png': '🖼️',
-            'gif': '🖼️',
-            'svg': '🖼️',
-            'webp': '🖼️',
+            'jpg': 'file-image',
+            'jpeg': 'file-image',
+            'png': 'file-image',
+            'gif': 'file-image',
+            'svg': 'file-image',
+            'webp': 'file-image',
+            'bmp': 'file-image',
+            'tiff': 'file-image',
             // Text
-            'txt': '📄',
-            'md': '📝',
-            'json': '📋',
-            'xml': '📋',
-            'html': '🌐',
-            'htm': '🌐',
+            'txt': 'file-text',
+            'md': 'file-text',
+            'json': 'file-json',
+            'xml': 'file-code',
+            'html': 'file-code',
+            'htm': 'file-code',
             // Code
-            'js': '⚙️',
-            'py': '🐍',
-            'sql': '🗃️',
+            'js': 'file-code',
+            'ts': 'file-code',
+            'py': 'file-code',
+            'sql': 'database',
+            'css': 'file-code',
+            'scss': 'file-code',
             // Archives
-            'zip': '📦',
-            'rar': '📦',
-            '7z': '📦',
+            'zip': 'file-archive',
+            'rar': 'file-archive',
+            '7z': 'file-archive',
+            'tar': 'file-archive',
+            'gz': 'file-archive',
             // Audio
-            'mp3': '🎵',
-            'wav': '🎵',
-            'ogg': '🎵',
-            'm4a': '🎵',
+            'mp3': 'file-audio',
+            'wav': 'file-audio',
+            'ogg': 'file-audio',
+            'm4a': 'file-audio',
+            'flac': 'file-audio',
             // Video
-            'mp4': '🎬',
-            'avi': '🎬',
-            'mov': '🎬',
-            'mkv': '🎬'
+            'mp4': 'file-video',
+            'avi': 'file-video',
+            'mov': 'file-video',
+            'mkv': 'file-video',
+            'webm': 'file-video'
         };
-        return iconMap[ext] || '📄';
+        const iconName = iconMap[ext] || 'file';
+        return `<ewr-icon name="${iconName}" size="18"></ewr-icon>`;
     }
 
     // Helper to escape HTML
