@@ -332,11 +332,11 @@
    ============================================ */
 
 .ewr-button-action-green-gradient {
-    padding: 8px 18px;
-    font-size: 15px;
+    padding: 5px 12px;
+    font-size: 12px;
     font-weight: 600;
     border: none;
-    border-radius: 5px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: linear-gradient(180deg, #6ee7b7 0%, #34d399 30%, #10b981 70%, #059669 100%);
@@ -398,11 +398,11 @@
 
 /* Special Button - Light Blue Metallic Gradient with black text */
 .ewr-button-special-lightBlue-gradient {
-    padding: 8px 18px;
-    font-size: 15px;
+    padding: 5px 12px;
+    font-size: 12px;
     font-weight: 600;
     border: none;
-    border-radius: 5px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 30%, #7dd3fc 70%, #38bdf8 100%);
@@ -437,6 +437,39 @@
     box-shadow: none;
     text-shadow: none;
     opacity: 0.6;
+}
+
+/* Reset Button - Subtle gray for secondary actions */
+.ewr-button-reset {
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(100, 116, 139, 0.5);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: #94a3b8;
+}
+
+.ewr-button-reset:hover:not(:disabled) {
+    background: rgba(100, 116, 139, 0.15);
+    border-color: rgba(100, 116, 139, 0.7);
+    color: #cbd5e1;
+}
+
+.ewr-button-reset:active:not(:disabled) {
+    background: rgba(100, 116, 139, 0.25);
+}
+
+.ewr-button-reset:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Push button to the right side */
+.ewr-button-right {
+    margin-left: auto;
 }
 
 /* ============================================
