@@ -44,6 +44,9 @@ export { EwrAudioPlayer } from './audio/ewr-audio-player.js';
 export { EwrAudioResultRow } from './audio/ewr-audio-result-row.js';
 export { EwrAudioResultsGrid } from './audio/ewr-audio-results-grid.js';
 
+// Status components (Phase 7)
+export { EwrWebsiteStatus } from './status/ewr-website-status.js';
+
 /**
  * Component registration helper
  * Safely registers a component, logging a warning if already registered
@@ -123,7 +126,11 @@ async function initComponents() {
         const { EwrAudioResultsGrid } = await import('./audio/ewr-audio-results-grid.js');
         safeDefine('ewr-audio-results-grid', EwrAudioResultsGrid);
 
-        console.log('EWR Web Components initialized (18 components)');
+        // Phase 7: Status components
+        const { EwrWebsiteStatus } = await import('./status/ewr-website-status.js');
+        safeDefine('ewr-website-status', EwrWebsiteStatus);
+
+        console.log('EWR Web Components initialized (19 components)');
     } catch (error) {
         console.error('Failed to initialize EWR components:', error);
     }

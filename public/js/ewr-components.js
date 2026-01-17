@@ -2986,16 +2986,92 @@ class EwrSidebar extends HTMLElement {
     connectedCallback() {
         this.className = 'app-sidebar';
         this.innerHTML = `
+            <style>
+                /* Sidebar brand layout - horizontal with left and right sections */
+                .sidebar-brand {
+                    padding: 12px 14px;
+                    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+                    display: flex;
+                    align-items: stretch;
+                    gap: 12px;
+                    background: rgba(0, 0, 0, 0.2);
+                    flex-shrink: 0;
+                }
+
+                .sidebar-brand-left {
+                    display: flex;
+                    align-items: center;
+                    flex-shrink: 0;
+                }
+
+                .sidebar-brand-right {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    min-width: 0;
+                }
+
+                .sidebar-user-info {
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }
+
+                .sidebar-user-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+
+                .sidebar-user-row + .sidebar-user-row {
+                    margin-top: 2px;
+                }
+
+                .sidebar-user-label {
+                    font-size: 8px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    color: #64748b;
+                    min-width: 24px;
+                }
+
+                .sidebar-user-value {
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #e2e8f0;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .sidebar-status-wrapper {
+                    /* Container for ewr-website-status */
+                }
+
+                .sidebar-status-wrapper ewr-website-status {
+                    display: block;
+                }
+            </style>
             <div class="sidebar-brand">
-                <div class="sidebar-logo">EWR</div>
-                <div class="user-info-card">
-                    <div class="user-info-row">
-                        <span class="user-info-label">User</span>
-                        <span class="user-name" id="userName">Loading...</span>
+                <div class="sidebar-brand-left">
+                    <div class="sidebar-logo">EWR</div>
+                </div>
+                <div class="sidebar-brand-right">
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-row">
+                            <span class="sidebar-user-label">User</span>
+                            <span class="sidebar-user-value" id="userName">Loading...</span>
+                        </div>
+                        <div class="sidebar-user-row">
+                            <span class="sidebar-user-label">Role</span>
+                            <span class="sidebar-user-value" id="userRole">USER</span>
+                        </div>
                     </div>
-                    <div class="user-info-row">
-                        <span class="user-info-label">Role</span>
-                        <span class="user-role" id="userRole">USER</span>
+                    <div class="sidebar-status-wrapper">
+                        <ewr-website-status></ewr-website-status>
                     </div>
                 </div>
             </div>
@@ -3144,122 +3220,7 @@ class EwrPageHeader extends HTMLElement {
 customElements.define('ewr-page-header', EwrPageHeader);
 
 
-/**
- * EWR-Header-Status Component
- * Displays system status indicator with animated dot and text
- * Integrates with system-status.js for automatic updates
- *
- * Usage:
- * <ewr-website-status></ewr-website-status>
- */
-class EwrWebsiteStatus extends HTMLElement {
-    constructor() {
-        super();
-        this._statusKey = 'connecting';
-        this._statusText = 'Connecting';
-    }
-
-    connectedCallback() {
-        this._render();
-    }
-
-    _render() {
-        this.innerHTML = `
-            <style>
-                .website-status {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 4px 8px;
-                    background: rgba(0, 0, 0, 0.25);
-                    border-radius: 4px;
-                    border: 1px solid rgba(255, 255, 255, 0.06);
-                    margin-top: 8px;
-                }
-                .website-status .status-dot {
-                    width: 6px;
-                    height: 6px;
-                    border-radius: 50%;
-                    flex-shrink: 0;
-                }
-                .website-status .status-dot.status-healthy {
-                    background: #10b981;
-                    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
-                }
-                .website-status .status-dot.status-degraded {
-                    background: #f59e0b;
-                    box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
-                }
-                .website-status .status-dot.status-error {
-                    background: #ef4444;
-                    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
-                }
-                .website-status .status-dot.status-connecting {
-                    background: #64748b;
-                    animation: statusPulse 1.5s ease-in-out infinite;
-                }
-                @keyframes statusPulse {
-                    0%, 100% { opacity: 0.4; }
-                    50% { opacity: 1; }
-                }
-                .website-status .status-label {
-                    font-size: 9px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-            </style>
-            <div class="website-status">
-                <div class="status-dot ${this._getDotClass()}"></div>
-                <span class="status-label" style="${this._getTextStyle()}">${this._statusText}</span>
-            </div>
-        `;
-    }
-
-    _getDotClass() {
-        switch (this._statusKey) {
-            case 'healthy': return 'status-healthy';
-            case 'degraded-llm':
-            case 'degraded': return 'status-degraded';
-            case 'error':
-            case 'offline': return 'status-error';
-            default: return 'status-connecting';
-        }
-    }
-
-    _getTextStyle() {
-        switch (this._statusKey) {
-            case 'healthy': return 'color: #10b981';
-            case 'degraded-llm':
-            case 'degraded': return 'color: #f59e0b';
-            case 'error':
-            case 'offline': return 'color: #ef4444';
-            default: return 'color: #64748b';
-        }
-    }
-
-    /**
-     * Update status - called by system-status.js
-     * @param {object} status - Full status object from Python service
-     * @param {string} statusKey - Status key: healthy, degraded, degraded-llm, error, offline
-     */
-    updateStatus(status, statusKey) {
-        this._statusKey = statusKey;
-
-        switch (statusKey) {
-            case 'healthy': this._statusText = 'Online'; break;
-            case 'degraded-llm': this._statusText = 'LLM Down'; break;
-            case 'degraded': this._statusText = 'Degraded'; break;
-            case 'error': this._statusText = 'Error'; break;
-            case 'offline': this._statusText = 'Offline'; break;
-            default: this._statusText = 'Connecting';
-        }
-
-        this._render();
-    }
-}
-
-customElements.define('ewr-website-status', EwrWebsiteStatus);
+// NOTE: ewr-website-status moved to Shadow DOM component at /js/components/status/ewr-website-status.js
 
 
 /**
@@ -3279,16 +3240,98 @@ class EwrAdminSidebar extends HTMLElement {
     connectedCallback() {
         this.className = 'app-sidebar';
         this.innerHTML = `
+            <style>
+                /* Sidebar brand layout - horizontal with left and right sections */
+                .sidebar-brand {
+                    padding: 12px 14px;
+                    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+                    display: flex;
+                    align-items: stretch;
+                    gap: 12px;
+                    background: rgba(0, 0, 0, 0.2);
+                    flex-shrink: 0;
+                }
+
+                .sidebar-brand-left {
+                    display: flex;
+                    align-items: center;
+                    flex-shrink: 0;
+                }
+
+                .sidebar-brand-right {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    min-width: 0;
+                }
+
+                .sidebar-user-info {
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }
+
+                .sidebar-user-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+
+                .sidebar-user-row + .sidebar-user-row {
+                    margin-top: 2px;
+                }
+
+                .sidebar-user-label {
+                    font-size: 8px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    color: #64748b;
+                    min-width: 24px;
+                }
+
+                .sidebar-user-value {
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #e2e8f0;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .sidebar-status-wrapper {
+                    /* Container for ewr-website-status */
+                }
+
+                .sidebar-status-wrapper ewr-website-status {
+                    display: block;
+                }
+
+                /* Override website-status styling for sidebar context */
+                .sidebar-status-wrapper .website-status {
+                    margin-top: 0;
+                    padding: 3px 8px;
+                }
+            </style>
             <div class="sidebar-brand">
-                <div class="sidebar-logo">EWR</div>
-                <div class="user-info-card">
-                    <div class="user-info-row">
-                        <span class="user-info-label">User</span>
-                        <span class="user-name" id="userName">Loading...</span>
+                <div class="sidebar-brand-left">
+                    <div class="sidebar-logo">EWR</div>
+                </div>
+                <div class="sidebar-brand-right">
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-row">
+                            <span class="sidebar-user-label">User</span>
+                            <span class="sidebar-user-value" id="userName">Loading...</span>
+                        </div>
+                        <div class="sidebar-user-row">
+                            <span class="sidebar-user-label">Role</span>
+                            <span class="sidebar-user-value" id="userRole">USER</span>
+                        </div>
                     </div>
-                    <div class="user-info-row">
-                        <span class="user-info-label">Role</span>
-                        <span class="user-role" id="userRole">USER</span>
+                    <div class="sidebar-status-wrapper">
+                        <ewr-website-status></ewr-website-status>
                     </div>
                 </div>
             </div>
