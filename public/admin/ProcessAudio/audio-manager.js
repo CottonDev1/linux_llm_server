@@ -30,7 +30,6 @@ function initElements() {
         fileInput: document.getElementById('fileInput'),
         directoryPath: document.getElementById('directoryPath'),
         pollBtn: document.getElementById('pollBtn'),
-        pollStatus: document.getElementById('pollStatus'),
 
         // Unanalyzed grid
         selectAllUnanalyzed: document.getElementById('selectAllUnanalyzed'),
@@ -415,8 +414,7 @@ async function pollDirectory() {
     }
 
     elements.pollBtn.disabled = true;
-    elements.pollBtn.textContent = 'Polling...';
-    elements.pollStatus.textContent = 'Scanning directory...';
+    elements.pollBtn.textContent = 'Scanning...';
 
     try {
         const response = await fetch('/api/audio/bulk/scan', {
@@ -450,15 +448,12 @@ async function pollDirectory() {
             });
 
             updateUnanalyzedGrid();
-            elements.pollStatus.textContent = `Found ${data.files.length} file(s)`;
             showToast(`Found ${data.files.length} audio file(s)`, 'success');
         } else {
-            elements.pollStatus.textContent = 'No files found';
             showToast('No audio files found in directory', 'info');
         }
     } catch (error) {
         console.error('Poll error:', error);
-        elements.pollStatus.textContent = 'Error polling directory';
         showToast('Failed to poll directory', 'error');
     } finally {
         elements.pollBtn.disabled = false;

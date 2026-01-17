@@ -165,18 +165,44 @@ tr.expanded .expand-indicator {
     padding: 24px;
 }
 
-.ewr-audio-upload-method {
+/* Method Toggle Radio Buttons */
+.ewr-audio-method-toggle {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
+    gap: 24px;
 }
 
-.ewr-audio-upload-method-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.ewr-audio-method-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ewr-audio-method-option input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+.ewr-audio-method-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.ewr-audio-method-option:hover .ewr-audio-method-label {
+    color: #3b82f6;
+}
+
+/* Method Content Panels */
+.ewr-audio-method-content {
+    margin-top: 4px;
+}
+
+.ewr-audio-method-panel {
+    /* Panels are toggled via JS */
 }
 
 .ewr-audio-drop-zone {
@@ -219,12 +245,6 @@ tr.expanded .expand-indicator {
     margin-top: 4px;
 }
 
-.ewr-audio-upload-divider {
-    height: 1px;
-    background: #334155;
-    margin: 8px 0;
-}
-
 .ewr-audio-directory-row {
     display: flex;
     align-items: center;
@@ -244,13 +264,6 @@ tr.expanded .expand-indicator {
 .ewr-audio-directory-input:focus {
     outline: none;
     border-color: #3b82f6;
-}
-
-.ewr-audio-poll-status {
-    font-size: 13px;
-    color: #64748b;
-    padding-left: 4px;
-    margin-top: 4px;
 }
 
 

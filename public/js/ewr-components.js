@@ -3150,13 +3150,13 @@ customElements.define('ewr-page-header', EwrPageHeader);
  * Integrates with system-status.js for automatic updates
  *
  * Usage:
- * <ewr-header-status></ewr-header-status>
+ * <ewr-website-status></ewr-website-status>
  */
-class EwrHeaderStatus extends HTMLElement {
+class EwrWebsiteStatus extends HTMLElement {
     constructor() {
         super();
         this._statusKey = 'connecting';
-        this._statusText = 'Connecting...';
+        this._statusText = 'Connecting';
     }
 
     connectedCallback() {
@@ -3165,9 +3165,53 @@ class EwrHeaderStatus extends HTMLElement {
 
     _render() {
         this.innerHTML = `
-            <div class="header-status">
-                <div class="status-dot ${this._getDotClass()}" style="${this._getDotStyle()}"></div>
-                <span class="status-text" style="${this._getTextStyle()}">${this._statusText}</span>
+            <style>
+                .website-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 4px 8px;
+                    background: rgba(0, 0, 0, 0.25);
+                    border-radius: 4px;
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    margin-top: 8px;
+                }
+                .website-status .status-dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                }
+                .website-status .status-dot.status-healthy {
+                    background: #10b981;
+                    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+                }
+                .website-status .status-dot.status-degraded {
+                    background: #f59e0b;
+                    box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+                }
+                .website-status .status-dot.status-error {
+                    background: #ef4444;
+                    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+                }
+                .website-status .status-dot.status-connecting {
+                    background: #64748b;
+                    animation: statusPulse 1.5s ease-in-out infinite;
+                }
+                @keyframes statusPulse {
+                    0%, 100% { opacity: 0.4; }
+                    50% { opacity: 1; }
+                }
+                .website-status .status-label {
+                    font-size: 9px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+            </style>
+            <div class="website-status">
+                <div class="status-dot ${this._getDotClass()}"></div>
+                <span class="status-label" style="${this._getTextStyle()}">${this._statusText}</span>
             </div>
         `;
     }
@@ -3183,25 +3227,14 @@ class EwrHeaderStatus extends HTMLElement {
         }
     }
 
-    _getDotStyle() {
-        switch (this._statusKey) {
-            case 'healthy': return 'background: var(--accent-green, #10b981)';
-            case 'degraded-llm':
-            case 'degraded': return 'background: var(--accent-yellow, #f59e0b)';
-            case 'error':
-            case 'offline': return 'background: var(--accent-red, #ef4444)';
-            default: return 'background: var(--text-secondary, #94a3b8)';
-        }
-    }
-
     _getTextStyle() {
         switch (this._statusKey) {
-            case 'healthy': return 'color: var(--accent-green, #10b981)';
+            case 'healthy': return 'color: #10b981';
             case 'degraded-llm':
-            case 'degraded': return 'color: var(--accent-yellow, #f59e0b)';
+            case 'degraded': return 'color: #f59e0b';
             case 'error':
-            case 'offline': return 'color: var(--accent-red, #ef4444)';
-            default: return 'color: var(--text-secondary, #94a3b8)';
+            case 'offline': return 'color: #ef4444';
+            default: return 'color: #64748b';
         }
     }
 
@@ -3214,19 +3247,19 @@ class EwrHeaderStatus extends HTMLElement {
         this._statusKey = statusKey;
 
         switch (statusKey) {
-            case 'healthy': this._statusText = 'System Online'; break;
-            case 'degraded-llm': this._statusText = 'LLM Unavailable'; break;
+            case 'healthy': this._statusText = 'Online'; break;
+            case 'degraded-llm': this._statusText = 'LLM Down'; break;
             case 'degraded': this._statusText = 'Degraded'; break;
-            case 'error': this._statusText = status?.error || 'Error'; break;
+            case 'error': this._statusText = 'Error'; break;
             case 'offline': this._statusText = 'Offline'; break;
-            default: this._statusText = 'Connecting...';
+            default: this._statusText = 'Connecting';
         }
 
         this._render();
     }
 }
 
-customElements.define('ewr-header-status', EwrHeaderStatus);
+customElements.define('ewr-website-status', EwrWebsiteStatus);
 
 
 /**
@@ -3324,9 +3357,7 @@ class EwrAdminHeader extends HTMLElement {
                             <span>Auto-refresh: <span id="refreshCountdown">5s</span></span>
                         </div>
                         <button class="btn btn-secondary" onclick="refreshAllData()">Refresh Now</button>
-                    ` : `
-                        <ewr-header-status></ewr-header-status>
-                    `}
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -4076,7 +4107,7 @@ customElements.define('ewr-audio-file-row', EwrAudioFileRow);
 
 /**
  * EWR-AudioUpload Component
- * File upload section with drag & drop and directory polling
+ * File upload section with drag & drop and directory polling toggle
  *
  * Usage:
  * <ewr-audio-upload
@@ -4084,8 +4115,7 @@ customElements.define('ewr-audio-file-row', EwrAudioFileRow);
  *     drop-zone-id="dropZone"
  *     file-input-id="fileInput"
  *     directory-input-id="directoryPath"
- *     poll-btn-id="pollBtn"
- *     poll-status-id="pollStatus">
+ *     poll-btn-id="pollBtn">
  * </ewr-audio-upload>
  */
 class EwrAudioUpload extends HTMLElement {
@@ -4099,9 +4129,9 @@ class EwrAudioUpload extends HTMLElement {
         const fileInputId = this.getAttribute('file-input-id') || 'fileInput';
         const directoryInputId = this.getAttribute('directory-input-id') || 'directoryPath';
         const pollBtnId = this.getAttribute('poll-btn-id') || 'pollBtn';
-        const pollStatusId = this.getAttribute('poll-status-id') || 'pollStatus';
         const acceptedFormats = this.getAttribute('accepted-formats') || '.wav,.mp3,.m4a';
         const formatDescription = this.getAttribute('format-description') || 'WAV, MP3, M4A supported';
+        const uniqueId = `upload-${Date.now()}`;
 
         this.innerHTML = `
             <div class="ewr-audio-upload-section">
@@ -4109,40 +4139,67 @@ class EwrAudioUpload extends HTMLElement {
                     <h3 class="ewr-audio-upload-title">${title}</h3>
                 </div>
                 <div class="ewr-audio-upload-content">
-                    <!-- Drag & Drop Method -->
-                    <div class="ewr-audio-upload-method">
-                        <div class="ewr-audio-upload-method-title">Drag & Drop</div>
-                        <div class="ewr-audio-drop-zone" id="${dropZoneId}">
-                            <span class="ewr-audio-drop-zone-icon">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M9 18V5l12-2v13"/>
-                                    <circle cx="6" cy="18" r="3"/>
-                                    <circle cx="18" cy="16" r="3"/>
-                                </svg>
-                            </span>
-                            <div>
-                                <div class="ewr-audio-drop-zone-text">Drop audio files or click to browse</div>
-                                <div class="ewr-audio-drop-zone-subtext">${formatDescription}</div>
+                    <!-- Method Toggle Radio Buttons -->
+                    <div class="ewr-audio-method-toggle">
+                        <label class="ewr-audio-method-option">
+                            <input type="radio" name="${uniqueId}-method" value="dragdrop" checked>
+                            <span class="ewr-audio-method-label">Drag & Drop</span>
+                        </label>
+                        <label class="ewr-audio-method-option">
+                            <input type="radio" name="${uniqueId}-method" value="poll">
+                            <span class="ewr-audio-method-label">Poll Directory</span>
+                        </label>
+                    </div>
+
+                    <!-- Method Content Area -->
+                    <div class="ewr-audio-method-content">
+                        <!-- Drag & Drop Method -->
+                        <div class="ewr-audio-method-panel" data-method="dragdrop">
+                            <div class="ewr-audio-drop-zone" id="${dropZoneId}">
+                                <span class="ewr-audio-drop-zone-icon">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M9 18V5l12-2v13"/>
+                                        <circle cx="6" cy="18" r="3"/>
+                                        <circle cx="18" cy="16" r="3"/>
+                                    </svg>
+                                </span>
+                                <div>
+                                    <div class="ewr-audio-drop-zone-text">Drop audio files or click to browse</div>
+                                    <div class="ewr-audio-drop-zone-subtext">${formatDescription}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Poll Directory Method -->
+                        <div class="ewr-audio-method-panel" data-method="poll" style="display: none;">
+                            <div class="ewr-audio-directory-row">
+                                <input type="text" id="${directoryInputId}" class="ewr-audio-directory-input" placeholder="Enter directory path...">
+                                <button class="ewr-button ewr-button-small ewr-button-secondary" id="${pollBtnId}">Poll</button>
                             </div>
                         </div>
                     </div>
+
                     <input type="file" id="${fileInputId}" accept="${acceptedFormats}" multiple style="display: none;">
-
-                    <!-- Horizontal Divider -->
-                    <div class="ewr-audio-upload-divider"></div>
-
-                    <!-- Poll Directory Method -->
-                    <div class="ewr-audio-upload-method">
-                        <div class="ewr-audio-upload-method-title">Poll Directory</div>
-                        <div class="ewr-audio-directory-row">
-                            <input type="text" id="${directoryInputId}" class="ewr-audio-directory-input" placeholder="Enter directory path...">
-                            <button class="ewr-button ewr-button-small ewr-button-secondary" id="${pollBtnId}">Poll</button>
-                        </div>
-                        <div class="ewr-audio-poll-status" id="${pollStatusId}">Ready to poll</div>
-                    </div>
                 </div>
             </div>
         `;
+
+        // Setup radio toggle behavior
+        this._setupMethodToggle(uniqueId);
+    }
+
+    _setupMethodToggle(uniqueId) {
+        const radios = this.querySelectorAll(`input[name="${uniqueId}-method"]`);
+        const panels = this.querySelectorAll('.ewr-audio-method-panel');
+
+        radios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const selectedMethod = e.target.value;
+                panels.forEach(panel => {
+                    panel.style.display = panel.dataset.method === selectedMethod ? 'block' : 'none';
+                });
+            });
+        });
     }
 }
 
