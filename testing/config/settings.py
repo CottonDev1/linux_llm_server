@@ -29,7 +29,7 @@ class TestSettings(BaseSettings):
 
     # MongoDB
     mongodb_uri: str = Field(default="mongodb://localhost:27017")
-    mongodb_database: str = Field(default="llm_website")
+    mongodb_database: str = Field(default="rag_server")
 
     # Local LLM Endpoints (MUST be localhost)
     llm_sql_endpoint: str = Field(default="http://localhost:8080")

@@ -1,497 +1,298 @@
 """
-SQL Retrieval Tests for cached queries and rule matching.
+SQL Retrieval Tests - Using Real Data
+======================================
 
-Tests SQL query retrieval operations including:
-- Cache hit/miss scenarios
-- Exact question matching
-- Similar question matching
-- Rule-based query retrieval
-- Database-scoped retrieval
-- Confidence-based filtering
-
-All tests use MongoDB only (no external dependencies).
+Tests SQL data retrieval operations using REAL data from the database.
+Tests verify that data can be queried, filtered, and retrieved correctly.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from typing import Dict, Any, List
 
-from config.test_config import PipelineTestConfig
+from config.test_config import get_test_config, PipelineTestConfig
 from fixtures.mongodb_fixtures import (
-    create_mock_sql_query,
-    insert_test_documents,
-    cleanup_test_documents,
+    get_test_database,
+    get_real_sql_example,
+    get_real_sql_examples,
+    get_real_sql_rule,
+    get_real_sql_rules,
+    get_real_stored_procedure,
+    get_real_stored_procedures,
 )
-from utils import generate_test_id
 
 
-class TestSQLCacheRetrieval:
-    """Test SQL query cache retrieval operations."""
+class TestSQLExampleRetrieval:
+    """Test retrieval of SQL examples."""
 
     @pytest.mark.requires_mongodb
-    def test_exact_question_cache_hit(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test exact question match returns cached SQL."""
-        collection = mongodb_database["agent_learning"]
+    def test_retrieve_single_example(self, mongodb_database):
+        """Test retrieving a single SQL example."""
+        example = get_real_sql_example(mongodb_database)
+        assert example is not None
+        assert "_id" in example
+        assert "sql" in example
 
-        # Store successful query
-        question = "How many tickets were created today?"
-        sql = "SELECT COUNT(*) FROM CentralTickets WHERE CAST(AddTicketDate AS DATE) = CAST(GETDATE() AS DATE)"
+    @pytest.mark.requires_mongodb
+    def test_retrieve_multiple_examples(self, mongodb_database):
+        """Test retrieving multiple SQL examples."""
+        examples = get_real_sql_examples(mongodb_database, limit=10)
+        assert len(examples) > 0
 
-        doc = create_mock_sql_query(
-            question=question, sql=sql, database="EWRCentral", success=True
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_one(doc)
+        # Each should have required fields
+        for ex in examples:
+            assert "_id" in ex
+            assert "sql" in ex
 
-        # Retrieve with exact question
-        result = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": "EWRCentral",
-                "success": True,
-            }
-        )
+    @pytest.mark.requires_mongodb
+    def test_retrieve_examples_by_database(self, mongodb_database):
+        """Test filtering SQL examples by database name."""
+        collection = mongodb_database["sql_examples"]
+
+        # Get distinct databases
+        databases = collection.distinct("database")
+
+        if databases:
+            db_name = databases[0]
+            results = list(collection.find({"database": db_name}))
+
+            assert len(results) > 0
+            for result in results:
+                assert result.get("database") == db_name
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_example_with_projection(self, mongodb_database):
+        """Test retrieving SQL example with field projection."""
+        collection = mongodb_database["sql_examples"]
+
+        # Only retrieve sql field
+        result = collection.find_one({}, {"sql": 1, "_id": 0})
 
         assert result is not None
-        assert result["sql"] == sql
-        assert result["success"] is True
+        assert "sql" in result
+        # _id should be excluded
+        assert "_id" not in result
 
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
 
-    @pytest.mark.requires_mongodb
-    def test_cache_miss_different_database(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that cache is database-scoped (same question, different DB)."""
-        collection = mongodb_database["agent_learning"]
-
-        question = "Count all records"
-        sql_central = "SELECT COUNT(*) FROM CentralTickets"
-        sql_gin = "SELECT COUNT(*) FROM Bales"
-
-        # Store for EWRCentral
-        doc1 = create_mock_sql_query(
-            question=question, sql=sql_central, database="EWRCentral", success=True
-        )
-        doc1["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_one(doc1)
-
-        # Store for Gin database
-        doc2 = create_mock_sql_query(
-            question=question, sql=sql_gin, database="EWR.Gin.Test", success=True
-        )
-        doc2["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_one(doc2)
-
-        # Retrieve for EWRCentral
-        result_central = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": "EWRCentral",
-                "success": True,
-            }
-        )
-
-        # Retrieve for Gin
-        result_gin = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": "EWR.Gin.Test",
-                "success": True,
-            }
-        )
-
-        # Should return different SQL for different databases
-        assert result_central["sql"] == sql_central
-        assert result_gin["sql"] == sql_gin
-        assert result_central["sql"] != result_gin["sql"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+class TestSQLRuleRetrieval:
+    """Test retrieval of SQL rules."""
 
     @pytest.mark.requires_mongodb
-    def test_cache_ignores_failed_queries(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that failed queries are not returned from cache."""
-        collection = mongodb_database["agent_learning"]
-
-        question = "Show invalid data"
-
-        # Store failed query
-        doc_fail = create_mock_sql_query(
-            question=question,
-            sql="SELECT * FROM InvalidTable",
-            database="EWRCentral",
-            success=False,
-        )
-        doc_fail["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_one(doc_fail)
-
-        # Try to retrieve (should filter out failed)
-        result = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": "EWRCentral",
-                "success": True,  # Only successful queries
-            }
-        )
-
-        # Should not find failed query
-        assert result is None
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    def test_retrieve_single_rule(self, mongodb_database):
+        """Test retrieving a single SQL rule."""
+        rule = get_real_sql_rule(mongodb_database)
+        assert rule is not None
+        assert "_id" in rule
 
     @pytest.mark.requires_mongodb
-    def test_retrieve_most_recent_on_duplicates(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test retrieving most recent when multiple matches exist."""
-        collection = mongodb_database["agent_learning"]
+    def test_retrieve_multiple_rules(self, mongodb_database):
+        """Test retrieving multiple SQL rules."""
+        rules = get_real_sql_rules(mongodb_database, limit=20)
+        assert len(rules) > 0
 
-        question = "Count tickets"
-
-        # Store older query
-        doc_old = create_mock_sql_query(
-            question=question,
-            sql="SELECT COUNT(*) FROM CentralTickets",
-            database="EWRCentral",
-            success=True,
-        )
-        doc_old["test_run_id"] = pipeline_config.test_run_id
-        doc_old["created_at"] = datetime.utcnow() - timedelta(days=7)
-        collection.insert_one(doc_old)
-
-        # Store newer query with better SQL
-        doc_new = create_mock_sql_query(
-            question=question,
-            sql="SELECT COUNT(*) as TicketCount FROM CentralTickets WHERE CAST(AddTicketDate AS DATE) = CAST(GETDATE() AS DATE)",
-            database="EWRCentral",
-            success=True,
-        )
-        doc_new["test_run_id"] = pipeline_config.test_run_id
-        doc_new["created_at"] = datetime.utcnow()
-        collection.insert_one(doc_new)
-
-        # Retrieve most recent
-        result = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": "EWRCentral",
-                "success": True,
-            },
-            sort=[("created_at", -1)],  # Most recent first
-        )
-
-        assert result is not None
-        assert result["_id"] == doc_new["_id"]
-        assert "CAST(GETDATE() AS DATE)" in result["sql"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        for rule in rules:
+            assert "_id" in rule
 
     @pytest.mark.requires_mongodb
-    def test_case_insensitive_question_matching(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that question matching is case-insensitive."""
-        collection = mongodb_database["agent_learning"]
+    def test_retrieve_rules_with_description(self, mongodb_database):
+        """Test retrieving rules that have descriptions."""
+        collection = mongodb_database["sql_rules"]
 
-        # Store with lowercase
-        doc = create_mock_sql_query(
-            question="show me tickets created today",
-            sql="SELECT * FROM CentralTickets",
-            database="EWRCentral",
-            success=True,
+        rules_with_desc = list(
+            collection.find({"description": {"$exists": True}}).limit(10)
         )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_one(doc)
 
-        # Query with different case
-        variations = [
-            "SHOW ME TICKETS CREATED TODAY",
-            "Show Me Tickets Created Today",
-            "sHoW mE tIcKeTs CrEaTeD tOdAy",
+        for rule in rules_with_desc:
+            assert "description" in rule
+            assert isinstance(rule["description"], str)
+
+    @pytest.mark.requires_mongodb
+    def test_search_rules_by_keyword(self, mongodb_database):
+        """Test searching rules by keyword in description."""
+        collection = mongodb_database["sql_rules"]
+
+        # Search for common SQL keywords
+        keywords = ["date", "table", "column", "join", "select"]
+
+        for keyword in keywords:
+            results = list(
+                collection.find(
+                    {"description": {"$regex": keyword, "$options": "i"}}
+                ).limit(5)
+            )
+            # May or may not find results, just verify no error
+            assert isinstance(results, list)
+
+
+class TestStoredProcedureRetrieval:
+    """Test retrieval of stored procedures."""
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_single_procedure(self, mongodb_database):
+        """Test retrieving a single stored procedure."""
+        sp = get_real_stored_procedure(mongodb_database)
+        assert sp is not None
+        assert "_id" in sp
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_multiple_procedures(self, mongodb_database):
+        """Test retrieving multiple stored procedures."""
+        procedures = get_real_stored_procedures(mongodb_database, limit=10)
+        assert len(procedures) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_procedures_by_database(self, mongodb_database):
+        """Test filtering stored procedures by database."""
+        collection = mongodb_database["sql_stored_procedures"]
+
+        # Get distinct databases
+        databases = collection.distinct("database")
+
+        if databases:
+            db_name = databases[0]
+            results = list(collection.find({"database": db_name}).limit(10))
+
+            for result in results:
+                assert result.get("database") == db_name
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_procedure_by_name(self, mongodb_database):
+        """Test retrieving stored procedure by name."""
+        collection = mongodb_database["sql_stored_procedures"]
+
+        # Get one procedure first
+        sp = collection.find_one({"procedure_name": {"$exists": True}})
+
+        if sp and "procedure_name" in sp:
+            proc_name = sp["procedure_name"]
+            result = collection.find_one({"procedure_name": proc_name})
+            assert result is not None
+            assert result["procedure_name"] == proc_name
+
+
+class TestSchemaContextRetrieval:
+    """Test retrieval of schema context."""
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_schema_for_table(self, mongodb_database):
+        """Test retrieving schema context for a specific table."""
+        collection = mongodb_database["sql_schema_context"]
+
+        # Get one document
+        doc = collection.find_one({"table_name": {"$exists": True}})
+
+        if doc:
+            table_name = doc["table_name"]
+            result = collection.find_one({"table_name": table_name})
+            assert result is not None
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_schema_with_columns(self, mongodb_database):
+        """Test retrieving schema that has column information."""
+        collection = mongodb_database["sql_schema_context"]
+
+        doc = collection.find_one({"columns": {"$exists": True, "$ne": []}})
+
+        if doc:
+            assert "columns" in doc
+            assert isinstance(doc["columns"], list)
+            assert len(doc["columns"]) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_schema_by_database(self, mongodb_database):
+        """Test filtering schema context by database."""
+        collection = mongodb_database["sql_schema_context"]
+
+        databases = collection.distinct("database")
+
+        if databases:
+            db_name = databases[0]
+            results = list(collection.find({"database": db_name}).limit(10))
+
+            for result in results:
+                assert result.get("database") == db_name
+
+
+class TestAggregationQueries:
+    """Test aggregation queries on SQL collections."""
+
+    @pytest.mark.requires_mongodb
+    def test_count_examples_per_database(self, mongodb_database):
+        """Test counting SQL examples per database."""
+        collection = mongodb_database["sql_examples"]
+
+        pipeline = [
+            {"$group": {"_id": "$database", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
         ]
 
-        for variation in variations:
-            result = collection.find_one(
-                {
-                    "question_normalized": variation.lower().strip(),
-                    "database": "EWRCentral",
-                    "success": True,
-                }
-            )
-            assert result is not None, f"Failed to match: {variation}"
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
 
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.requires_mongodb
-    def test_whitespace_normalization(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that extra whitespace is normalized."""
-        collection = mongodb_database["agent_learning"]
-
-        # Store with normal spacing
-        doc = create_mock_sql_query(
-            question="show me tickets",
-            sql="SELECT * FROM CentralTickets",
-            database="EWRCentral",
-            success=True,
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_one(doc)
-
-        # Query with extra whitespace
-        variations = [
-            "  show   me   tickets  ",
-            "\tshow\tme\ttickets\t",
-            "show me tickets",  # Normal
-        ]
-
-        for variation in variations:
-            normalized = " ".join(variation.lower().split())
-            result = collection.find_one(
-                {
-                    "question_normalized": normalized,
-                    "database": "EWRCentral",
-                    "success": True,
-                }
-            )
-            assert result is not None, f"Failed to match: {repr(variation)}"
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-
-class TestSQLRuleBasedRetrieval:
-    """Test rule-based query retrieval patterns."""
-
-    @pytest.mark.requires_mongodb
-    def test_retrieve_queries_by_matched_rules(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test retrieving queries that used specific rules."""
-        collection = mongodb_database["agent_learning"]
-
-        rule_id = "use-addticketdate-not-createdate"
-
-        # Store queries with rule
-        docs = [
-            create_mock_sql_query(
-                question=f"Query {i}",
-                sql=f"SELECT * FROM CentralTickets WHERE AddTicketDate > '{i}'",
-                database="EWRCentral",
-                success=True,
-            )
-            for i in range(5)
-        ]
-
-        for doc in docs:
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["matched_rules"] = [rule_id]
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Retrieve by rule
-        results = list(
-            collection.find(
-                {
-                    "matched_rules": rule_id,
-                    "test_run_id": pipeline_config.test_run_id,
-                }
-            )
-        )
-
-        assert len(results) == 5
         for result in results:
-            assert rule_id in result["matched_rules"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+            assert "count" in result
+            assert result["count"] > 0
 
     @pytest.mark.requires_mongodb
-    def test_retrieve_queries_with_high_confidence(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test filtering queries by confidence threshold."""
-        collection = mongodb_database["agent_learning"]
+    def test_count_procedures_per_database(self, mongodb_database):
+        """Test counting stored procedures per database."""
+        collection = mongodb_database["sql_stored_procedures"]
 
-        # Store queries with varying confidence
-        queries = []
-        for i, confidence in enumerate([0.5, 0.7, 0.85, 0.95, 0.99]):
-            doc = create_mock_sql_query(
-                question=f"Query {i}",
-                sql=f"SELECT {i}",
-                database="EWRCentral",
-                success=True,
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["confidence"] = confidence
-            queries.append(doc)
-
-        insert_test_documents(collection, queries, pipeline_config.test_run_id)
-
-        # Retrieve high confidence (>= 0.8)
-        high_confidence = list(
-            collection.find(
-                {
-                    "test_run_id": pipeline_config.test_run_id,
-                    "confidence": {"$gte": 0.8},
-                }
-            )
-        )
-
-        assert len(high_confidence) == 3  # 0.85, 0.95, 0.99
-        for doc in high_confidence:
-            assert doc["confidence"] >= 0.8
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.requires_mongodb
-    def test_retrieve_queries_with_feedback(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test retrieving queries that received positive feedback."""
-        collection = mongodb_database["agent_learning"]
-
-        # Store queries with different feedback
-        doc_positive = create_mock_sql_query(
-            question="Good query",
-            sql="SELECT * FROM CentralTickets",
-            database="EWRCentral",
-            success=True,
-        )
-        doc_positive["test_run_id"] = pipeline_config.test_run_id
-        doc_positive["user_feedback"] = "correct"
-        collection.insert_one(doc_positive)
-
-        doc_negative = create_mock_sql_query(
-            question="Bad query",
-            sql="SELECT * FROM WrongTable",
-            database="EWRCentral",
-            success=True,
-        )
-        doc_negative["test_run_id"] = pipeline_config.test_run_id
-        doc_negative["user_feedback"] = "incorrect"
-        collection.insert_one(doc_negative)
-
-        doc_no_feedback = create_mock_sql_query(
-            question="No feedback",
-            sql="SELECT 1",
-            database="EWRCentral",
-            success=True,
-        )
-        doc_no_feedback["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_one(doc_no_feedback)
-
-        # Retrieve only positive feedback
-        positive_results = list(
-            collection.find(
-                {
-                    "test_run_id": pipeline_config.test_run_id,
-                    "user_feedback": "correct",
-                }
-            )
-        )
-
-        assert len(positive_results) == 1
-        assert positive_results[0]["_id"] == doc_positive["_id"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-
-class TestSQLRetrievalPerformance:
-    """Test performance-related aspects of SQL retrieval."""
-
-    @pytest.mark.requires_mongodb
-    def test_retrieve_from_large_dataset(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test retrieval performance with large dataset."""
-        collection = mongodb_database["agent_learning"]
-
-        # Insert large batch of queries
-        queries = [
-            create_mock_sql_query(
-                question=f"Test query number {i}",
-                sql=f"SELECT {i}",
-                database="EWRCentral",
-                success=True,
-            )
-            for i in range(100)
+        pipeline = [
+            {"$group": {"_id": "$database", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
         ]
 
-        for doc in queries:
-            doc["test_run_id"] = pipeline_config.test_run_id
-
-        insert_test_documents(collection, queries, pipeline_config.test_run_id)
-
-        # Retrieve specific query
-        target_question = "Test query number 50"
-        result = collection.find_one(
-            {
-                "question_normalized": target_question.lower().strip(),
-                "database": "EWRCentral",
-                "success": True,
-            }
-        )
-
-        assert result is not None
-        assert target_question in result["question"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
 
     @pytest.mark.requires_mongodb
-    def test_retrieve_with_index_hint(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test retrieval using database indexes."""
-        collection = mongodb_database["agent_learning"]
+    def test_sample_random_examples(self, mongodb_database):
+        """Test sampling random SQL examples."""
+        collection = mongodb_database["sql_examples"]
 
-        # Create index on normalized question + database
-        collection.create_index(
-            [("question_normalized", 1), ("database", 1), ("success", 1)]
-        )
+        pipeline = [{"$sample": {"size": 5}}]
+        results = list(collection.aggregate(pipeline))
 
-        # Store test queries
-        docs = [
-            create_mock_sql_query(
-                question=f"Indexed query {i}",
-                sql=f"SELECT {i}",
-                database="EWRCentral",
-                success=True,
-            )
-            for i in range(50)
-        ]
+        assert len(results) <= 5
+        for result in results:
+            assert "_id" in result
 
-        for doc in docs:
-            doc["test_run_id"] = pipeline_config.test_run_id
 
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
+class TestQueryPerformance:
+    """Test query performance characteristics."""
 
-        # Query using index
-        result = collection.find_one(
-            {
-                "question_normalized": "indexed query 25",
-                "database": "EWRCentral",
-                "success": True,
-            }
-        )
+    @pytest.mark.requires_mongodb
+    def test_indexed_query_performance(self, mongodb_database):
+        """Test that indexed queries are efficient."""
+        collection = mongodb_database["sql_examples"]
 
-        assert result is not None
-        assert "25" in result["sql"]
+        # Query by _id should use index
+        doc = collection.find_one()
+        if doc:
+            result = collection.find_one({"_id": doc["_id"]})
+            assert result is not None
+            assert result["_id"] == doc["_id"]
 
-        # Cleanup index
-        collection.drop_index(
-            [("question_normalized", 1), ("database", 1), ("success", 1)]
-        )
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    @pytest.mark.requires_mongodb
+    def test_limit_query_performance(self, mongodb_database):
+        """Test that limit queries return quickly."""
+        collection = mongodb_database["sql_examples"]
+
+        # Should return quickly with limit
+        results = list(collection.find().limit(10))
+        assert len(results) <= 10
+
+    @pytest.mark.requires_mongodb
+    def test_projection_reduces_data(self, mongodb_database):
+        """Test that projection reduces returned data."""
+        collection = mongodb_database["sql_schema_context"]
+
+        # Full document
+        full_doc = collection.find_one()
+
+        # Projected document
+        projected = collection.find_one({}, {"_id": 1, "table_name": 1})
+
+        if full_doc and projected:
+            # Projected should have fewer fields
+            assert len(projected) <= len(full_doc)

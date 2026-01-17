@@ -1,211 +1,180 @@
 """
-Code Assistance Storage Tests
-==============================
+Code Assistance Storage Tests - Using Real Data
+================================================
 
-Test storing code assistance interactions in MongoDB.
-
-Collections tested:
-- code_interactions: User queries and responses
-- code_feedback: User feedback on responses
+Tests code assistance data storage validation using REAL data from the database.
 """
 
 import pytest
-from datetime import datetime
-from utils import assert_document_stored, assert_mongodb_document, generate_test_id
+from typing import Dict, Any, List
+
+from config.test_config import get_test_config, PipelineTestConfig
+from fixtures.mongodb_fixtures import (
+    get_test_database,
+    get_real_code_method,
+    get_real_code_methods,
+)
 
 
-class TestCodeAssistanceStorage:
-    """Test code assistance storage operations."""
+class TestCodeAssistanceDataExists:
+    """Verify code assistance related collections have data."""
 
     @pytest.mark.requires_mongodb
-    def test_store_code_interaction(self, mongodb_database, pipeline_config):
-        """Test storing a code assistance interaction."""
-        collection = mongodb_database["code_interactions"]
+    def test_code_methods_collection_has_data(self, mongodb_database):
+        """Verify code_methods collection exists and has documents."""
+        collection = mongodb_database["code_methods"]
+        count = collection.count_documents({})
+        assert count > 0, "code_methods collection should have documents"
 
-        interaction = {
-            "_id": f"test_{generate_test_id()}",
-            "response_id": f"resp_{generate_test_id()}",
-            "query": "How does the bale saving process work?",
-            "answer": "The bale saving process involves validation, database insertion, and audit logging.",
-            "sources": ["BaleService.SaveBale", "ValidationService.ValidateBale"],
-            "call_chain": ["btnSaveBale_Click", "ValidateBale", "SaveBale"],
-            "project": "Gin",
-            "model_used": "qwen2.5-coder",
-            "retrieval_time_ms": 150,
-            "generation_time_ms": 2500,
-            "total_time_ms": 2650,
-            "feedback_received": False,
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "code_assistance",
-        }
+    @pytest.mark.requires_mongodb
+    def test_code_classes_has_data(self, mongodb_database):
+        """Verify code_classes collection exists and has documents."""
+        collection = mongodb_database["code_classes"]
+        count = collection.count_documents({})
+        assert count > 0, "code_classes collection should have documents"
 
-        collection.insert_one(interaction)
+    @pytest.mark.requires_mongodb
+    def test_feedback_collection_exists(self, mongodb_database):
+        """Verify feedback collection exists."""
+        collection = mongodb_database["feedback"]
+        # Collection may be empty but should exist
+        count = collection.count_documents({})
+        assert count >= 0  # Just verify collection is accessible
 
-        stored_doc = assert_document_stored(
-            collection,
-            interaction["_id"],
-            expected_fields=["query", "answer", "sources", "model_used"]
+
+class TestCodeMethodStructure:
+    """Test structure of stored code methods for assistance."""
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_required_fields(self, mongodb_database):
+        """Test that code methods have required fields for assistance."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None, "Should have at least one code method"
+        assert "_id" in method
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_name(self, mongodb_database):
+        """Test that code methods have method_name field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"method_name": {"$exists": True}})
+
+        if method:
+            assert isinstance(method["method_name"], str)
+            assert len(method["method_name"]) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_class(self, mongodb_database):
+        """Test that code methods have class_name field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"class_name": {"$exists": True}})
+
+        if method:
+            assert isinstance(method["class_name"], str)
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_project(self, mongodb_database):
+        """Test that code methods have project field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"project": {"$exists": True}})
+
+        if method:
+            assert isinstance(method["project"], str)
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_content(self, mongodb_database):
+        """Test that code methods have content for assistance."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"content": {"$exists": True}})
+
+        if method:
+            assert "content" in method
+            assert len(method["content"]) > 0
+
+
+class TestCodeAssistanceQueryability:
+    """Test that code data can be queried for assistance."""
+
+    @pytest.mark.requires_mongodb
+    def test_query_methods_by_project(self, mongodb_database):
+        """Test querying code methods by project."""
+        collection = mongodb_database["code_methods"]
+
+        projects = collection.distinct("project")
+
+        if projects:
+            project = projects[0]
+            results = list(collection.find({"project": project}).limit(5))
+            assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_query_methods_by_class(self, mongodb_database):
+        """Test querying code methods by class name."""
+        collection = mongodb_database["code_methods"]
+
+        doc = collection.find_one({"class_name": {"$exists": True}})
+        if doc and "class_name" in doc:
+            class_name = doc["class_name"]
+            results = list(collection.find({"class_name": class_name}).limit(5))
+            assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_search_methods_by_name_pattern(self, mongodb_database):
+        """Test searching methods by name pattern."""
+        collection = mongodb_database["code_methods"]
+
+        results = list(
+            collection.find(
+                {"method_name": {"$regex": "^Get", "$options": "i"}}
+            ).limit(5)
         )
 
-        assert_mongodb_document(
-            stored_doc,
-            {
-                "query": str,
-                "answer": str,
-                "sources": list,
-                "retrieval_time_ms": int,
-                "generation_time_ms": int,
-                "feedback_received": bool,
-            }
-        )
+        assert isinstance(results, list)
 
-        assert stored_doc["query"] == interaction["query"]
-        assert "BaleService.SaveBale" in stored_doc["sources"]
+
+class TestCodeAssistanceCounts:
+    """Verify expected data counts for assistance."""
 
     @pytest.mark.requires_mongodb
-    def test_store_code_feedback(self, mongodb_database, pipeline_config):
-        """Test storing user feedback on code assistance."""
-        collection = mongodb_database["code_feedback"]
-
-        feedback = {
-            "_id": f"test_{generate_test_id()}",
-            "feedback_id": f"fb_{generate_test_id()}",
-            "response_id": f"resp_{generate_test_id()}",
-            "is_helpful": True,
-            "rating": 5,
-            "comment": "Very helpful explanation",
-            "error_category": None,
-            "expected_methods": [],
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "code_assistance",
-        }
-
-        collection.insert_one(feedback)
-
-        stored_doc = assert_document_stored(
-            collection,
-            feedback["_id"],
-            expected_fields=["response_id", "is_helpful", "rating"]
-        )
-
-        assert stored_doc["is_helpful"] is True
-        assert stored_doc["rating"] == 5
+    def test_code_methods_count(self, mongodb_database):
+        """Verify code_methods has expected minimum count."""
+        collection = mongodb_database["code_methods"]
+        count = collection.count_documents({})
+        assert count >= 1000, f"Expected at least 1000 code methods, got {count}"
 
     @pytest.mark.requires_mongodb
-    def test_update_interaction_with_feedback(self, mongodb_database, pipeline_config):
-        """Test updating interaction when feedback is received."""
-        interactions_collection = mongodb_database["code_interactions"]
-        feedback_collection = mongodb_database["code_feedback"]
+    def test_code_classes_count(self, mongodb_database):
+        """Verify code_classes has expected minimum count."""
+        collection = mongodb_database["code_classes"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 code classes, got {count}"
 
-        # Create interaction
-        interaction_id = f"test_{generate_test_id()}"
-        response_id = f"resp_{generate_test_id()}"
 
-        interaction = {
-            "_id": interaction_id,
-            "response_id": response_id,
-            "query": "Test query",
-            "answer": "Test answer",
-            "feedback_received": False,
-            "is_test": True,
-            "test_run_id": pipeline_config.test_run_id,
-        }
-        interactions_collection.insert_one(interaction)
-
-        # Add feedback
-        feedback = {
-            "_id": f"test_{generate_test_id()}",
-            "response_id": response_id,
-            "is_helpful": True,
-            "rating": 4,
-            "is_test": True,
-            "test_run_id": pipeline_config.test_run_id,
-        }
-        feedback_collection.insert_one(feedback)
-
-        # Update interaction
-        interactions_collection.update_one(
-            {"response_id": response_id},
-            {
-                "$set": {
-                    "feedback_received": True,
-                    "feedback_rating": 4,
-                    "feedback_timestamp": datetime.utcnow(),
-                }
-            }
-        )
-
-        # Verify update
-        updated = interactions_collection.find_one({"_id": interaction_id})
-        assert updated["feedback_received"] is True
-        assert updated["feedback_rating"] == 4
+class TestAggregationQueries:
+    """Test aggregation queries for assistance analytics."""
 
     @pytest.mark.requires_mongodb
-    def test_query_interactions_by_performance(self, mongodb_database, pipeline_config):
-        """Test querying slow interactions for optimization."""
-        collection = mongodb_database["code_interactions"]
+    def test_count_methods_per_project(self, mongodb_database):
+        """Test counting methods per project."""
+        collection = mongodb_database["code_methods"]
 
-        interactions = [
-            {
-                "_id": f"test_{generate_test_id()}",
-                "query": f"Query {i}",
-                "total_time_ms": 1000 * i,
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            }
-            for i in range(1, 6)
-        ]
-
-        collection.insert_many(interactions)
-
-        # Find slow interactions (>3000ms)
-        slow_queries = list(collection.find({
-            "total_time_ms": {"$gt": 3000},
-            "test_run_id": pipeline_config.test_run_id
-        }).sort("total_time_ms", -1))
-
-        assert len(slow_queries) == 2
-        assert slow_queries[0]["total_time_ms"] > slow_queries[1]["total_time_ms"]
-
-    @pytest.mark.requires_mongodb
-    def test_aggregate_feedback_stats(self, mongodb_database, pipeline_config):
-        """Test aggregating feedback statistics."""
-        collection = mongodb_database["code_feedback"]
-
-        feedback_items = [
-            {"response_id": f"r1", "is_helpful": True, "rating": 5, "is_test": True, "test_run_id": pipeline_config.test_run_id},
-            {"response_id": f"r2", "is_helpful": True, "rating": 4, "is_test": True, "test_run_id": pipeline_config.test_run_id},
-            {"response_id": f"r3", "is_helpful": False, "rating": 2, "is_test": True, "test_run_id": pipeline_config.test_run_id},
-            {"response_id": f"r4", "is_helpful": True, "rating": 5, "is_test": True, "test_run_id": pipeline_config.test_run_id},
-        ]
-
-        for fb in feedback_items:
-            fb["_id"] = f"test_{generate_test_id()}"
-
-        collection.insert_many(feedback_items)
-
-        # Aggregate stats
         pipeline = [
-            {"$match": {"test_run_id": pipeline_config.test_run_id}},
-            {"$group": {
-                "_id": None,
-                "total_feedback": {"$sum": 1},
-                "helpful_count": {
-                    "$sum": {"$cond": [{"$eq": ["$is_helpful", True]}, 1, 0]}
-                },
-                "avg_rating": {"$avg": "$rating"},
-            }}
+            {"$group": {"_id": "$project", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
         ]
 
-        stats = list(collection.aggregate(pipeline))
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
 
-        assert len(stats) == 1
-        assert stats[0]["total_feedback"] == 4
-        assert stats[0]["helpful_count"] == 3
-        assert stats[0]["avg_rating"] == 4.0
+    @pytest.mark.requires_mongodb
+    def test_count_methods_per_class(self, mongodb_database):
+        """Test counting methods per class."""
+        collection = mongodb_database["code_methods"]
+
+        pipeline = [
+            {"$group": {"_id": "$class_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0

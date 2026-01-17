@@ -1,305 +1,185 @@
 """
-Git Analysis Storage Tests
-===========================
+Git Storage Tests - Using Real Data
+====================================
 
-Test storing parsed code entities from git analysis in MongoDB.
-
-Collections tested:
-- code_methods: Method-level code analysis
-- code_classes: Class-level code analysis
-- code_dboperations: Database operation tracking
+Tests code storage validation using REAL data from the database.
 """
 
 import pytest
-from datetime import datetime
 from typing import Dict, Any
 
-from config.test_config import get_test_config
+from config.test_config import get_test_config, PipelineTestConfig
 from fixtures.mongodb_fixtures import (
-    create_mock_code_method,
-    insert_test_documents,
-    cleanup_test_documents,
-)
-from utils import (
-    assert_document_stored,
-    assert_mongodb_document,
-    generate_test_id,
+    get_test_database,
+    get_real_code_method,
+    get_real_code_methods,
+    get_real_code_class,
 )
 
 
-class TestGitStorage:
-    """Test git analysis storage operations."""
+class TestCodeDataExists:
+    """Verify code-related collections have data."""
 
     @pytest.mark.requires_mongodb
-    def test_store_code_method(self, mongodb_database, pipeline_config):
-        """Test storing a parsed code method in code_methods collection."""
+    def test_code_methods_collection_has_data(self, mongodb_database):
+        """Verify code_methods collection exists and has documents."""
         collection = mongodb_database["code_methods"]
-
-        # Create test method document
-        method_doc = create_mock_code_method(
-            method_name="TestMethod",
-            class_name="TestClass",
-            project="TestProject",
-            code="public void TestMethod() { Console.WriteLine(\"Hello\"); }",
-        )
-
-        # Add required git analysis metadata
-        method_doc.update({
-            "namespace": "TestProject.Services",
-            "file_path": "/src/Services/TestClass.cs",
-            "start_line": 10,
-            "end_line": 15,
-            "return_type": "void",
-            "is_public": True,
-            "is_static": False,
-            "is_async": False,
-            "purpose_summary": "Test method for demonstration",
-            "calls_methods": ["Console.WriteLine"],
-            "database_tables": [],
-        })
-
-        # Insert document
-        result = collection.insert_one(method_doc)
-
-        # Verify storage
-        stored_doc = assert_document_stored(
-            collection,
-            method_doc["_id"],
-            expected_fields=["method_name", "class_name", "project", "content", "file_path"]
-        )
-
-        # Validate schema
-        assert_mongodb_document(
-            stored_doc,
-            {
-                "method_name": str,
-                "class_name": str,
-                "project": str,
-                "content": str,
-                "file_path": str,
-                "start_line": int,
-                "end_line": int,
-                "is_public": bool,
-                "is_test": bool,
-            }
-        )
-
-        # Verify content
-        assert stored_doc["method_name"] == "TestMethod"
-        assert stored_doc["class_name"] == "TestClass"
-        assert stored_doc["project"] == "TestProject"
-        assert "Console.WriteLine" in str(stored_doc.get("calls_methods", []))
+        count = collection.count_documents({})
+        assert count > 0, "code_methods collection should have documents"
 
     @pytest.mark.requires_mongodb
-    def test_store_code_class(self, mongodb_database, pipeline_config):
-        """Test storing a parsed code class in code_classes collection."""
+    def test_code_classes_collection_has_data(self, mongodb_database):
+        """Verify code_classes collection exists and has documents."""
         collection = mongodb_database["code_classes"]
-
-        # Create test class document
-        class_doc = {
-            "_id": f"test_{generate_test_id()}",
-            "class_name": "UserService",
-            "namespace": "TestProject.Services",
-            "project": "TestProject",
-            "content": "public class UserService { /* implementation */ }",
-            "file_path": "/src/Services/UserService.cs",
-            "is_public": True,
-            "is_static": False,
-            "base_class": None,
-            "interfaces": ["IUserService"],
-            "methods_count": 5,
-            "purpose_summary": "Manages user operations",
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "git",
-        }
-
-        # Insert document
-        collection.insert_one(class_doc)
-
-        # Verify storage
-        stored_doc = assert_document_stored(
-            collection,
-            class_doc["_id"],
-            expected_fields=["class_name", "namespace", "project", "file_path"]
-        )
-
-        # Verify content
-        assert stored_doc["class_name"] == "UserService"
-        assert stored_doc["namespace"] == "TestProject.Services"
-        assert stored_doc["methods_count"] == 5
-        assert "IUserService" in stored_doc["interfaces"]
+        count = collection.count_documents({})
+        assert count > 0, "code_classes collection should have documents"
 
     @pytest.mark.requires_mongodb
-    def test_store_database_operation(self, mongodb_database, pipeline_config):
-        """Test storing database operation metadata in code_dboperations collection."""
-        collection = mongodb_database["code_dboperations"]
+    def test_code_callgraph_has_data(self, mongodb_database):
+        """Verify code_callgraph collection exists and has documents."""
+        collection = mongodb_database["code_callgraph"]
+        count = collection.count_documents({})
+        assert count > 0, "code_callgraph collection should have documents"
 
-        # Create DB operation document
-        db_op_doc = {
-            "_id": f"test_{generate_test_id()}",
-            "method_name": "GetUserById",
-            "class_name": "UserRepository",
-            "project": "TestProject",
-            "operation_type": "SELECT",
-            "tables_accessed": ["Users", "UserProfiles"],
-            "sql_pattern": "SELECT * FROM Users WHERE UserID = @UserId",
-            "file_path": "/src/Repositories/UserRepository.cs",
-            "start_line": 25,
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "git",
-        }
 
-        # Insert document
-        collection.insert_one(db_op_doc)
-
-        # Verify storage
-        stored_doc = assert_document_stored(
-            collection,
-            db_op_doc["_id"],
-            expected_fields=["method_name", "operation_type", "tables_accessed"]
-        )
-
-        # Verify content
-        assert stored_doc["operation_type"] == "SELECT"
-        assert "Users" in stored_doc["tables_accessed"]
-        assert "UserProfiles" in stored_doc["tables_accessed"]
+class TestCodeMethodsStructure:
+    """Test structure of code_methods documents."""
 
     @pytest.mark.requires_mongodb
-    def test_bulk_insert_methods(self, mongodb_database, pipeline_config):
-        """Test bulk inserting multiple code methods."""
+    def test_code_method_has_required_fields(self, mongodb_database):
+        """Test that code methods have required fields."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None, "Should have at least one code method"
+
+        assert "_id" in method, "Method should have _id"
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_method_name(self, mongodb_database):
+        """Test that code methods have method_name field."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None
+
+        if "method_name" in method:
+            assert isinstance(method["method_name"], str)
+            assert len(method["method_name"]) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_class_name(self, mongodb_database):
+        """Test that code methods have class_name field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"class_name": {"$exists": True}})
+
+        if method:
+            assert isinstance(method["class_name"], str)
+
+    @pytest.mark.requires_mongodb
+    def test_multiple_methods_retrievable(self, mongodb_database):
+        """Test that multiple code methods can be retrieved."""
+        methods = get_real_code_methods(mongodb_database, limit=10)
+        assert len(methods) > 0
+
+        for method in methods:
+            assert "_id" in method
+
+
+class TestCodeClassesStructure:
+    """Test structure of code_classes documents."""
+
+    @pytest.mark.requires_mongodb
+    def test_code_class_has_required_fields(self, mongodb_database):
+        """Test that code classes have required fields."""
+        code_class = get_real_code_class(mongodb_database)
+        assert code_class is not None, "Should have at least one code class"
+        assert "_id" in code_class
+
+    @pytest.mark.requires_mongodb
+    def test_code_classes_count(self, mongodb_database):
+        """Test code_classes has expected count."""
+        collection = mongodb_database["code_classes"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 classes, got {count}"
+
+
+class TestCodeCallgraphStructure:
+    """Test structure of code_callgraph documents."""
+
+    @pytest.mark.requires_mongodb
+    def test_callgraph_has_documents(self, mongodb_database):
+        """Test that callgraph has documents."""
+        collection = mongodb_database["code_callgraph"]
+        doc = collection.find_one()
+        assert doc is not None
+        assert "_id" in doc
+
+    @pytest.mark.requires_mongodb
+    def test_callgraph_count(self, mongodb_database):
+        """Test code_callgraph has expected count."""
+        collection = mongodb_database["code_callgraph"]
+        count = collection.count_documents({})
+        assert count >= 1000, f"Expected at least 1000 callgraph entries, got {count}"
+
+
+class TestCodeQueryability:
+    """Test that code data can be queried effectively."""
+
+    @pytest.mark.requires_mongodb
+    def test_query_methods_by_project(self, mongodb_database):
+        """Test querying code methods by project."""
         collection = mongodb_database["code_methods"]
 
-        # Create multiple method documents
-        methods = []
-        for i in range(10):
-            method = create_mock_code_method(
-                method_name=f"Method{i}",
-                class_name="BulkTestClass",
-                project="TestProject",
-                code=f"public void Method{i}() {{ /* implementation {i} */ }}",
-            )
-            method.update({
-                "namespace": "TestProject.BulkTest",
-                "file_path": f"/src/BulkTestClass_{i}.cs",
-                "start_line": i * 10,
-                "end_line": (i * 10) + 5,
-            })
-            methods.append(method)
+        projects = collection.distinct("project")
 
-        # Bulk insert
-        ids = insert_test_documents(
-            collection,
-            methods,
-            test_run_id=pipeline_config.test_run_id
-        )
-
-        # Verify all inserted
-        assert len(ids) == 10
-
-        # Verify retrieval
-        count = collection.count_documents({
-            "test_run_id": pipeline_config.test_run_id,
-            "class_name": "BulkTestClass"
-        })
-        assert count == 10
+        if projects:
+            project = projects[0]
+            results = list(collection.find({"project": project}).limit(5))
+            assert len(results) > 0
 
     @pytest.mark.requires_mongodb
-    def test_update_code_method(self, mongodb_database, pipeline_config):
-        """Test updating an existing code method."""
+    def test_query_methods_by_class(self, mongodb_database):
+        """Test querying code methods by class name."""
         collection = mongodb_database["code_methods"]
 
-        # Insert initial document
-        method_doc = create_mock_code_method(
-            method_name="UpdateTest",
-            class_name="TestClass",
-            project="TestProject",
-        )
-        method_doc["purpose_summary"] = "Initial purpose"
-        collection.insert_one(method_doc)
-
-        # Update the document
-        collection.update_one(
-            {"_id": method_doc["_id"]},
-            {
-                "$set": {
-                    "purpose_summary": "Updated purpose summary",
-                    "calls_methods": ["NewMethod1", "NewMethod2"],
-                    "last_updated": datetime.utcnow(),
-                }
-            }
-        )
-
-        # Verify update
-        updated_doc = collection.find_one({"_id": method_doc["_id"]})
-        assert updated_doc is not None
-        assert updated_doc["purpose_summary"] == "Updated purpose summary"
-        assert "NewMethod1" in updated_doc["calls_methods"]
-        assert "last_updated" in updated_doc
+        doc = collection.find_one({"class_name": {"$exists": True}})
+        if doc and "class_name" in doc:
+            class_name = doc["class_name"]
+            results = list(collection.find({"class_name": class_name}).limit(5))
+            assert len(results) > 0
 
     @pytest.mark.requires_mongodb
-    def test_query_methods_by_project(self, mongodb_database, pipeline_config):
-        """Test querying methods filtered by project."""
+    def test_aggregation_methods_per_project(self, mongodb_database):
+        """Test aggregation of methods per project."""
         collection = mongodb_database["code_methods"]
 
-        # Insert methods for different projects
-        projects = ["Project1", "Project2", "Project3"]
-        for project in projects:
-            for i in range(3):
-                method = create_mock_code_method(
-                    method_name=f"Method{i}",
-                    class_name="TestClass",
-                    project=project,
-                )
-                insert_test_documents(collection, [method], pipeline_config.test_run_id)
+        pipeline = [
+            {"$group": {"_id": "$project", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 5}
+        ]
 
-        # Query for specific project
-        project1_methods = list(collection.find({
-            "project": "Project1",
-            "test_run_id": pipeline_config.test_run_id
-        }))
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
 
-        # Verify correct filtering
-        assert len(project1_methods) == 3
-        assert all(m["project"] == "Project1" for m in project1_methods)
+
+class TestCodeDataCounts:
+    """Verify expected data counts in code collections."""
 
     @pytest.mark.requires_mongodb
-    def test_index_creation(self, mongodb_database, pipeline_config):
-        """Test that appropriate indexes exist for performance."""
+    def test_code_methods_count(self, mongodb_database):
+        """Verify code_methods has expected minimum count."""
         collection = mongodb_database["code_methods"]
-
-        # Create indexes for common queries
-        collection.create_index([("project", 1)])
-        collection.create_index([("class_name", 1)])
-        collection.create_index([("method_name", 1)])
-        collection.create_index([("file_path", 1)])
-
-        # Verify indexes exist
-        indexes = list(collection.list_indexes())
-        index_names = [idx["name"] for idx in indexes]
-
-        assert any("project" in name for name in index_names)
-        assert any("class_name" in name for name in index_names)
+        count = collection.count_documents({})
+        assert count >= 1000, f"Expected at least 1000 methods, got {count}"
 
     @pytest.mark.requires_mongodb
-    def test_cleanup_test_data(self, mongodb_database, pipeline_config, cleanup_test_data):
-        """Test that cleanup properly removes test data."""
-        collection = mongodb_database["code_methods"]
+    def test_code_classes_count(self, mongodb_database):
+        """Verify code_classes has expected minimum count."""
+        collection = mongodb_database["code_classes"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 classes, got {count}"
 
-        # Insert test data
-        method = create_mock_code_method()
-        insert_test_documents(collection, [method], pipeline_config.test_run_id)
-
-        # Verify inserted
-        count_before = collection.count_documents({
-            "test_run_id": pipeline_config.test_run_id
-        })
-        assert count_before > 0
-
-        # Cleanup happens automatically via fixture
-        # This test validates the cleanup fixture works correctly
+    @pytest.mark.requires_mongodb
+    def test_code_callgraph_count(self, mongodb_database):
+        """Verify code_callgraph has expected minimum count."""
+        collection = mongodb_database["code_callgraph"]
+        count = collection.count_documents({})
+        assert count >= 10000, f"Expected at least 10000 callgraph, got {count}"

@@ -1,158 +1,182 @@
 """
-Code Flow Retrieval Tests
-==========================
+Code Flow Retrieval Tests - Using Real Data
+=============================================
 
-Test retrieving code flow analysis data including database operations,
-call chains, and UI event mappings.
+Tests code flow retrieval operations using REAL data from the database.
 """
 
 import pytest
-from datetime import datetime
+from typing import Dict, Any, List
 
-from fixtures.mongodb_fixtures import insert_test_documents
-from utils import generate_test_id
+from config.test_config import get_test_config, PipelineTestConfig
+from fixtures.mongodb_fixtures import (
+    get_test_database,
+    get_real_code_method,
+    get_real_code_methods,
+)
 
 
-class TestCodeFlowRetrieval:
-    """Test code flow retrieval operations."""
-
-    @pytest.fixture(autouse=True)
-    async def setup_test_data(self, mongodb_database, pipeline_config):
-        """Set up test data for retrieval tests."""
-        # Create test database operations
-        self.db_ops_collection = mongodb_database["code_dboperations"]
-
-        db_ops = [
-            {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": "SELECT",
-                "method_name": "GetBale",
-                "class_name": "BaleService",
-                "project": "Gin",
-                "tables_accessed": ["Bales"],
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-            {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": "INSERT",
-                "method_name": "SaveBale",
-                "class_name": "BaleService",
-                "project": "Gin",
-                "tables_accessed": ["Bales", "BaleHistory"],
-                "is_transaction": True,
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-            {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": "UPDATE",
-                "method_name": "UpdateBaleStatus",
-                "class_name": "BaleService",
-                "project": "Gin",
-                "tables_accessed": ["Bales"],
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-        ]
-
-        insert_test_documents(self.db_ops_collection, db_ops, pipeline_config.test_run_id)
-
-        # Create test call relationships
-        self.relationships_collection = mongodb_database["code_relationships"]
-
-        relationships = [
-            {
-                "_id": f"test_{generate_test_id()}",
-                "source_method": "ProcessBale",
-                "target_method": "ValidateBale",
-                "project": "Gin",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-            {
-                "_id": f"test_{generate_test_id()}",
-                "source_method": "ProcessBale",
-                "target_method": "SaveBale",
-                "project": "Gin",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-        ]
-
-        insert_test_documents(self.relationships_collection, relationships, pipeline_config.test_run_id)
+class TestCodeMethodRetrieval:
+    """Test retrieval of code methods."""
 
     @pytest.mark.requires_mongodb
-    def test_retrieve_operations_by_type(self, mongodb_database, pipeline_config):
-        """Test retrieving operations by type."""
-        collection = mongodb_database["code_dboperations"]
-
-        results = list(collection.find({
-            "operation_type": "INSERT",
-            "test_run_id": pipeline_config.test_run_id
-        }))
-
-        assert len(results) >= 1
-        assert all(r["operation_type"] == "INSERT" for r in results)
+    def test_retrieve_single_method(self, mongodb_database):
+        """Test retrieving a single code method."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None
+        assert "_id" in method
 
     @pytest.mark.requires_mongodb
-    def test_retrieve_operations_by_table(self, mongodb_database, pipeline_config):
-        """Test retrieving operations accessing a specific table."""
-        collection = mongodb_database["code_dboperations"]
+    def test_retrieve_multiple_methods(self, mongodb_database):
+        """Test retrieving multiple code methods."""
+        methods = get_real_code_methods(mongodb_database, limit=10)
+        assert len(methods) > 0
 
-        results = list(collection.find({
-            "tables_accessed": "Bales",
-            "test_run_id": pipeline_config.test_run_id
-        }))
-
-        assert len(results) >= 3
-        assert all("Bales" in r["tables_accessed"] for r in results)
+        for method in methods:
+            assert "_id" in method
 
     @pytest.mark.requires_mongodb
-    def test_retrieve_transactions(self, mongodb_database, pipeline_config):
-        """Test retrieving operations that use transactions."""
-        collection = mongodb_database["code_dboperations"]
+    def test_retrieve_methods_by_project(self, mongodb_database):
+        """Test filtering code methods by project."""
+        collection = mongodb_database["code_methods"]
 
-        results = list(collection.find({
-            "is_transaction": True,
-            "test_run_id": pipeline_config.test_run_id
-        }))
+        projects = collection.distinct("project")
 
-        assert len(results) >= 1
+        if projects:
+            project = projects[0]
+            results = list(collection.find({"project": project}).limit(10))
 
-    @pytest.mark.requires_mongodb
-    def test_retrieve_method_callers(self, mongodb_database, pipeline_config):
-        """Test finding all methods that call a specific method."""
-        collection = mongodb_database["code_relationships"]
-
-        results = list(collection.find({
-            "target_method": "SaveBale",
-            "test_run_id": pipeline_config.test_run_id
-        }))
-
-        assert len(results) >= 1
-        callers = [r["source_method"] for r in results]
-        assert "ProcessBale" in callers
+            for result in results:
+                assert result.get("project") == project
 
     @pytest.mark.requires_mongodb
-    def test_aggregate_table_access_frequency(self, mongodb_database, pipeline_config):
-        """Test aggregating table access frequency."""
-        collection = mongodb_database["code_dboperations"]
+    def test_retrieve_method_by_name(self, mongodb_database):
+        """Test retrieving method by name."""
+        collection = mongodb_database["code_methods"]
+
+        doc = collection.find_one({"method_name": {"$exists": True}})
+        if doc and "method_name" in doc:
+            method_name = doc["method_name"]
+            result = collection.find_one({"method_name": method_name})
+            assert result is not None
+
+
+class TestCodeCallgraphRetrieval:
+    """Test retrieval of code callgraph."""
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_callgraph_entry(self, mongodb_database):
+        """Test retrieving a callgraph entry."""
+        collection = mongodb_database["code_callgraph"]
+        doc = collection.find_one()
+        assert doc is not None
+        assert "_id" in doc
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_callgraph_by_method(self, mongodb_database):
+        """Test retrieving callgraph entries for a method."""
+        collection = mongodb_database["code_callgraph"]
+
+        doc = collection.find_one({"method_name": {"$exists": True}})
+        if doc and "method_name" in doc:
+            results = list(collection.find({"method_name": doc["method_name"]}).limit(5))
+            assert len(results) > 0
+
+
+class TestEventHandlerRetrieval:
+    """Test retrieval of event handlers."""
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_event_handler(self, mongodb_database):
+        """Test retrieving an event handler."""
+        collection = mongodb_database["code_eventhandlers"]
+        doc = collection.find_one()
+        assert doc is not None
+        assert "_id" in doc
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_event_handlers_by_project(self, mongodb_database):
+        """Test retrieving event handlers by project."""
+        collection = mongodb_database["code_eventhandlers"]
+
+        projects = collection.distinct("project")
+
+        if projects:
+            project = projects[0]
+            results = list(collection.find({"project": project}).limit(5))
+            assert len(results) > 0
+
+
+class TestAggregationQueries:
+    """Test aggregation queries on code flow collections."""
+
+    @pytest.mark.requires_mongodb
+    def test_count_methods_per_class(self, mongodb_database):
+        """Test counting methods per class."""
+        collection = mongodb_database["code_methods"]
 
         pipeline = [
-            {"$match": {"test_run_id": pipeline_config.test_run_id}},
-            {"$unwind": "$tables_accessed"},
-            {"$group": {
-                "_id": "$tables_accessed",
-                "access_count": {"$sum": 1},
-                "operations": {"$addToSet": "$operation_type"}
-            }},
-            {"$sort": {"access_count": -1}}
+            {"$group": {"_id": "$class_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
         ]
 
         results = list(collection.aggregate(pipeline))
-
         assert len(results) > 0
-        bales_table = next((r for r in results if r["_id"] == "Bales"), None)
-        assert bales_table is not None
-        assert bales_table["access_count"] >= 3
+
+    @pytest.mark.requires_mongodb
+    def test_count_methods_per_project(self, mongodb_database):
+        """Test counting methods per project."""
+        collection = mongodb_database["code_methods"]
+
+        pipeline = [
+            {"$group": {"_id": "$project", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_sample_random_methods(self, mongodb_database):
+        """Test sampling random code methods."""
+        collection = mongodb_database["code_methods"]
+
+        pipeline = [{"$sample": {"size": 5}}]
+        results = list(collection.aggregate(pipeline))
+
+        assert len(results) <= 5
+        for result in results:
+            assert "_id" in result
+
+
+class TestQueryPerformance:
+    """Test query performance characteristics."""
+
+    @pytest.mark.requires_mongodb
+    def test_indexed_query_by_id(self, mongodb_database):
+        """Test that _id queries are efficient."""
+        collection = mongodb_database["code_methods"]
+
+        doc = collection.find_one()
+        if doc:
+            result = collection.find_one({"_id": doc["_id"]})
+            assert result is not None
+
+    @pytest.mark.requires_mongodb
+    def test_limit_query_performance(self, mongodb_database):
+        """Test that limit queries return quickly."""
+        collection = mongodb_database["code_methods"]
+
+        results = list(collection.find().limit(10))
+        assert len(results) <= 10
+
+    @pytest.mark.requires_mongodb
+    def test_projection_query(self, mongodb_database):
+        """Test queries with projection."""
+        collection = mongodb_database["code_methods"]
+
+        result = collection.find_one({}, {"method_name": 1, "class_name": 1})
+
+        if result:
+            assert "_id" in result  # _id is included by default

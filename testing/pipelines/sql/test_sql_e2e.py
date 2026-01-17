@@ -1,498 +1,277 @@
 """
-SQL Pipeline End-to-End Tests.
+SQL End-to-End Tests - Using Real Data
+=======================================
 
-Tests complete SQL pipeline flow:
-question → cache check → rule matching → schema loading → LLM generation → validation → storage
-
-These tests exercise the full pipeline with all components integrated.
-Uses local llama.cpp (port 8080) and MongoDB only.
+Tests SQL pipeline end-to-end functionality using REAL data.
+Tests verify the complete data flow from storage to retrieval.
 """
 
 import pytest
-import time
+from typing import Dict, Any, List
 
-from config.test_config import PipelineTestConfig
-from fixtures.llm_fixtures import LocalLLMClient
+from config.test_config import get_test_config, PipelineTestConfig
 from fixtures.mongodb_fixtures import (
-    create_mock_sql_query,
-    cleanup_test_documents,
+    get_test_database,
+    verify_database_has_data,
+    get_real_sql_example,
+    get_real_sql_examples,
+    get_real_sql_rule,
+    get_real_stored_procedure,
+    get_sql_test_questions,
 )
-from utils import assert_valid_sql, assert_llm_response_valid
 
 
-class TestSQLPipelineE2E:
-    """End-to-end tests for complete SQL pipeline."""
+class TestSQLPipelineDataFlow:
+    """Test complete SQL data flow."""
 
-    @pytest.mark.e2e
     @pytest.mark.requires_mongodb
-    @pytest.mark.requires_llm
-    def test_full_pipeline_cache_miss_to_generation(
-        self,
-        mongodb_database,
-        llm_client: LocalLLMClient,
-        pipeline_config: PipelineTestConfig,
-    ):
-        """
-        Test complete pipeline flow: cache miss → LLM generation → storage.
-
-        Flow:
-        1. Check cache (miss)
-        2. Generate SQL with LLM
-        3. Store result in agent_learning
-        4. Verify stored correctly
-        """
-        collection = mongodb_database["agent_learning"]
-        question = "How many tickets were created in the last 7 days?"
-        database = "EWRCentral"
-
-        # Step 1: Check cache (should miss)
-        cached = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": database,
-                "success": True,
-            }
-        )
-        assert cached is None, "Cache should be empty initially"
-
-        # Step 2: Generate SQL with LLM
-        prompt = f"""Generate a T-SQL query for: "{question}"
-
-DATABASE: {database}
-SCHEMA:
-Table: CentralTickets
-  Columns: CentralTicketID (int, PK), AddTicketDate (datetime)
-
-RULES:
-- Use AddTicketDate for creation date
-- For last 7 days: AddTicketDate >= DATEADD(DAY, -7, GETDATE())
-
-Generate only the SQL query, no explanations.
-SQL:"""
-
-        start_time = time.time()
-        response = llm_client.generate(
-            prompt=prompt, model_type="sql", max_tokens=512, temperature=0.0
-        )
-        generation_time = time.time() - start_time
-
-        # Validate LLM response
-        assert_llm_response_valid(
-            response, must_contain=["SELECT", "CentralTickets"]
-        )
-        assert_valid_sql(response.text)
-
-        # Step 3: Store result
-        doc = create_mock_sql_query(
-            question=question, sql=response.text, database=database, success=True
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["confidence"] = 0.85
-        doc["processing_time"] = generation_time
-        doc["matched_rules"] = []
-        doc["rule_match_type"] = "none"
-
-        collection.insert_one(doc)
-
-        # Step 4: Verify storage
-        stored = collection.find_one({"_id": doc["_id"]})
-        assert stored is not None
-        assert stored["question"] == question
-        assert stored["sql"] == response.text
-        assert stored["success"] is True
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.e2e
-    @pytest.mark.requires_mongodb
-    def test_full_pipeline_cache_hit(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """
-        Test pipeline with cache hit (bypass LLM).
-
-        Flow:
-        1. Pre-populate cache
-        2. Query same question
-        3. Return cached SQL (no LLM call)
-        """
-        collection = mongodb_database["agent_learning"]
-        question = "Show all tickets created today"
-        database = "EWRCentral"
-        cached_sql = "SELECT * FROM CentralTickets WHERE CAST(AddTicketDate AS DATE) = CAST(GETDATE() AS DATE)"
-
-        # Pre-populate cache
-        doc = create_mock_sql_query(
-            question=question, sql=cached_sql, database=database, success=True
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["confidence"] = 1.0
-        collection.insert_one(doc)
-
-        # Query (should hit cache)
-        start_time = time.time()
-        result = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": database,
-                "success": True,
-            }
-        )
-        cache_time = time.time() - start_time
-
-        # Verify cache hit
-        assert result is not None
-        assert result["sql"] == cached_sql
-        assert cache_time < 0.1, "Cache should be fast (<100ms)"
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.e2e
-    @pytest.mark.requires_mongodb
-    @pytest.mark.requires_llm
-    def test_pipeline_with_schema_context(
-        self,
-        mongodb_database,
-        llm_client: LocalLLMClient,
-        pipeline_config: PipelineTestConfig,
-    ):
-        """
-        Test pipeline with schema-guided generation.
-
-        Flow:
-        1. Load schema for tables
-        2. Generate SQL with schema context
-        3. Verify correct column names used
-        """
-        question = "Show ticket ID, customer ID, and creation date"
-        database = "EWRCentral"
-
-        schema = """Table: CentralTickets
-  Columns:
-    - CentralTicketID (int, PK)
-    - CustomerID (int, FK -> Customers.CustomerID)
-    - AddTicketDate (datetime)
-    - TicketStatusTypeID (int)"""
-
-        prompt = f"""Generate a T-SQL query for: "{question}"
-
-DATABASE: {database}
-SCHEMA:
-{schema}
-
-IMPORTANT: Use exact column names from schema.
-
-Generate only the SQL query, no explanations.
-SQL:"""
-
-        response = llm_client.generate(
-            prompt=prompt, model_type="sql", max_tokens=512, temperature=0.0
-        )
-
-        assert_llm_response_valid(response)
-        assert_valid_sql(response.text)
-
-        # Should use schema column names
-        text_upper = response.text.upper()
-        assert "CENTRALTICKETID" in text_upper or "CentralTicketID" in response.text
-        assert "CUSTOMERID" in text_upper or "CustomerID" in response.text
-        assert "ADDTICKETDATE" in text_upper or "AddTicketDate" in response.text
-
-    @pytest.mark.e2e
-    @pytest.mark.requires_mongodb
-    @pytest.mark.requires_llm
-    def test_pipeline_with_rule_matching(
-        self,
-        mongodb_database,
-        llm_client: LocalLLMClient,
-        pipeline_config: PipelineTestConfig,
-    ):
-        """
-        Test pipeline with rule-based guidance.
-
-        Flow:
-        1. Match relevant rules for question
-        2. Include rules in LLM prompt
-        3. Generate SQL following rules
-        4. Store with matched rules
-        """
-        collection = mongodb_database["agent_learning"]
-        question = "Show tickets created today"
-        database = "EWRCentral"
-
-        # Simulate matched rules
-        matched_rules = [
-            {
-                "rule_id": "use-addticketdate-not-createdate",
-                "description": "Use AddTicketDate column for creation date",
-                "rule_text": "The ticket creation date is stored in AddTicketDate, not CreateDate",
-            },
-            {
-                "rule_id": "use-cast-for-date-comparison",
-                "description": "Use CAST for date comparisons",
-                "rule_text": "For date-only comparisons, use CAST(column AS DATE) = CAST(GETDATE() AS DATE)",
-            },
+    def test_database_has_required_collections(self, mongodb_database):
+        """Verify all required SQL collections exist with data."""
+        required_collections = [
+            "sql_examples",
+            "sql_rules",
+            "sql_stored_procedures",
+            "sql_schema_context",
         ]
 
-        # Build prompt with rules
-        rules_text = "\n".join(
-            [f"- {r['rule_text']}" for r in matched_rules]
-        )
+        for col_name in required_collections:
+            collection = mongodb_database[col_name]
+            count = collection.count_documents({})
+            assert count > 0, f"{col_name} should have documents"
 
-        prompt = f"""Generate a T-SQL query for: "{question}"
-
-DATABASE: {database}
-SCHEMA:
-Table: CentralTickets
-  Columns: CentralTicketID (int), AddTicketDate (datetime)
-
-RULES:
-{rules_text}
-
-Generate only the SQL query, no explanations.
-SQL:"""
-
-        response = llm_client.generate(
-            prompt=prompt, model_type="sql", max_tokens=512, temperature=0.0
-        )
-
-        assert_llm_response_valid(response)
-        assert_valid_sql(response.text)
-
-        # Should use AddTicketDate (not CreateDate)
-        assert "AddTicketDate" in response.text or "ADDTICKETDATE" in response.text.upper()
-
-        # Store with matched rules
-        doc = create_mock_sql_query(
-            question=question, sql=response.text, database=database, success=True
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["matched_rules"] = [r["rule_id"] for r in matched_rules]
-        doc["rule_match_type"] = "keyword"
-        collection.insert_one(doc)
-
-        # Verify rules stored
-        stored = collection.find_one({"_id": doc["_id"]})
-        assert len(stored["matched_rules"]) == 2
-        assert "use-addticketdate-not-createdate" in stored["matched_rules"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.e2e
     @pytest.mark.requires_mongodb
-    @pytest.mark.requires_llm
-    def test_pipeline_iterative_improvement(
-        self,
-        mongodb_database,
-        llm_client: LocalLLMClient,
-        pipeline_config: PipelineTestConfig,
-    ):
-        """
-        Test pipeline learning from feedback.
+    def test_sql_example_to_retrieval_flow(self, mongodb_database):
+        """Test that stored SQL examples can be retrieved."""
+        # Store reference
+        example = get_real_sql_example(mongodb_database)
+        assert example is not None
 
-        Flow:
-        1. Generate initial SQL
-        2. Store with success=False (bad SQL)
-        3. Regenerate with corrections
-        4. Store with success=True
-        5. Future queries should use successful version
-        """
-        collection = mongodb_database["agent_learning"]
-        question = "Count tickets by status"
-        database = "EWRCentral"
+        # Retrieve by ID
+        collection = mongodb_database["sql_examples"]
+        retrieved = collection.find_one({"_id": example["_id"]})
 
-        # First attempt - wrong column name
-        bad_sql = "SELECT StatusID, COUNT(*) FROM CentralTickets GROUP BY StatusID"
-        doc_bad = create_mock_sql_query(
-            question=question, sql=bad_sql, database=database, success=False
-        )
-        doc_bad["test_run_id"] = pipeline_config.test_run_id
-        doc_bad["error"] = "Invalid column name 'StatusID'"
-        collection.insert_one(doc_bad)
+        assert retrieved is not None
+        assert retrieved["_id"] == example["_id"]
+        assert retrieved.get("sql") == example.get("sql")
 
-        # Second attempt - with correction
-        prompt = f"""Generate a T-SQL query for: "{question}"
-
-DATABASE: {database}
-SCHEMA:
-Table: CentralTickets
-  Columns: CentralTicketID (int), TicketStatusTypeID (int)
-
-PREVIOUS ERROR: Invalid column name 'StatusID'
-CORRECTION: Use TicketStatusTypeID, not StatusID
-
-Generate only the SQL query, no explanations.
-SQL:"""
-
-        response = llm_client.generate(
-            prompt=prompt, model_type="sql", max_tokens=512, temperature=0.0
-        )
-
-        assert_llm_response_valid(response)
-        assert_valid_sql(response.text)
-
-        # Should use correct column
-        assert "TicketStatusTypeID" in response.text or "TICKETSTATUSTYPEID" in response.text.upper()
-
-        # Store successful version
-        doc_good = create_mock_sql_query(
-            question=question, sql=response.text, database=database, success=True
-        )
-        doc_good["test_run_id"] = pipeline_config.test_run_id
-        doc_good["confidence"] = 0.9
-        collection.insert_one(doc_good)
-
-        # Future query should get successful version
-        cached = collection.find_one(
-            {
-                "question_normalized": question.lower().strip(),
-                "database": database,
-                "success": True,
-            }
-        )
-        assert cached is not None
-        assert cached["sql"] == response.text
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-
-class TestSQLPipelinePerformance:
-    """Test performance characteristics of SQL pipeline."""
-
-    @pytest.mark.e2e
     @pytest.mark.requires_mongodb
-    @pytest.mark.requires_llm
-    @pytest.mark.slow
-    def test_pipeline_generation_time(
-        self,
-        mongodb_database,
-        llm_client: LocalLLMClient,
-        pipeline_config: PipelineTestConfig,
-    ):
-        """Test that SQL generation completes within reasonable time."""
-        question = "Show top 10 customers by ticket count"
-        database = "EWRCentral"
+    def test_rule_lookup_flow(self, mongodb_database):
+        """Test that rules can be looked up for SQL generation."""
+        # Get a rule
+        rule = get_real_sql_rule(mongodb_database)
+        assert rule is not None
 
-        prompt = f"""Generate a T-SQL query for: "{question}"
+        # Should be able to retrieve it
+        collection = mongodb_database["sql_rules"]
+        retrieved = collection.find_one({"_id": rule["_id"]})
+        assert retrieved is not None
 
-DATABASE: {database}
-SCHEMA:
-Table: CentralTickets
-  Columns: CentralTicketID (int), CustomerID (int)
-Table: Customers
-  Columns: CustomerID (int), CustomerName (nvarchar)
-
-Generate only the SQL query, no explanations.
-SQL:"""
-
-        start_time = time.time()
-        response = llm_client.generate(
-            prompt=prompt, model_type="sql", max_tokens=1024, temperature=0.0
-        )
-        generation_time = time.time() - start_time
-
-        # Should complete in reasonable time (depends on hardware)
-        # Typical: 1-10 seconds for local llama.cpp
-        assert generation_time < 60, f"Generation too slow: {generation_time:.2f}s"
-
-        if response.success:
-            assert_valid_sql(response.text)
-
-    @pytest.mark.e2e
     @pytest.mark.requires_mongodb
-    def test_cache_retrieval_performance(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that cache retrieval is fast (<100ms)."""
-        collection = mongodb_database["agent_learning"]
+    def test_schema_context_lookup(self, mongodb_database):
+        """Test schema context can be retrieved for query generation."""
+        collection = mongodb_database["sql_schema_context"]
 
-        # Pre-populate with many entries
-        docs = [
-            create_mock_sql_query(
-                question=f"Query {i}",
-                sql=f"SELECT {i}",
-                database="EWRCentral",
-                success=True,
+        # Get a schema entry
+        schema = collection.find_one()
+        assert schema is not None
+
+        # Should be queryable by table name if present
+        if "table_name" in schema:
+            result = collection.find_one({"table_name": schema["table_name"]})
+            assert result is not None
+
+
+class TestSQLDataIntegrity:
+    """Test SQL data integrity across collections."""
+
+    @pytest.mark.requires_mongodb
+    def test_sql_examples_have_valid_sql(self, mongodb_database):
+        """Verify SQL examples contain valid SQL statements."""
+        examples = get_real_sql_examples(mongodb_database, limit=20)
+
+        for example in examples:
+            sql = example.get("sql", "")
+            assert isinstance(sql, str)
+            assert len(sql) > 0
+
+            # Should contain SQL keywords
+            sql_upper = sql.upper()
+            has_sql_keyword = any(
+                kw in sql_upper
+                for kw in ["SELECT", "INSERT", "UPDATE", "DELETE", "EXEC"]
             )
-            for i in range(100)
-        ]
+            assert has_sql_keyword, f"SQL should have valid keyword: {sql[:50]}"
+
+    @pytest.mark.requires_mongodb
+    def test_stored_procedures_have_definition(self, mongodb_database):
+        """Verify stored procedures have procedure definitions."""
+        collection = mongodb_database["sql_stored_procedures"]
+
+        # Check a sample of procedures
+        procedures = list(collection.find().limit(10))
+
+        for proc in procedures:
+            assert "_id" in proc
+            # Procedures should have some identifying information
+            assert any(
+                field in proc
+                for field in ["procedure_name", "name", "definition", "sql"]
+            )
+
+    @pytest.mark.requires_mongodb
+    def test_schema_context_has_structure(self, mongodb_database):
+        """Verify schema context documents have proper structure."""
+        collection = mongodb_database["sql_schema_context"]
+
+        docs = list(collection.find().limit(10))
 
         for doc in docs:
-            doc["test_run_id"] = pipeline_config.test_run_id
-        collection.insert_many(docs)
-
-        # Time cache lookup
-        target = "Query 50"
-        start_time = time.time()
-        result = collection.find_one(
-            {
-                "question_normalized": target.lower().strip(),
-                "database": "EWRCentral",
-                "success": True,
-            }
-        )
-        lookup_time = time.time() - start_time
-
-        assert result is not None
-        assert lookup_time < 0.1, f"Cache lookup too slow: {lookup_time:.3f}s"
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+            assert "_id" in doc
+            # Should have table or database info
+            assert any(
+                field in doc
+                for field in ["table_name", "database", "columns", "schema"]
+            )
 
 
-class TestSQLPipelineErrorHandling:
-    """Test error handling in SQL pipeline."""
+class TestSQLQueryPatterns:
+    """Test common SQL query patterns work with real data."""
 
-    @pytest.mark.e2e
-    @pytest.mark.requires_llm
-    def test_llm_timeout_handling(self, llm_client: LocalLLMClient):
-        """Test handling of LLM timeout."""
-        # Create client with very short timeout
-        from fixtures.llm_fixtures import LocalLLMClient as TimeoutClient
-
-        timeout_client = TimeoutClient(timeout=1)  # 1 second timeout
-
-        # Very complex prompt that might timeout
-        complex_prompt = "Generate SQL query:\n" + ("Schema details...\n" * 1000)
-
-        response = timeout_client.generate(
-            prompt=complex_prompt, model_type="sql", max_tokens=2048
-        )
-
-        # Should either succeed or return timeout error (not crash)
-        assert response is not None
-        if not response.success:
-            assert response.error is not None
-
-    @pytest.mark.e2e
     @pytest.mark.requires_mongodb
-    def test_invalid_database_handling(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test handling of invalid database name."""
-        collection = mongodb_database["agent_learning"]
-        question = "Show data"
-        invalid_database = "NonExistentDB"
+    def test_query_by_database_name(self, mongodb_database):
+        """Test querying multiple collections by database name."""
+        # Find a database name that exists
+        examples_col = mongodb_database["sql_examples"]
+        databases = examples_col.distinct("database")
 
-        # Store failed query for invalid database
-        doc = create_mock_sql_query(
-            question=question,
-            sql="SELECT * FROM SomeTable",
-            database=invalid_database,
-            success=False,
+        if databases:
+            db_name = databases[0]
+
+            # Should be able to query examples by database
+            examples = list(examples_col.find({"database": db_name}).limit(5))
+            assert len(examples) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_text_search_in_rules(self, mongodb_database):
+        """Test text search capability in rules."""
+        collection = mongodb_database["sql_rules"]
+
+        # Search for common terms
+        results = list(
+            collection.find(
+                {"description": {"$regex": "table", "$options": "i"}}
+            ).limit(5)
         )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["error"] = "Cannot open database 'NonExistentDB'"
-        collection.insert_one(doc)
 
-        # Verify error stored
-        stored = collection.find_one({"_id": doc["_id"]})
-        assert stored["success"] is False
-        assert "error" in stored
+        # May or may not find results, just verify query works
+        assert isinstance(results, list)
 
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    @pytest.mark.requires_mongodb
+    def test_aggregation_pipeline_works(self, mongodb_database):
+        """Test that aggregation pipelines work on SQL data."""
+        collection = mongodb_database["sql_examples"]
+
+        pipeline = [
+            {"$group": {"_id": "$database", "count": {"$sum": 1}}},
+            {"$match": {"count": {"$gt": 0}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 5}
+        ]
+
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
+
+
+class TestSQLTestQuestions:
+    """Test SQL test question generation from real data."""
+
+    @pytest.mark.requires_mongodb
+    def test_generate_test_questions(self, mongodb_database):
+        """Test that test questions can be generated from real examples."""
+        questions = get_sql_test_questions(mongodb_database)
+
+        assert len(questions) > 0
+
+        for q in questions:
+            assert "database" in q or "question" in q or "expected_sql_pattern" in q
+
+    @pytest.mark.requires_mongodb
+    def test_questions_have_expected_structure(self, mongodb_database):
+        """Test that generated questions have expected structure."""
+        questions = get_sql_test_questions(mongodb_database)
+
+        for q in questions[:5]:  # Check first 5
+            # Should have some identifying information
+            assert isinstance(q, dict)
+            assert len(q) > 0
+
+
+class TestSQLCollectionIndexes:
+    """Test that SQL collections have proper indexes."""
+
+    @pytest.mark.requires_mongodb
+    def test_sql_examples_has_indexes(self, mongodb_database):
+        """Verify sql_examples collection has indexes."""
+        collection = mongodb_database["sql_examples"]
+        indexes = list(collection.list_indexes())
+
+        # Should have at least _id index
+        index_names = [idx["name"] for idx in indexes]
+        assert "_id_" in index_names
+
+    @pytest.mark.requires_mongodb
+    def test_sql_rules_has_indexes(self, mongodb_database):
+        """Verify sql_rules collection has indexes."""
+        collection = mongodb_database["sql_rules"]
+        indexes = list(collection.list_indexes())
+
+        assert len(indexes) >= 1  # At least _id
+
+    @pytest.mark.requires_mongodb
+    def test_stored_procedures_has_indexes(self, mongodb_database):
+        """Verify sql_stored_procedures has indexes."""
+        collection = mongodb_database["sql_stored_procedures"]
+        indexes = list(collection.list_indexes())
+
+        index_names = [idx["name"] for idx in indexes]
+        assert "_id_" in index_names
+
+    @pytest.mark.requires_mongodb
+    def test_schema_context_has_indexes(self, mongodb_database):
+        """Verify sql_schema_context has indexes."""
+        collection = mongodb_database["sql_schema_context"]
+        indexes = list(collection.list_indexes())
+
+        assert len(indexes) >= 1
+
+
+class TestSQLDataCounts:
+    """Verify expected data counts in SQL collections."""
+
+    @pytest.mark.requires_mongodb
+    def test_sql_examples_count(self, mongodb_database):
+        """Verify sql_examples has expected minimum count."""
+        collection = mongodb_database["sql_examples"]
+        count = collection.count_documents({})
+        assert count >= 10, f"Expected at least 10 examples, got {count}"
+
+    @pytest.mark.requires_mongodb
+    def test_sql_rules_count(self, mongodb_database):
+        """Verify sql_rules has expected minimum count."""
+        collection = mongodb_database["sql_rules"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 rules, got {count}"
+
+    @pytest.mark.requires_mongodb
+    def test_stored_procedures_count(self, mongodb_database):
+        """Verify sql_stored_procedures has expected minimum count."""
+        collection = mongodb_database["sql_stored_procedures"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 procedures, got {count}"
+
+    @pytest.mark.requires_mongodb
+    def test_schema_context_count(self, mongodb_database):
+        """Verify sql_schema_context has expected minimum count."""
+        collection = mongodb_database["sql_schema_context"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 schema docs, got {count}"

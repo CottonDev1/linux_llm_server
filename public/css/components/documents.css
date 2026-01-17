@@ -499,3 +499,76 @@
 .ewr-document-popup-content::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted, #6b8cae);
 }
+
+/* ============================================
+   Document Category Tags
+   Color-coded tags for Department, Type, Subject
+   ============================================ */
+
+/* Container for document info (title + tags) */
+.ewr-document-grid-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Adjust grid item when it has tags */
+.ewr-document-grid-item.has-tags {
+    align-items: flex-start;
+    min-height: 68px;
+}
+
+/* Tags container */
+.ewr-doc-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Individual tag base style */
+.ewr-doc-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* Department tag - Purple */
+.ewr-doc-tag.tag-department {
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+/* Document Type tag - Blue */
+.ewr-doc-tag.tag-type {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Subject tag - Green */
+.ewr-doc-tag.tag-subject {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Hover state - make tags slightly brighter */
+.ewr-document-grid-item:hover .ewr-doc-tag.tag-department {
+    background: rgba(139, 92, 246, 0.3);
+}
+
+.ewr-document-grid-item:hover .ewr-doc-tag.tag-type {
+    background: rgba(59, 130, 246, 0.3);
+}
+
+.ewr-document-grid-item:hover .ewr-doc-tag.tag-subject {
+    background: rgba(16, 185, 129, 0.3);
+}

@@ -101,11 +101,30 @@ class FeedbackMixin:
 
         await collection.insert_one(document)
 
-        # Update document quality scores
+        # Update document quality scores - only when appropriate
+        # Check metadata for structured feedback routing
         quality_scores_updated = 0
-        if document_ids:
+        affects_quality = metadata.get("affects_document_quality", None) if metadata else None
+
+        # Determine which documents to update (if any)
+        docs_to_update = []
+
+        if affects_quality is True:
+            # Explicitly flagged to affect document quality (document_content_wrong, document_outdated)
+            # Only penalize the specific documents flagged by the user
+            docs_to_update = metadata.get("documents_to_penalize", []) if metadata else []
+        elif affects_quality is False:
+            # Explicitly flagged NOT to affect document quality (retrieval or synthesis issues)
+            # Don't update any document quality scores
+            docs_to_update = []
+        elif affects_quality is None:
+            # Legacy behavior: no explicit routing, use all document_ids
+            # For positive feedback, reward all documents; for negative, penalize all
+            docs_to_update = document_ids or []
+
+        if docs_to_update:
             quality_scores_updated = await self._update_document_quality_scores(
-                document_ids=document_ids,
+                document_ids=docs_to_update,
                 feedback_type=feedback_type,
                 is_positive=rating.get("is_helpful", True) if rating else False
             )

@@ -24,7 +24,7 @@ class MongoDBConfig(BaseModel):
         description="MongoDB connection URI"
     )
     database: str = Field(
-        default="llm_website",
+        default_factory=lambda: os.getenv("MONGODB_DATABASE", "rag_server"),
         description="MongoDB database name"
     )
     timeout_ms: int = Field(

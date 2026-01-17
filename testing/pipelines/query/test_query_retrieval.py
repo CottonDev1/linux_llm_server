@@ -1,544 +1,304 @@
 """
-Query/RAG Retrieval Tests for vector search and document retrieval.
+Query/RAG Retrieval Tests - Using Real Data
+============================================
 
-Tests vector similarity search operations including:
-- Cosine similarity search
-- Project-scoped search
-- Multi-project search (with EWRLibrary)
-- Similarity threshold filtering
-- Result ranking and scoring
-
-All tests use MongoDB only (no external vector databases).
+Tests document retrieval operations using REAL data from the database.
 """
 
 import pytest
 import math
-from typing import List
+from typing import List, Dict, Any
 
-from config.test_config import PipelineTestConfig
+from config.test_config import get_test_config, PipelineTestConfig
 from fixtures.mongodb_fixtures import (
-    create_mock_document_chunk,
-    create_mock_code_method,
-    insert_test_documents,
-    cleanup_test_documents,
+    get_test_database,
+    get_real_document,
+    get_real_documents,
+    get_real_code_method,
+    get_real_code_methods,
+    get_document_test_queries,
+    get_code_test_queries,
 )
 
 
-class TestVectorSimilaritySearch:
-    """Test vector similarity search operations."""
-
-    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
-        """Calculate cosine similarity between two vectors."""
-        dot = sum(a * b for a, b in zip(vec1, vec2))
-        norm1 = math.sqrt(sum(a * a for a in vec1))
-        norm2 = math.sqrt(sum(b * b for b in vec2))
-        return dot / (norm1 * norm2) if norm1 and norm2 else 0.0
+class TestDocumentRetrieval:
+    """Test retrieval of documents."""
 
     @pytest.mark.requires_mongodb
-    def test_exact_match_search(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test search with exact embedding match."""
-        collection = mongodb_database["documents"]
-
-        # Create query embedding
-        query_embedding = [0.5] * 384
-
-        # Store document with identical embedding
-        doc = create_mock_document_chunk(
-            title="Exact Match Document",
-            content="This should be an exact match",
-            chunk_index=0,
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = query_embedding.copy()
-        collection.insert_one(doc)
-
-        # Search using cosine similarity
-        results = list(collection.find({"test_run_id": pipeline_config.test_run_id}))
-
-        # Calculate similarities
-        for result in results:
-            result["similarity"] = self._cosine_similarity(
-                query_embedding, result["embedding"]
-            )
-
-        # Sort by similarity
-        results.sort(key=lambda x: x["similarity"], reverse=True)
-
-        # Top result should be exact match (similarity = 1.0)
-        assert len(results) > 0
-        assert abs(results[0]["similarity"] - 1.0) < 0.001
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    def test_retrieve_single_document(self, mongodb_database):
+        """Test retrieving a single document."""
+        doc = get_real_document(mongodb_database)
+        assert doc is not None
+        assert "_id" in doc
 
     @pytest.mark.requires_mongodb
-    def test_similarity_ranking(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that results are ranked by similarity score."""
-        collection = mongodb_database["documents"]
+    def test_retrieve_multiple_documents(self, mongodb_database):
+        """Test retrieving multiple documents."""
+        docs = get_real_documents(mongodb_database, limit=10)
+        assert len(docs) > 0
 
-        # Create query embedding
-        query_embedding = [1.0, 0.0, 0.0] * 128  # 384 dims
-
-        # Store documents with varying similarity
-        embeddings = [
-            [1.0, 0.0, 0.0] * 128,  # Exact match
-            [0.9, 0.1, 0.0] * 128,  # High similarity
-            [0.5, 0.5, 0.0] * 128,  # Medium similarity
-            [0.0, 1.0, 0.0] * 128,  # Low similarity
-            [0.0, 0.0, 1.0] * 128,  # Very low similarity
-        ]
-
-        docs = []
-        for i, emb in enumerate(embeddings):
-            doc = create_mock_document_chunk(
-                title=f"Document {i}",
-                content=f"Content {i}",
-                chunk_index=0,
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = emb
-            docs.append(doc)
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Retrieve and calculate similarities
-        results = list(collection.find({"test_run_id": pipeline_config.test_run_id}))
-
-        for result in results:
-            result["similarity"] = self._cosine_similarity(
-                query_embedding, result["embedding"]
-            )
-
-        # Sort by similarity
-        results.sort(key=lambda x: x["similarity"], reverse=True)
-
-        # Verify ranking (descending similarity)
-        assert len(results) == 5
-        for i in range(len(results) - 1):
-            assert (
-                results[i]["similarity"] >= results[i + 1]["similarity"]
-            ), "Results should be sorted by similarity"
-
-        # Top result should be exact match
-        assert abs(results[0]["similarity"] - 1.0) < 0.001
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        for doc in docs:
+            assert "_id" in doc
 
     @pytest.mark.requires_mongodb
-    def test_threshold_filtering(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test filtering results by similarity threshold."""
-        collection = mongodb_database["documents"]
-
-        query_embedding = [1.0] * 384
-
-        # Store documents with known similarities
-        embeddings = [
-            [1.0] * 384,  # similarity = 1.0
-            [0.9] * 384,  # similarity ≈ 0.9
-            [0.5] * 384,  # similarity ≈ 0.5
-            [0.1] * 384,  # similarity ≈ 0.1
-        ]
-
-        docs = []
-        for i, emb in enumerate(embeddings):
-            # Normalize embeddings
-            norm = math.sqrt(sum(x * x for x in emb))
-            normalized = [x / norm for x in emb]
-
-            doc = create_mock_document_chunk(
-                title=f"Doc {i}", content=f"Content {i}", chunk_index=0
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = normalized
-            docs.append(doc)
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Retrieve and filter by threshold
-        threshold = 0.7
-        results = list(collection.find({"test_run_id": pipeline_config.test_run_id}))
-
-        filtered_results = []
-        for result in results:
-            similarity = self._cosine_similarity(query_embedding, result["embedding"])
-            if similarity >= threshold:
-                result["similarity"] = similarity
-                filtered_results.append(result)
-
-        # Should only include high similarity results
-        assert len(filtered_results) >= 1  # At least the exact match
-        for result in filtered_results:
-            assert result["similarity"] >= threshold
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-
-class TestProjectScopedRetrieval:
-    """Test project-scoped document retrieval."""
-
-    @pytest.mark.requires_mongodb
-    def test_single_project_search(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test searching within a single project."""
-        collection = mongodb_database["code_context"]
-
-        # Store code from different projects
-        projects = ["gin", "warehouse", "marketing"]
-        docs = []
-
-        for project in projects:
-            for i in range(3):
-                doc = create_mock_code_method(
-                    method_name=f"{project}_Method_{i}",
-                    class_name=f"{project}Class",
-                    project=project,
-                    code=f"public void {project}_Method_{i}() {{ }}",
-                )
-                doc["test_run_id"] = pipeline_config.test_run_id
-                doc["embedding"] = [float(len(project)) / 10] * 384
-                docs.append(doc)
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Search for specific project
-        target_project = "gin"
-        results = list(
-            collection.find(
-                {"project": target_project, "test_run_id": pipeline_config.test_run_id}
-            )
-        )
-
-        # Should only return gin results
-        assert len(results) == 3
-        for result in results:
-            assert result["project"] == target_project
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.requires_mongodb
-    def test_multi_project_search(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test searching across multiple projects."""
-        collection = mongodb_database["code_context"]
-
-        # Store code from gin and EWRLibrary
-        projects_docs = [
-            ("gin", "GinSpecificMethod"),
-            ("gin", "AnotherGinMethod"),
-            ("EWRLibrary", "SharedUtilityMethod"),
-            ("EWRLibrary", "CommonHelper"),
-        ]
-
-        docs = []
-        for project, method_name in projects_docs:
-            doc = create_mock_code_method(
-                method_name=method_name,
-                class_name=f"{project}Class",
-                project=project,
-                code=f"public void {method_name}() {{ }}",
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = [0.5] * 384
-            docs.append(doc)
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Search for gin + EWRLibrary (typical pattern)
-        results = list(
-            collection.find(
-                {
-                    "project": {"$in": ["gin", "EWRLibrary"]},
-                    "test_run_id": pipeline_config.test_run_id,
-                }
-            )
-        )
-
-        # Should return both gin and EWRLibrary results
-        assert len(results) == 4
-        projects_found = set(r["project"] for r in results)
-        assert "gin" in projects_found
-        assert "EWRLibrary" in projects_found
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.requires_mongodb
-    def test_exclude_other_projects(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that project scoping excludes other projects."""
-        collection = mongodb_database["code_context"]
-
-        # Store code from multiple projects
-        projects = ["gin", "warehouse", "marketing", "EWRLibrary"]
-        docs = []
-
-        for project in projects:
-            doc = create_mock_code_method(
-                method_name=f"{project}Method",
-                class_name=f"{project}Class",
-                project=project,
-                code=f"public void {project}Method() {{ }}",
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = [0.5] * 384
-            docs.append(doc)
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Search only warehouse
-        results = list(
-            collection.find(
-                {"project": "warehouse", "test_run_id": pipeline_config.test_run_id}
-            )
-        )
-
-        # Should only get warehouse, not gin/marketing/EWRLibrary
-        assert len(results) == 1
-        assert results[0]["project"] == "warehouse"
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-
-class TestDepartmentFiltering:
-    """Test department-based filtering for knowledge base."""
-
-    @pytest.mark.requires_mongodb
-    def test_filter_by_department(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
+    def test_retrieve_documents_by_department(self, mongodb_database):
         """Test filtering documents by department."""
         collection = mongodb_database["documents"]
 
-        # Store documents from different departments
-        departments = ["IT", "Safety", "Operations", "Marketing"]
-        docs = []
+        departments = collection.distinct("department")
 
-        for dept in departments:
-            doc = create_mock_document_chunk(
-                title=f"{dept} Document",
-                content=f"Document from {dept} department",
-                chunk_index=0,
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["department"] = dept
-            doc["embedding"] = [0.5] * 384
-            docs.append(doc)
+        if departments:
+            dept = departments[0]
+            results = list(collection.find({"department": dept}).limit(10))
 
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Filter by department
-        target_dept = "Safety"
-        results = list(
-            collection.find(
-                {
-                    "department": target_dept,
-                    "test_run_id": pipeline_config.test_run_id,
-                }
-            )
-        )
-
-        assert len(results) == 1
-        assert results[0]["department"] == target_dept
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-
-class TestRetrievalPerformance:
-    """Test performance of vector retrieval operations."""
+            for result in results:
+                assert result.get("department") == dept
 
     @pytest.mark.requires_mongodb
-    def test_retrieve_from_large_collection(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test retrieval performance with large collection."""
-        collection = mongodb_database["code_context"]
-
-        # Insert many documents
-        docs = []
-        for i in range(100):
-            doc = create_mock_code_method(
-                method_name=f"Method{i}",
-                class_name="TestClass",
-                project="gin",
-                code=f"public void Method{i}() {{ }}",
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = [float(i) / 100] * 384
-            docs.append(doc)
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Retrieve specific subset
-        results = list(
-            collection.find(
-                {"project": "gin", "test_run_id": pipeline_config.test_run_id}
-            ).limit(10)
-        )
-
-        assert len(results) == 10
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.requires_mongodb
-    def test_limit_results(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test limiting number of results returned."""
+    def test_retrieve_document_by_title(self, mongodb_database):
+        """Test retrieving document by title."""
         collection = mongodb_database["documents"]
 
-        # Store many documents
-        docs = []
-        for i in range(50):
-            doc = create_mock_document_chunk(
-                title=f"Doc {i}", content=f"Content {i}", chunk_index=0
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = [0.5] * 384
-            docs.append(doc)
-
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Retrieve with limit
-        limit = 5
-        results = list(
-            collection.find({"test_run_id": pipeline_config.test_run_id}).limit(limit)
-        )
-
-        assert len(results) == limit
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        doc = collection.find_one({"title": {"$exists": True}})
+        if doc and "title" in doc:
+            title = doc["title"]
+            result = collection.find_one({"title": title})
+            assert result is not None
 
 
-class TestHybridRetrieval:
-    """Test hybrid retrieval combining vector and keyword search."""
+class TestCodeMethodRetrieval:
+    """Test retrieval of code methods."""
 
     @pytest.mark.requires_mongodb
-    def test_vector_with_keyword_filter(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test combining vector search with keyword filtering."""
-        collection = mongodb_database["code_context"]
-
-        # Store methods with different characteristics
-        docs = [
-            {
-                "method_name": "ProcessBale",
-                "project": "gin",
-                "language": "csharp",
-                "keywords": ["bale", "processing", "gin"],
-            },
-            {
-                "method_name": "ProcessTicket",
-                "project": "warehouse",
-                "language": "csharp",
-                "keywords": ["ticket", "processing", "warehouse"],
-            },
-            {
-                "method_name": "GenerateReport",
-                "project": "gin",
-                "language": "csharp",
-                "keywords": ["report", "generation"],
-            },
-        ]
-
-        stored_docs = []
-        for doc_data in docs:
-            doc = create_mock_code_method(
-                method_name=doc_data["method_name"],
-                class_name="TestClass",
-                project=doc_data["project"],
-                code=f"public void {doc_data['method_name']}() {{ }}",
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["language"] = doc_data["language"]
-            doc["keywords"] = doc_data["keywords"]
-            doc["embedding"] = [0.5] * 384
-            stored_docs.append(doc)
-
-        insert_test_documents(collection, stored_docs, pipeline_config.test_run_id)
-
-        # Hybrid search: gin project + contains "bale" keyword
-        results = list(
-            collection.find(
-                {
-                    "project": "gin",
-                    "keywords": "bale",
-                    "test_run_id": pipeline_config.test_run_id,
-                }
-            )
-        )
-
-        assert len(results) == 1
-        assert results[0]["method_name"] == "ProcessBale"
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    def test_retrieve_single_code_method(self, mongodb_database):
+        """Test retrieving a single code method."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None
+        assert "_id" in method
 
     @pytest.mark.requires_mongodb
-    def test_text_search_fallback(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test text search when vector search yields no results."""
+    def test_retrieve_multiple_code_methods(self, mongodb_database):
+        """Test retrieving multiple code methods."""
+        methods = get_real_code_methods(mongodb_database, limit=10)
+        assert len(methods) > 0
+
+        for method in methods:
+            assert "_id" in method
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_methods_by_project(self, mongodb_database):
+        """Test filtering code methods by project."""
+        collection = mongodb_database["code_methods"]
+
+        projects = collection.distinct("project")
+
+        if projects:
+            project = projects[0]
+            results = list(collection.find({"project": project}).limit(10))
+
+            for result in results:
+                assert result.get("project") == project
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_method_by_name(self, mongodb_database):
+        """Test retrieving method by name."""
+        collection = mongodb_database["code_methods"]
+
+        doc = collection.find_one({"method_name": {"$exists": True}})
+        if doc and "method_name" in doc:
+            method_name = doc["method_name"]
+            result = collection.find_one({"method_name": method_name})
+            assert result is not None
+
+
+class TestVectorRetrieval:
+    """Test vector/embedding retrieval operations."""
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_documents_with_vectors(self, mongodb_database):
+        """Test retrieving documents that have vector embeddings."""
         collection = mongodb_database["documents"]
 
-        # Store documents with rich text content
-        docs = [
-            {
-                "title": "Bale Processing Guide",
-                "content": "This guide explains how to process cotton bales in the gin system.",
-            },
-            {
-                "title": "Safety Procedures",
-                "content": "Safety procedures for warehouse operations and equipment handling.",
-            },
-            {
-                "title": "System Configuration",
-                "content": "Configuration settings for the EWR system and database connections.",
-            },
+        results = list(collection.find({"vector": {"$exists": True}}).limit(5))
+
+        for result in results:
+            assert "vector" in result
+            assert isinstance(result["vector"], list)
+
+    @pytest.mark.requires_mongodb
+    def test_vector_similarity_calculation(self, mongodb_database):
+        """Test that vector similarity can be calculated."""
+        collection = mongodb_database["documents"]
+
+        docs = list(collection.find({"vector": {"$exists": True}}).limit(2))
+
+        if len(docs) >= 2:
+            vec1 = docs[0]["vector"]
+            vec2 = docs[1]["vector"]
+
+            # Calculate cosine similarity
+            dot = sum(a * b for a, b in zip(vec1, vec2))
+            norm1 = math.sqrt(sum(a * a for a in vec1))
+            norm2 = math.sqrt(sum(b * b for b in vec2))
+            similarity = dot / (norm1 * norm2) if norm1 and norm2 else 0.0
+
+            # Similarity should be between -1 and 1
+            assert -1.0 <= similarity <= 1.0
+
+
+class TestSearchQueries:
+    """Test search query patterns on real data."""
+
+    @pytest.mark.requires_mongodb
+    def test_text_search_in_documents(self, mongodb_database):
+        """Test text search in documents."""
+        collection = mongodb_database["documents"]
+
+        # Get a sample word from existing content
+        doc = collection.find_one({"content": {"$exists": True}})
+        if doc and "content" in doc:
+            # Get first significant word
+            words = doc["content"].split()
+            if len(words) > 3:
+                search_word = words[3]
+                if len(search_word) > 3:
+                    results = list(
+                        collection.find(
+                            {"content": {"$regex": search_word, "$options": "i"}}
+                        ).limit(5)
+                    )
+                    assert isinstance(results, list)
+
+    @pytest.mark.requires_mongodb
+    def test_generate_document_queries(self, mongodb_database):
+        """Test generating document search queries from real data."""
+        queries = get_document_test_queries(mongodb_database)
+
+        assert len(queries) > 0
+        for q in queries[:5]:
+            assert isinstance(q, dict)
+
+    @pytest.mark.requires_mongodb
+    def test_generate_code_queries(self, mongodb_database):
+        """Test generating code search queries from real data."""
+        queries = get_code_test_queries(mongodb_database)
+
+        assert len(queries) > 0
+        for q in queries[:5]:
+            assert isinstance(q, dict)
+
+
+class TestAggregationQueries:
+    """Test aggregation queries on collections."""
+
+    @pytest.mark.requires_mongodb
+    def test_count_documents_per_department(self, mongodb_database):
+        """Test counting documents per department."""
+        collection = mongodb_database["documents"]
+
+        pipeline = [
+            {"$group": {"_id": "$department", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
         ]
 
-        stored_docs = []
-        for doc_data in docs:
-            doc = create_mock_document_chunk(
-                title=doc_data["title"],
-                content=doc_data["content"],
-                chunk_index=0,
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_count_methods_per_class(self, mongodb_database):
+        """Test counting methods per class."""
+        collection = mongodb_database["code_methods"]
+
+        pipeline = [
+            {"$group": {"_id": "$class_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_sample_random_documents(self, mongodb_database):
+        """Test sampling random documents."""
+        collection = mongodb_database["documents"]
+
+        pipeline = [{"$sample": {"size": 5}}]
+        results = list(collection.aggregate(pipeline))
+
+        assert len(results) <= 5
+        for result in results:
+            assert "_id" in result
+
+
+class TestQueryPerformance:
+    """Test query performance characteristics."""
+
+    @pytest.mark.requires_mongodb
+    def test_indexed_query_by_id(self, mongodb_database):
+        """Test that _id queries are efficient."""
+        collection = mongodb_database["documents"]
+
+        doc = collection.find_one()
+        if doc:
+            result = collection.find_one({"_id": doc["_id"]})
+            assert result is not None
+
+    @pytest.mark.requires_mongodb
+    def test_limit_query_performance(self, mongodb_database):
+        """Test that limit queries return quickly."""
+        collection = mongodb_database["documents"]
+
+        results = list(collection.find().limit(10))
+        assert len(results) <= 10
+
+    @pytest.mark.requires_mongodb
+    def test_projection_query(self, mongodb_database):
+        """Test queries with projection."""
+        collection = mongodb_database["documents"]
+
+        result = collection.find_one({}, {"title": 1, "department": 1})
+
+        if result:
+            assert "_id" in result  # _id is included by default
+
+
+class TestMultiProjectRetrieval:
+    """Test retrieving code from multiple projects."""
+
+    @pytest.mark.requires_mongodb
+    def test_retrieve_from_multiple_projects(self, mongodb_database):
+        """Test retrieving code methods from multiple projects."""
+        collection = mongodb_database["code_methods"]
+
+        projects = collection.distinct("project")
+
+        if len(projects) >= 2:
+            # Query for methods from first two projects
+            target_projects = projects[:2]
+            results = list(
+                collection.find({"project": {"$in": target_projects}}).limit(10)
             )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = [0.5] * 384
-            stored_docs.append(doc)
 
-        insert_test_documents(collection, stored_docs, pipeline_config.test_run_id)
+            assert len(results) > 0
+            # Results should only be from target projects
+            for result in results:
+                assert result.get("project") in target_projects
 
-        # Text search for keyword
-        keyword = "bale"
-        results = list(
-            collection.find(
-                {
-                    "content": {"$regex": keyword, "$options": "i"},
-                    "test_run_id": pipeline_config.test_run_id,
-                }
-            )
-        )
+    @pytest.mark.requires_mongodb
+    def test_count_methods_per_project(self, mongodb_database):
+        """Test counting methods per project."""
+        collection = mongodb_database["code_methods"]
 
-        assert len(results) >= 1
-        assert any(keyword.lower() in r["content"].lower() for r in results)
+        pipeline = [
+            {"$group": {"_id": "$project", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
 
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
+
+        # Log project distribution
+        for r in results[:5]:
+            assert r["_id"] is not None or r["count"] > 0

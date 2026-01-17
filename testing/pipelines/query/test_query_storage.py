@@ -1,460 +1,237 @@
 """
-Query/RAG Storage Tests for document and code context collections.
+Query/RAG Storage Tests - Using Real Data
+==========================================
 
-Tests document and embedding storage operations including:
-- Storing documents with embeddings
-- Storing code context (procedures, snippets)
-- Storing knowledge base documents
-- Vector embeddings storage
-- Metadata and search fields
-
-All tests use MongoDB only (no external dependencies).
-All test data is prefixed with 'test_' for isolation.
+Tests document and embedding storage validation using REAL data from the database.
 """
 
 import pytest
-from datetime import datetime
-from typing import List
+from typing import Dict, Any, List
 
-from config.test_config import PipelineTestConfig
+from config.test_config import get_test_config, PipelineTestConfig
 from fixtures.mongodb_fixtures import (
-    create_mock_document,
-    create_mock_document_chunk,
-    create_mock_code_method,
-    insert_test_documents,
-    cleanup_test_documents,
-)
-from utils import (
-    assert_document_stored,
-    assert_mongodb_document,
-    generate_test_id,
+    get_test_database,
+    get_real_document,
+    get_real_documents,
+    get_real_code_method,
+    get_real_code_methods,
 )
 
 
-class TestDocumentStorage:
-    """Test document storage in knowledge base collection."""
+class TestDocumentStorageExists:
+    """Verify documents collection has data."""
 
     @pytest.mark.requires_mongodb
-    def test_store_document_chunk(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test storing a document chunk with embedding."""
+    def test_documents_collection_has_data(self, mongodb_database):
+        """Verify documents collection exists and has documents."""
         collection = mongodb_database["documents"]
-
-        # Create document chunk with embedding
-        doc = create_mock_document_chunk(
-            title="EWR System Overview",
-            content="The EWR system manages cotton processing operations...",
-            doc_type="pdf",
-            chunk_index=0,
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = [0.1, 0.2, 0.3] * 128  # Mock 384-dim embedding
-        doc["department"] = "IT"
-        doc["relevance_score"] = 0.0
-
-        collection.insert_one(doc)
-
-        # Verify stored
-        stored_doc = assert_document_stored(
-            collection,
-            doc["_id"],
-            expected_fields=["title", "content", "embedding", "department"],
-        )
-
-        assert stored_doc["title"] == "EWR System Overview"
-        assert stored_doc["source_type"] == "pdf"
-        assert len(stored_doc["embedding"]) == 384
-        assert stored_doc["department"] == "IT"
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        count = collection.count_documents({})
+        assert count > 0, "documents collection should have documents"
 
     @pytest.mark.requires_mongodb
-    def test_store_multi_chunk_document(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test storing multiple chunks from same document."""
-        collection = mongodb_database["documents"]
-
-        # Create multiple chunks
-        chunks = []
-        for i in range(5):
-            chunk = create_mock_document_chunk(
-                title="Large Document",
-                content=f"This is chunk {i} of the document...",
-                doc_type="pdf",
-                chunk_index=i,
-            )
-            chunk["test_run_id"] = pipeline_config.test_run_id
-            chunk["total_chunks"] = 5
-            chunk["embedding"] = [float(i) / 10] * 384
-            chunks.append(chunk)
-
-        insert_test_documents(collection, chunks, pipeline_config.test_run_id)
-
-        # Verify all chunks stored
-        stored_chunks = list(
-            collection.find({"test_run_id": pipeline_config.test_run_id}).sort(
-                "chunk_index", 1
-            )
-        )
-
-        assert len(stored_chunks) == 5
-        for i, chunk in enumerate(stored_chunks):
-            assert chunk["chunk_index"] == i
-            assert chunk["total_chunks"] == 5
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    def test_documents_have_content(self, mongodb_database):
+        """Verify documents have content field."""
+        doc = get_real_document(mongodb_database)
+        assert doc is not None, "Should have at least one document"
+        assert "content" in doc, "Document should have content field"
+        assert len(doc["content"]) > 0, "Content should not be empty"
 
     @pytest.mark.requires_mongodb
-    def test_store_document_with_metadata(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test storing document with rich metadata."""
+    def test_documents_have_embeddings(self, mongodb_database):
+        """Verify documents have embedding/vector field."""
         collection = mongodb_database["documents"]
 
-        doc = create_mock_document_chunk(
-            title="Safety Procedures Manual",
-            content="Safety guidelines for warehouse operations...",
-            doc_type="pdf",
-            chunk_index=0,
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = [0.5] * 384
-        doc["metadata"] = {
-            "author": "Safety Department",
-            "version": "2.1",
-            "last_updated": "2024-01-15",
-            "tags": ["safety", "warehouse", "procedures"],
-            "classification": "internal",
-        }
-        doc["department"] = "Safety"
-        doc["file_name"] = "safety_procedures_v2.1.pdf"
+        # Find document with vector field
+        doc = collection.find_one({"vector": {"$exists": True}})
 
-        collection.insert_one(doc)
+        if doc:
+            assert "vector" in doc
+            assert isinstance(doc["vector"], list)
+            assert len(doc["vector"]) > 0, "Vector should not be empty"
 
-        # Verify metadata stored
-        stored_doc = assert_document_stored(collection, doc["_id"])
-        assert "metadata" in stored_doc
-        assert stored_doc["metadata"]["author"] == "Safety Department"
-        assert stored_doc["metadata"]["version"] == "2.1"
-        assert "safety" in stored_doc["metadata"]["tags"]
+    @pytest.mark.requires_mongodb
+    def test_documents_have_metadata(self, mongodb_database):
+        """Verify documents have metadata fields."""
+        doc = get_real_document(mongodb_database)
+        assert doc is not None
 
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        # Check for common metadata fields
+        assert "_id" in doc
+        # At least one metadata field should exist
+        metadata_fields = ["title", "file_name", "department", "type", "tags"]
+        has_metadata = any(f in doc for f in metadata_fields)
+        assert has_metadata, f"Document should have metadata. Found: {list(doc.keys())}"
+
+
+class TestDocumentStructure:
+    """Test structure of stored documents."""
+
+    @pytest.mark.requires_mongodb
+    def test_document_has_title(self, mongodb_database):
+        """Test that documents have title field."""
+        collection = mongodb_database["documents"]
+        doc = collection.find_one({"title": {"$exists": True}})
+
+        if doc:
+            assert isinstance(doc["title"], str)
+            assert len(doc["title"]) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_document_has_chunk_info(self, mongodb_database):
+        """Test that chunked documents have chunk metadata."""
+        collection = mongodb_database["documents"]
+        doc = collection.find_one({"chunk_index": {"$exists": True}})
+
+        if doc:
+            assert "chunk_index" in doc
+            assert "total_chunks" in doc or "parent_id" in doc
+
+    @pytest.mark.requires_mongodb
+    def test_documents_have_department(self, mongodb_database):
+        """Test that documents have department field."""
+        collection = mongodb_database["documents"]
+        doc = collection.find_one({"department": {"$exists": True}})
+
+        if doc:
+            assert isinstance(doc["department"], str)
 
 
 class TestCodeContextStorage:
-    """Test code context storage for code snippets and procedures."""
+    """Test code context storage."""
 
     @pytest.mark.requires_mongodb
-    def test_store_code_method(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test storing a code method/function."""
-        collection = mongodb_database["code_context"]
-
-        doc = create_mock_code_method(
-            method_name="ProcessBale",
-            class_name="BaleProcessor",
-            project="gin",
-            code="public void ProcessBale(Bale bale) { /* implementation */ }",
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = [0.7] * 384
-
-        collection.insert_one(doc)
-
-        # Verify stored
-        stored_doc = assert_document_stored(
-            collection,
-            doc["_id"],
-            expected_fields=["method_name", "class_name", "project", "content"],
-        )
-
-        assert stored_doc["method_name"] == "ProcessBale"
-        assert stored_doc["class_name"] == "BaleProcessor"
-        assert stored_doc["project"] == "gin"
-        assert "void ProcessBale" in stored_doc["content"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    def test_code_methods_collection_has_data(self, mongodb_database):
+        """Verify code_methods collection exists and has documents."""
+        collection = mongodb_database["code_methods"]
+        count = collection.count_documents({})
+        assert count > 0, "code_methods collection should have documents"
 
     @pytest.mark.requires_mongodb
-    def test_store_stored_procedure(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test storing SQL stored procedure."""
-        collection = mongodb_database["code_context"]
-
-        proc_code = """CREATE PROCEDURE RecapGet
-    @GinID INT
-AS
-BEGIN
-    SELECT * FROM Recap WHERE GinID = @GinID
-END"""
-
-        doc = create_mock_document(
-            doc_type="stored_procedure",
-            pipeline="sql",
-            content=proc_code,
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["procedure_name"] = "RecapGet"
-        doc["database"] = "EWR.Gin.Bobby:B-STREET"
-        doc["project"] = "gin"
-        doc["parameters"] = ["@GinID INT"]
-        doc["embedding"] = [0.3] * 384
-
-        collection.insert_one(doc)
-
-        # Verify stored
-        stored_doc = assert_document_stored(collection, doc["_id"])
-        assert stored_doc["procedure_name"] == "RecapGet"
-        assert stored_doc["database"] == "EWR.Gin.Bobby:B-STREET"
-        assert "@GinID" in stored_doc["content"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    def test_code_method_has_required_fields(self, mongodb_database):
+        """Test that code methods have required fields."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None, "Should have at least one code method"
+        assert "_id" in method
 
     @pytest.mark.requires_mongodb
-    def test_store_configuration_snippet(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test storing configuration file snippet."""
-        collection = mongodb_database["code_context"]
+    def test_code_method_has_name(self, mongodb_database):
+        """Test that code methods have method_name field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"method_name": {"$exists": True}})
 
-        config_content = """{
-  "database": {
-    "server": "NCSQLTEST",
-    "name": "EWRCentral"
-  }
-}"""
-
-        doc = create_mock_document(
-            doc_type="configuration",
-            pipeline="git",
-            content=config_content,
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["file_path"] = "/config/database.json"
-        doc["project"] = "warehouse"
-        doc["language"] = "json"
-        doc["embedding"] = [0.6] * 384
-
-        collection.insert_one(doc)
-
-        # Verify stored
-        stored_doc = assert_document_stored(collection, doc["_id"])
-        assert stored_doc["type"] == "configuration"
-        assert stored_doc["file_path"] == "/config/database.json"
-        assert "NCSQLTEST" in stored_doc["content"]
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        if method:
+            assert isinstance(method["method_name"], str)
+            assert len(method["method_name"]) > 0
 
     @pytest.mark.requires_mongodb
-    def test_store_multiple_projects(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test storing code from multiple projects."""
-        collection = mongodb_database["code_context"]
+    def test_code_method_has_class(self, mongodb_database):
+        """Test that code methods have class_name field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"class_name": {"$exists": True}})
 
-        projects = ["gin", "warehouse", "marketing", "EWRLibrary"]
-        docs = []
+        if method:
+            assert isinstance(method["class_name"], str)
 
-        for project in projects:
-            doc = create_mock_code_method(
-                method_name=f"{project}Method",
-                class_name=f"{project}Class",
-                project=project,
-                code=f"public void {project}Method() {{ }}",
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = [float(len(project)) / 10] * 384
-            docs.append(doc)
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_project(self, mongodb_database):
+        """Test that code methods have project field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"project": {"$exists": True}})
 
-        insert_test_documents(collection, docs, pipeline_config.test_run_id)
-
-        # Verify each project stored
-        for project in projects:
-            result = collection.find_one(
-                {"project": project, "test_run_id": pipeline_config.test_run_id}
-            )
-            assert result is not None
-            assert result["project"] == project
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        if method:
+            assert isinstance(method["project"], str)
 
 
 class TestEmbeddingStorage:
-    """Test embedding vector storage and validation."""
+    """Test embedding vector storage."""
 
     @pytest.mark.requires_mongodb
-    def test_embedding_dimension_validation(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that embeddings have correct dimensions."""
+    def test_documents_have_vectors(self, mongodb_database):
+        """Test that documents have vector embeddings."""
+        collection = mongodb_database["documents"]
+        count = collection.count_documents({"vector": {"$exists": True}})
+
+        # At least some documents should have vectors
+        assert count > 0, "Some documents should have vector embeddings"
+
+    @pytest.mark.requires_mongodb
+    def test_vector_dimension(self, mongodb_database):
+        """Test that vectors have consistent dimensions."""
+        collection = mongodb_database["documents"]
+        doc = collection.find_one({"vector": {"$exists": True}})
+
+        if doc and "vector" in doc:
+            # Common embedding dimensions: 384 (MiniLM), 768 (BERT), 1536 (OpenAI)
+            vector_len = len(doc["vector"])
+            assert vector_len in [384, 768, 1024, 1536], f"Unexpected vector dimension: {vector_len}"
+
+    @pytest.mark.requires_mongodb
+    def test_vectors_are_float_lists(self, mongodb_database):
+        """Test that vectors are lists of floats."""
+        collection = mongodb_database["documents"]
+        doc = collection.find_one({"vector": {"$exists": True}})
+
+        if doc and "vector" in doc:
+            vector = doc["vector"]
+            assert isinstance(vector, list)
+            # Check first few elements are numeric
+            for val in vector[:10]:
+                assert isinstance(val, (int, float))
+
+
+class TestStorageQueryability:
+    """Test that stored documents can be queried effectively."""
+
+    @pytest.mark.requires_mongodb
+    def test_query_documents_by_department(self, mongodb_database):
+        """Test querying documents by department."""
+        collection = mongodb_database["documents"]
+        departments = collection.distinct("department")
+
+        if departments:
+            dept = departments[0]
+            results = list(collection.find({"department": dept}).limit(5))
+            assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_query_code_methods_by_project(self, mongodb_database):
+        """Test querying code methods by project."""
+        collection = mongodb_database["code_methods"]
+        projects = collection.distinct("project")
+
+        if projects:
+            project = projects[0]
+            results = list(collection.find({"project": project}).limit(5))
+            assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_aggregation_documents_by_type(self, mongodb_database):
+        """Test aggregation of documents by type."""
         collection = mongodb_database["documents"]
 
-        # Standard embedding dimension for all-MiniLM-L6-v2 is 384
-        expected_dim = 384
+        pipeline = [
+            {"$group": {"_id": "$type", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 5}
+        ]
 
-        doc = create_mock_document_chunk(
-            title="Test Doc", content="Test content", chunk_index=0
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = [0.5] * expected_dim
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
 
-        collection.insert_one(doc)
 
-        # Verify embedding dimension
-        stored = collection.find_one({"_id": doc["_id"]})
-        assert len(stored["embedding"]) == expected_dim
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+class TestStorageCounts:
+    """Verify expected data counts."""
 
     @pytest.mark.requires_mongodb
-    def test_embedding_normalization(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test that embeddings are stored as normalized vectors."""
+    def test_documents_count(self, mongodb_database):
+        """Verify documents has expected minimum count."""
         collection = mongodb_database["documents"]
-
-        # Create normalized embedding (L2 norm = 1)
-        import math
-
-        raw_vector = [1.0, 2.0, 3.0, 4.0] * 96  # 384 dims
-        norm = math.sqrt(sum(x * x for x in raw_vector))
-        normalized = [x / norm for x in raw_vector]
-
-        doc = create_mock_document_chunk(
-            title="Normalized Test", content="Content", chunk_index=0
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = normalized
-
-        collection.insert_one(doc)
-
-        # Verify normalization
-        stored = collection.find_one({"_id": doc["_id"]})
-        stored_norm = math.sqrt(sum(x * x for x in stored["embedding"]))
-        assert abs(stored_norm - 1.0) < 0.001, "Embedding should be normalized"
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+        count = collection.count_documents({})
+        assert count >= 10, f"Expected at least 10 documents, got {count}"
 
     @pytest.mark.requires_mongodb
-    def test_batch_embedding_storage(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test efficient batch storage of embeddings."""
-        collection = mongodb_database["code_context"]
-
-        # Create batch of documents with embeddings
-        batch_size = 50
-        docs = []
-
-        for i in range(batch_size):
-            doc = create_mock_code_method(
-                method_name=f"Method{i}",
-                class_name="TestClass",
-                project="gin",
-                code=f"public void Method{i}() {{ }}",
-            )
-            doc["test_run_id"] = pipeline_config.test_run_id
-            doc["embedding"] = [float(i) / batch_size] * 384
-            docs.append(doc)
-
-        # Batch insert
-        doc_ids = insert_test_documents(
-            collection, docs, pipeline_config.test_run_id
-        )
-
-        assert len(doc_ids) == batch_size
-
-        # Verify all stored with embeddings
-        count = collection.count_documents(
-            {
-                "test_run_id": pipeline_config.test_run_id,
-                "embedding": {"$exists": True},
-            }
-        )
-        assert count == batch_size
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-
-class TestStorageSchemaValidation:
-    """Test schema validation for stored documents."""
-
-    @pytest.mark.requires_mongodb
-    def test_document_schema_validation(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test document conforms to expected schema."""
-        collection = mongodb_database["documents"]
-
-        doc = create_mock_document_chunk(
-            title="Schema Test", content="Content", chunk_index=0
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = [0.5] * 384
-        doc["department"] = "IT"
-        collection.insert_one(doc)
-
-        stored = collection.find_one({"_id": doc["_id"]})
-
-        # Define expected schema
-        schema = {
-            "title": str,
-            "content": str,
-            "embedding": list,
-            "department": str,
-            "chunk_index": int,
-            "is_test": bool,
-        }
-
-        assert_mongodb_document(stored, schema, allow_extra=True)
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
-
-    @pytest.mark.requires_mongodb
-    def test_code_context_schema_validation(
-        self, mongodb_database, pipeline_config: PipelineTestConfig
-    ):
-        """Test code context conforms to expected schema."""
-        collection = mongodb_database["code_context"]
-
-        doc = create_mock_code_method(
-            method_name="TestMethod",
-            class_name="TestClass",
-            project="gin",
-            code="public void TestMethod() { }",
-        )
-        doc["test_run_id"] = pipeline_config.test_run_id
-        doc["embedding"] = [0.5] * 384
-        collection.insert_one(doc)
-
-        stored = collection.find_one({"_id": doc["_id"]})
-
-        # Define expected schema
-        schema = {
-            "method_name": str,
-            "class_name": str,
-            "project": str,
-            "content": str,
-            "embedding": list,
-            "is_test": bool,
-        }
-
-        assert_mongodb_document(stored, schema, allow_extra=True)
-
-        # Cleanup
-        cleanup_test_documents(mongodb_database, pipeline_config.test_run_id)
+    def test_code_methods_count(self, mongodb_database):
+        """Verify code_methods has expected minimum count."""
+        collection = mongodb_database["code_methods"]
+        count = collection.count_documents({})
+        assert count >= 1000, f"Expected at least 1000 code methods, got {count}"

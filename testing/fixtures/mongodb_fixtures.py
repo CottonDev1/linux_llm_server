@@ -2,21 +2,25 @@
 MongoDB Test Fixtures
 =====================
 
-Fixtures for MongoDB testing with proper isolation and cleanup.
-All test data is prefixed with 'test_' for easy identification and cleanup.
+Fixtures for MongoDB testing using REAL data from the database.
+Tests should validate against actual production data to ensure accuracy.
 """
 
 import os
-import uuid
-from datetime import datetime
+import random
 from typing import List, Dict, Any, Optional
 from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.collection import Collection
 
 
+# Default configuration
+DEFAULT_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/?directConnection=true")
+DEFAULT_DATABASE = os.getenv("MONGODB_DATABASE", "rag_server")
+
+
 def get_test_mongodb_client(
-    uri: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
+    uri: str = DEFAULT_URI,
     timeout_ms: int = 30000
 ) -> MongoClient:
     """
@@ -32,211 +36,312 @@ def get_test_mongodb_client(
     return MongoClient(uri, serverSelectionTimeoutMS=timeout_ms)
 
 
-def create_test_collection(
-    db: Database,
-    base_name: str,
-    indexes: Optional[List[Dict]] = None
-) -> Collection:
+def get_test_database(
+    uri: str = DEFAULT_URI,
+    database: str = DEFAULT_DATABASE
+) -> Database:
     """
-    Create a test collection with unique name.
+    Get a MongoDB database for testing.
+
+    Args:
+        uri: MongoDB connection URI
+        database: Database name
+
+    Returns:
+        Database instance
+    """
+    client = get_test_mongodb_client(uri)
+    return client[database]
+
+
+def get_collection_count(db: Database, collection_name: str) -> int:
+    """Get document count for a collection."""
+    return db[collection_name].count_documents({})
+
+
+def verify_database_has_data(db: Database) -> Dict[str, int]:
+    """
+    Verify database has real data for testing.
+
+    Returns:
+        Dict mapping collection names to document counts
+
+    Raises:
+        ValueError: If database is empty or missing required collections
+    """
+    required_collections = ["sql_examples", "code_methods", "documents"]
+    counts = {}
+
+    for col_name in db.list_collection_names():
+        count = db[col_name].count_documents({})
+        if count > 0:
+            counts[col_name] = count
+
+    missing = [col for col in required_collections if col not in counts]
+    if missing:
+        raise ValueError(
+            f"Database missing required collections: {missing}. "
+            "Run scripts/mongodb_restore.sh to restore data."
+        )
+
+    return counts
+
+
+# =============================================================================
+# Real Data Retrieval Functions
+# =============================================================================
+
+def get_real_sql_example(
+    db: Database,
+    database_filter: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Get a real SQL example from the database.
 
     Args:
         db: MongoDB database
-        base_name: Base name for the collection
-        indexes: Optional list of index specifications
+        database_filter: Optional database name to filter by
 
     Returns:
-        Collection instance
+        Real SQL example document or None
     """
-    collection_name = f"test_{base_name}_{uuid.uuid4().hex[:8]}"
-    collection = db[collection_name]
+    collection = db["sql_examples"]
+    query = {}
+    if database_filter:
+        query["database"] = database_filter
 
-    if indexes:
-        for index_spec in indexes:
-            collection.create_index(**index_spec)
-
-    return collection
-
-
-def insert_test_documents(
-    collection: Collection,
-    documents: List[Dict[str, Any]],
-    test_run_id: Optional[str] = None
-) -> List[str]:
-    """
-    Insert test documents with proper markers.
-
-    Args:
-        collection: MongoDB collection
-        documents: List of documents to insert
-        test_run_id: Optional test run identifier
-
-    Returns:
-        List of inserted document IDs
-    """
-    for doc in documents:
-        # Ensure test markers
-        if "_id" not in doc:
-            doc["_id"] = f"test_{uuid.uuid4().hex}"
-        elif not str(doc["_id"]).startswith("test_"):
-            doc["_id"] = f"test_{doc['_id']}"
-
-        doc["is_test"] = True
-        doc["test_marker"] = True
-        doc["test_created_at"] = datetime.utcnow()
-
-        if test_run_id:
-            doc["test_run_id"] = test_run_id
-
-    result = collection.insert_many(documents)
-    return [str(id) for id in result.inserted_ids]
+    # Get a random sample
+    pipeline = [{"$match": query}, {"$sample": {"size": 1}}]
+    results = list(collection.aggregate(pipeline))
+    return results[0] if results else None
 
 
-def cleanup_test_documents(
+def get_real_sql_examples(
     db: Database,
-    test_run_id: Optional[str] = None,
-    collection_name: Optional[str] = None
-) -> Dict[str, int]:
+    limit: int = 10,
+    database_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
-    Clean up test documents from MongoDB.
+    Get multiple real SQL examples from the database.
 
     Args:
         db: MongoDB database
-        test_run_id: Optional test run ID to filter cleanup
-        collection_name: Optional specific collection to clean
+        limit: Maximum number to return
+        database_filter: Optional database name to filter by
 
     Returns:
-        Dict mapping collection names to deleted counts
+        List of SQL example documents
     """
-    results = {}
+    collection = db["sql_examples"]
+    query = {}
+    if database_filter:
+        query["database"] = database_filter
 
-    collections = [collection_name] if collection_name else db.list_collection_names()
-
-    for col_name in collections:
-        collection = db[col_name]
-
-        # Build query for test documents
-        query = {
-            "$or": [
-                {"is_test": True},
-                {"test_marker": True},
-                {"_id": {"$regex": "^test_"}},
-            ]
-        }
-
-        if test_run_id:
-            query["$or"].append({"test_run_id": test_run_id})
-
-        result = collection.delete_many(query)
-        if result.deleted_count > 0:
-            results[col_name] = result.deleted_count
-
-    return results
+    pipeline = [{"$match": query}, {"$sample": {"size": limit}}]
+    return list(collection.aggregate(pipeline))
 
 
-def create_mock_document(
-    doc_type: str = "generic",
-    pipeline: str = "test",
-    content: str = "Test content",
-    **extra_fields
-) -> Dict[str, Any]:
+def get_real_sql_rule(db: Database) -> Optional[Dict[str, Any]]:
+    """Get a real SQL rule from the database."""
+    collection = db["sql_rules"]
+    pipeline = [{"$sample": {"size": 1}}]
+    results = list(collection.aggregate(pipeline))
+    return results[0] if results else None
+
+
+def get_real_sql_rules(db: Database, limit: int = 10) -> List[Dict[str, Any]]:
+    """Get multiple real SQL rules from the database."""
+    collection = db["sql_rules"]
+    pipeline = [{"$sample": {"size": limit}}]
+    return list(collection.aggregate(pipeline))
+
+
+def get_real_code_method(
+    db: Database,
+    project_filter: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
     """
-    Create a mock document for testing.
+    Get a real code method from the database.
 
     Args:
-        doc_type: Type of document
-        pipeline: Pipeline name
-        content: Document content
-        **extra_fields: Additional fields to include
+        db: MongoDB database
+        project_filter: Optional project name to filter by
 
     Returns:
-        Mock document dictionary
+        Real code method document or None
     """
-    doc = {
-        "_id": f"test_{uuid.uuid4().hex}",
-        "type": doc_type,
-        "pipeline": pipeline,
-        "content": content,
-        "is_test": True,
-        "test_marker": True,
-        "created_at": datetime.utcnow(),
-    }
-    doc.update(extra_fields)
-    return doc
+    collection = db["code_methods"]
+    query = {}
+    if project_filter:
+        query["project"] = project_filter
+
+    pipeline = [{"$match": query}, {"$sample": {"size": 1}}]
+    results = list(collection.aggregate(pipeline))
+    return results[0] if results else None
 
 
-# Collection-specific mock data generators
+def get_real_code_methods(
+    db: Database,
+    limit: int = 10,
+    project_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Get multiple real code methods from the database."""
+    collection = db["code_methods"]
+    query = {}
+    if project_filter:
+        query["project"] = project_filter
 
-def create_mock_sql_query(
-    question: str = "How many tickets are there?",
-    sql: str = "SELECT COUNT(*) FROM CentralTickets",
-    database: str = "EWRCentral",
-    success: bool = True,
-) -> Dict[str, Any]:
-    """Create mock SQL query document for agent_learning collection."""
-    return create_mock_document(
-        doc_type="sql_query",
-        pipeline="sql",
-        content=sql,
-        question=question,
-        question_normalized=question.lower().strip(),
-        sql=sql,
-        database=database,
-        success=success,
-    )
+    pipeline = [{"$match": query}, {"$sample": {"size": limit}}]
+    return list(collection.aggregate(pipeline))
 
 
-def create_mock_audio_analysis(
-    transcription: str = "Test transcription",
-    emotions: List[str] = None,
-    duration: float = 60.0,
-) -> Dict[str, Any]:
-    """Create mock audio analysis document."""
-    return create_mock_document(
-        doc_type="audio_analysis",
-        pipeline="audio",
-        content=transcription,
-        transcription=transcription,
-        emotions=emotions or ["NEUTRAL"],
-        duration_seconds=duration,
-        audio_events=[],
-    )
+def get_real_code_class(db: Database) -> Optional[Dict[str, Any]]:
+    """Get a real code class from the database."""
+    collection = db["code_classes"]
+    pipeline = [{"$sample": {"size": 1}}]
+    results = list(collection.aggregate(pipeline))
+    return results[0] if results else None
 
 
-def create_mock_code_method(
-    method_name: str = "TestMethod",
-    class_name: str = "TestClass",
-    project: str = "TestProject",
-    code: str = "public void TestMethod() { }",
-    **extra_fields,
-) -> Dict[str, Any]:
-    """Create mock code method document."""
-    return create_mock_document(
-        doc_type="code_method",
-        pipeline="git",
-        content=code,
-        method_name=method_name,
-        class_name=class_name,
-        project=project,
-        file_path=f"/src/{class_name}.cs",
-        language="csharp",
-        **extra_fields,
-    )
+def get_real_audio_analysis(db: Database) -> Optional[Dict[str, Any]]:
+    """
+    Get a real audio analysis from the database.
+
+    Returns:
+        Real audio analysis document or None
+    """
+    collection = db["audio_analysis"]
+    pipeline = [{"$sample": {"size": 1}}]
+    results = list(collection.aggregate(pipeline))
+    return results[0] if results else None
 
 
-def create_mock_document_chunk(
-    title: str = "Test Document",
-    content: str = "Test document content",
-    doc_type: str = "pdf",
-    chunk_index: int = 0,
-) -> Dict[str, Any]:
-    """Create mock document chunk."""
-    return create_mock_document(
-        doc_type="document_chunk",
-        pipeline="document_agent",
-        content=content,
-        title=title,
-        source_type=doc_type,
-        chunk_index=chunk_index,
-        total_chunks=1,
-    )
+def get_real_audio_analyses(db: Database, limit: int = 10) -> List[Dict[str, Any]]:
+    """Get multiple real audio analyses from the database."""
+    collection = db["audio_analysis"]
+    pipeline = [{"$sample": {"size": limit}}]
+    return list(collection.aggregate(pipeline))
+
+
+def get_real_document(db: Database) -> Optional[Dict[str, Any]]:
+    """
+    Get a real document from the database.
+
+    Returns:
+        Real document or None
+    """
+    collection = db["documents"]
+    pipeline = [{"$sample": {"size": 1}}]
+    results = list(collection.aggregate(pipeline))
+    return results[0] if results else None
+
+
+def get_real_documents(db: Database, limit: int = 10) -> List[Dict[str, Any]]:
+    """Get multiple real documents from the database."""
+    collection = db["documents"]
+    pipeline = [{"$sample": {"size": limit}}]
+    return list(collection.aggregate(pipeline))
+
+
+def get_real_stored_procedure(db: Database) -> Optional[Dict[str, Any]]:
+    """Get a real stored procedure from the database."""
+    collection = db["sql_stored_procedures"]
+    pipeline = [{"$sample": {"size": 1}}]
+    results = list(collection.aggregate(pipeline))
+    return results[0] if results else None
+
+
+def get_real_stored_procedures(db: Database, limit: int = 10) -> List[Dict[str, Any]]:
+    """Get multiple real stored procedures from the database."""
+    collection = db["sql_stored_procedures"]
+    pipeline = [{"$sample": {"size": limit}}]
+    return list(collection.aggregate(pipeline))
+
+
+# =============================================================================
+# Test Question Generators (using real data patterns)
+# =============================================================================
+
+def get_sql_test_questions(db: Database) -> List[Dict[str, str]]:
+    """
+    Get real SQL questions for testing based on actual examples.
+
+    Returns:
+        List of {question, expected_tables, database} dicts
+    """
+    examples = get_real_sql_examples(db, limit=20)
+    questions = []
+
+    for ex in examples:
+        if "sql" in ex:
+            # Extract table names from SQL
+            sql = ex.get("sql", "")
+            tables = []
+            if "FROM" in sql.upper():
+                # Simple extraction - real tests should use proper parsing
+                parts = sql.upper().split("FROM")
+                if len(parts) > 1:
+                    table_part = parts[1].split()[0] if parts[1].split() else ""
+                    tables.append(table_part.strip("[]"))
+
+            questions.append({
+                "question": ex.get("question", f"Query for {tables}"),
+                "expected_sql_pattern": sql[:100],
+                "database": ex.get("database", "unknown"),
+                "tables": tables,
+            })
+
+    return questions
+
+
+def get_code_test_queries(db: Database) -> List[Dict[str, str]]:
+    """
+    Get real code search queries based on actual methods.
+
+    Returns:
+        List of {query, expected_method, expected_class} dicts
+    """
+    methods = get_real_code_methods(db, limit=20)
+    queries = []
+
+    for method in methods:
+        method_name = method.get("method_name", "")
+        class_name = method.get("class_name", "")
+        project = method.get("project", "")
+
+        if method_name:
+            queries.append({
+                "query": f"Find {method_name} method",
+                "expected_method": method_name,
+                "expected_class": class_name,
+                "project": project,
+            })
+
+    return queries
+
+
+def get_document_test_queries(db: Database) -> List[Dict[str, str]]:
+    """
+    Get real document search queries based on actual documents.
+
+    Returns:
+        List of {query, expected_title} dicts
+    """
+    docs = get_real_documents(db, limit=10)
+    queries = []
+
+    for doc in docs:
+        title = doc.get("title", "")
+        content = doc.get("content", "")[:100]
+
+        if title:
+            # Create a query based on content keywords
+            words = content.split()[:5]
+            query = " ".join(words) if words else title
+            queries.append({
+                "query": query,
+                "expected_title": title,
+                "doc_id": str(doc.get("_id")),
+            })
+
+    return queries

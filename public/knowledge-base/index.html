@@ -711,14 +711,27 @@
                 loadingDiv.remove();
 
                 if (data.answer) {
+                    // Extract document IDs and retrieval scores from context
+                    let retrievalData = [];
                     if (data.context && Array.isArray(data.context)) {
                         lastDocumentIds = data.context.map(doc => doc.id || doc._id).filter(Boolean);
+                        // Extract retrieval scores and categorization for feedback metadata
+                        retrievalData = data.context.map(doc => ({
+                            id: doc.id || doc._id,
+                            title: doc.title || doc.file_name || 'Unknown',
+                            score: doc.relevance_score || doc.score || doc.similarity || 0,
+                            // Categorization fields - these help identify if wrong category was matched
+                            department: doc.department || null,
+                            type: doc.type || doc.document_type || null,
+                            subject: doc.subject || null
+                        }));
+                        lastRetrievalScores = retrievalData;
                     }
                     if (retainContext) {
                         chatHistory.push({ role: 'user', content: message });
                         chatHistory.push({ role: 'assistant', content: data.answer });
                     }
-                    addMessage(data.answer, 'assistant', lastDocumentIds);
+                    addMessage(data.answer, 'assistant', lastDocumentIds, retrievalData);
                     if (data.tokenUsage) updateTokenTracker(data.tokenUsage);
                 } else {
                     addMessage('Sorry, I encountered an error: ' + (data.error || 'Unknown error'), 'assistant');
@@ -732,7 +745,11 @@
             }
         }
 
-        function addMessage(text, sender, documentIds = []) {
+        // Store last response for feedback
+        let lastResponse = '';
+        let lastRetrievalScores = [];
+
+        function addMessage(text, sender, documentIds = [], retrievalData = null) {
             const messagesContainer = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `ewr-chat-message ${sender}`;
@@ -741,6 +758,14 @@
             const senderName = sender === 'user' ? 'You' : 'Assistant';
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const messageId = 'msg-' + Date.now();
+
+            // Store assistant response for feedback
+            if (sender === 'assistant') {
+                lastResponse = text;
+                if (retrievalData) {
+                    lastRetrievalScores = retrievalData;
+                }
+            }
 
             messageDiv.innerHTML = `
                 <div class="ewr-message-avatar ${sender}">${avatar}</div>
@@ -763,9 +788,21 @@
                     if (feedbackContainer) {
                         FeedbackWidget.init({
                             query: lastQuery,
+                            response: text,
                             documentIds: lastDocumentIds.length > 0 ? lastDocumentIds : documentIds,
                             containerId: `feedback-${messageId}`,
                             mode: 'inline',
+                            context: 'knowledge_base',
+                            metadata: {
+                                retrieval_scores: lastRetrievalScores,
+                                conversation_history: chatHistory.slice(-6),
+                                filters: {
+                                    department: document.getElementById('chatDepartmentFilter')?.value || '',
+                                    docType: document.getElementById('chatDocTypeFilter')?.value || '',
+                                    subject: document.getElementById('chatSubjectFilter')?.value || '',
+                                    keywords: document.getElementById('chatKeywordFilter')?.value || ''
+                                }
+                            },
                             onSubmit: (result) => console.log('Feedback submitted:', result)
                         });
                     }

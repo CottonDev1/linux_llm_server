@@ -250,10 +250,19 @@ def assert_sql_contains_tables(
     sql_upper = sql.upper()
     missing = []
 
+    def camel_to_snake(name: str) -> str:
+        """Convert CamelCase to snake_case."""
+        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).upper()
+
     for table in tables:
-        # Check for table name (with possible schema prefix)
-        pattern = rf'\b{table.upper()}\b'
-        if not re.search(pattern, sql_upper):
+        table_upper = table.upper()
+        snake_upper = camel_to_snake(table)
+
+        # Check for table name in either CamelCase or snake_case format
+        pattern_camel = rf'\b{table_upper}\b'
+        pattern_snake = rf'\b{snake_upper}\b'
+
+        if not (re.search(pattern_camel, sql_upper) or re.search(pattern_snake, sql_upper)):
             missing.append(table)
 
     if missing:

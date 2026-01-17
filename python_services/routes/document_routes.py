@@ -400,11 +400,22 @@ async def aggregate_documents(
         {"$count": "total_documents"}
     ]
 
-    # Pipeline for document titles
+    # Pipeline for document titles with metadata (for category tags display)
     titles_pipeline = [
         {"$match": match_stage},
-        {"$group": {"_id": "$title"}},
-        {"$project": {"title": "$_id", "_id": 0}},
+        {"$group": {
+            "_id": "$title",
+            "department": {"$first": "$department"},
+            "type": {"$first": "$type"},
+            "subject": {"$first": "$subject"}
+        }},
+        {"$project": {
+            "title": "$_id",
+            "department": 1,
+            "type": 1,
+            "subject": 1,
+            "_id": 0
+        }},
         {"$sort": {"title": 1}}
     ]
 
@@ -413,7 +424,20 @@ async def aggregate_documents(
     titles_result = await collection.aggregate(titles_pipeline).to_list(length=1000)
 
     total_count = count_result[0]["total_documents"] if count_result else 0
-    titles = [doc["title"] for doc in titles_result if doc.get("title")]
+
+    # Return full document objects with metadata for category tags
+    documents = [
+        {
+            "title": doc.get("title"),
+            "department": doc.get("department"),
+            "type": doc.get("type"),
+            "subject": doc.get("subject")
+        }
+        for doc in titles_result if doc.get("title")
+    ]
+
+    # Also return just titles for backwards compatibility
+    titles = [doc["title"] for doc in documents]
 
     log_pipeline("DOCUMENT", user_ip, "Document aggregation",
                  details={
@@ -426,7 +450,8 @@ async def aggregate_documents(
     return {
         "success": True,
         "total_documents": total_count,
-        "titles": titles,
+        "titles": titles,  # Backwards compatible - array of strings
+        "documents": documents,  # New - array of objects with metadata
         "filters": {
             "department": department,
             "type": doc_type,

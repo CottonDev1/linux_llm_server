@@ -1,161 +1,254 @@
 """
-Code Flow End-to-End Tests
-===========================
+Code Flow End-to-End Tests - Using Real Data
+=============================================
 
-Test complete code flow analysis pipeline.
+Tests complete code flow analysis pipeline using REAL data.
 """
 
 import pytest
-from fixtures.mongodb_fixtures import insert_test_documents
+from typing import Dict, Any, List
+
+from config.test_config import get_test_config, PipelineTestConfig
 from fixtures.llm_fixtures import LocalLLMClient
-from utils import assert_document_stored, assert_llm_response_valid, generate_test_id
+from fixtures.mongodb_fixtures import (
+    get_test_database,
+    get_real_code_method,
+    get_real_code_methods,
+)
+from utils import assert_llm_response_valid
+
+
+class TestCodeFlowDataFlow:
+    """Test complete code flow data flow."""
+
+    @pytest.mark.requires_mongodb
+    def test_database_has_required_collections(self, mongodb_database):
+        """Verify all required code flow collections exist with data."""
+        required_collections = [
+            "code_methods",
+            "code_callgraph",
+            "code_classes",
+        ]
+
+        for col_name in required_collections:
+            collection = mongodb_database[col_name]
+            count = collection.count_documents({})
+            assert count > 0, f"{col_name} should have documents"
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_to_retrieval_flow(self, mongodb_database):
+        """Test that stored code methods can be retrieved."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None
+
+        collection = mongodb_database["code_methods"]
+        retrieved = collection.find_one({"_id": method["_id"]})
+
+        assert retrieved is not None
+        assert retrieved["_id"] == method["_id"]
+
+    @pytest.mark.requires_mongodb
+    def test_callgraph_lookup_flow(self, mongodb_database):
+        """Test that callgraph entries can be looked up."""
+        collection = mongodb_database["code_callgraph"]
+        doc = collection.find_one()
+        assert doc is not None
+
+        retrieved = collection.find_one({"_id": doc["_id"]})
+        assert retrieved is not None
 
 
 class TestCodeFlowE2E:
-    """End-to-end tests for code flow pipeline."""
+    """End-to-end tests for code flow pipeline with LLM."""
 
+    @pytest.mark.e2e
     @pytest.mark.requires_mongodb
     @pytest.mark.requires_llm
-    @pytest.mark.e2e
-    async def test_complete_flow_analysis(
+    def test_full_pipeline_code_analysis(
         self,
         mongodb_database,
         llm_client: LocalLLMClient,
-        pipeline_config
+        pipeline_config: PipelineTestConfig,
     ):
-        """Test complete workflow: UI event → call chain → DB operations."""
-        db_ops_collection = mongodb_database["code_dboperations"]
-        relationships_collection = mongodb_database["code_relationships"]
-
-        # Step 1: Analyze code with LLM
-        code = """
-        private void btnSaveBale_Click(object sender, EventArgs e)
-        {
-            var bale = new Bale { BaleNumber = txtBaleNumber.Text };
-            SaveBale(bale);
-        }
-
-        private void SaveBale(Bale bale)
-        {
-            _db.Execute("INSERT INTO Bales (BaleNumber) VALUES (@BaleNumber)", bale);
-        }
         """
+        Test complete code flow pipeline.
 
-        prompt = f"""Analyze this code and identify:
-1. UI event handler
-2. Methods called
-3. Database operations
+        Flow:
+        1. Retrieve real code methods
+        2. Build context from code
+        3. Analyze with LLM
+        4. Validate response
+        """
+        # Step 1: Retrieve real code methods
+        methods = get_real_code_methods(mongodb_database, limit=3)
+        assert len(methods) > 0, "Should have code methods in database"
 
-Code:
-{code}
+        # Step 2: Build context from real methods
+        code_contexts = []
+        for method in methods:
+            method_name = method.get("method_name", "Method")
+            class_name = method.get("class_name", "Class")
+            content = method.get("content", method.get("code", ""))[:500]
+            if content:
+                code_contexts.append(f"{method_name} in {class_name}:\n{content}")
 
-Analysis:"""
+        code_text = "\n\n".join(code_contexts)
+
+        # Step 3: Analyze with LLM
+        prompt = f"""Analyze these code methods and identify:
+1. What each method does
+2. Any database operations
+3. Method relationships
+
+CODE:
+{code_text}
+
+ANALYSIS:"""
 
         response = llm_client.generate(
             prompt=prompt,
             model_type="code",
-            max_tokens=300,
+            max_tokens=512,
             temperature=0.0,
         )
 
-        assert_llm_response_valid(response, min_length=20)
-
-        # Step 2: Store database operation
-        db_op = {
-            "_id": f"test_{generate_test_id()}",
-            "operation_type": "INSERT",
-            "method_name": "SaveBale",
-            "tables_accessed": ["Bales"],
-            "project": "TestProject",
-            "is_test": True,
-            "test_run_id": pipeline_config.test_run_id,
-        }
-        db_ops_collection.insert_one(db_op)
-
-        # Step 3: Store relationship
-        relationship = {
-            "_id": f"test_{generate_test_id()}",
-            "source_method": "btnSaveBale_Click",
-            "target_method": "SaveBale",
-            "project": "TestProject",
-            "is_test": True,
-            "test_run_id": pipeline_config.test_run_id,
-        }
-        relationships_collection.insert_one(relationship)
-
-        # Step 4: Query flow
-        db_op_stored = assert_document_stored(
-            db_ops_collection,
-            db_op["_id"],
-            expected_fields=["operation_type", "tables_accessed"]
+        # Step 4: Validate response
+        assert_llm_response_valid(
+            response,
+            min_length=30,
         )
 
-        relationship_stored = assert_document_stored(
-            relationships_collection,
-            relationship["_id"],
-            expected_fields=["source_method", "target_method"]
-        )
+    @pytest.mark.e2e
+    @pytest.mark.requires_mongodb
+    @pytest.mark.requires_llm
+    def test_pipeline_with_project_filtering(
+        self,
+        mongodb_database,
+        llm_client: LocalLLMClient,
+        pipeline_config: PipelineTestConfig,
+    ):
+        """
+        Test pipeline with project-scoped search.
 
-        # Verify complete flow
-        assert db_op_stored["operation_type"] == "INSERT"
-        assert "Bales" in db_op_stored["tables_accessed"]
-        assert relationship_stored["source_method"] == "btnSaveBale_Click"
-        assert relationship_stored["target_method"] == "SaveBale"
+        Verifies that search correctly filters by project.
+        """
+        collection = mongodb_database["code_methods"]
+
+        # Get available projects
+        projects = collection.distinct("project")
+
+        if projects:
+            target_project = projects[0]
+
+            # Retrieve methods from specific project
+            results = list(
+                collection.find({"project": target_project}).limit(3)
+            )
+
+            # Should only get methods from target project
+            assert len(results) > 0
+            for result in results:
+                assert result["project"] == target_project
+
+            # Build context from project methods
+            context = "\n".join([
+                r.get("content", r.get("code", ""))[:300]
+                for r in results if r.get("content") or r.get("code")
+            ])
+
+            if context:
+                prompt = f"""Analyze these methods from the {target_project} project.
+
+CODE:
+{context}
+
+Provide a brief analysis.
+
+ANALYSIS:"""
+
+                response = llm_client.generate(
+                    prompt=prompt,
+                    model_type="code",
+                    max_tokens=256,
+                    temperature=0.0,
+                )
+
+                assert_llm_response_valid(response, min_length=20)
+
+
+class TestCallGraphTraversal:
+    """Test call graph traversal on real data."""
 
     @pytest.mark.requires_mongodb
+    def test_build_call_graph_from_callgraph(self, mongodb_database):
+        """Test building a call graph from callgraph collection."""
+        collection = mongodb_database["code_callgraph"]
+
+        # Get a starting method
+        doc = collection.find_one({"method_name": {"$exists": True}})
+
+        if doc and "method_name" in doc:
+            start_method = doc["method_name"]
+
+            # Find methods called by this method
+            called_methods = list(
+                collection.find({"caller_method": start_method}).limit(10)
+            )
+
+            # The result should be a list (may be empty)
+            assert isinstance(called_methods, list)
+
+    @pytest.mark.requires_mongodb
+    def test_find_callers_of_method(self, mongodb_database):
+        """Test finding all callers of a method."""
+        collection = mongodb_database["code_callgraph"]
+
+        # Get a method that might be called
+        doc = collection.find_one({"callee_method": {"$exists": True}})
+
+        if doc and "callee_method" in doc:
+            target_method = doc["callee_method"]
+
+            # Find all methods that call this one
+            callers = list(
+                collection.find({"callee_method": target_method}).limit(10)
+            )
+
+            assert isinstance(callers, list)
+
+
+class TestCodeFlowPerformance:
+    """Test performance characteristics of code flow pipeline."""
+
     @pytest.mark.e2e
-    def test_build_call_graph(self, mongodb_database, pipeline_config):
-        """Test building a call graph from relationships."""
-        collection = mongodb_database["code_relationships"]
+    @pytest.mark.requires_mongodb
+    def test_retrieval_scalability(
+        self, mongodb_database, pipeline_config: PipelineTestConfig
+    ):
+        """Test retrieval with larger result sets."""
+        collection = mongodb_database["code_methods"]
 
-        # Create relationship chain
-        relationships = [
-            {
-                "_id": f"test_{generate_test_id()}",
-                "source_method": "A",
-                "target_method": "B",
-                "project": "TestProject",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-            {
-                "_id": f"test_{generate_test_id()}",
-                "source_method": "B",
-                "target_method": "C",
-                "project": "TestProject",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-            {
-                "_id": f"test_{generate_test_id()}",
-                "source_method": "C",
-                "target_method": "D",
-                "project": "TestProject",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-        ]
+        # Perform search with limit
+        import time
+        start_time = time.time()
+        results = list(collection.find().limit(100))
+        search_time = time.time() - start_time
 
-        insert_test_documents(collection, relationships, pipeline_config.test_run_id)
+        assert len(results) <= 100
+        assert search_time < 2.0, f"Search should be fast: {search_time:.2f}s"
 
-        # Build call graph from A
-        visited = set()
-        queue = ["A"]
+    @pytest.mark.e2e
+    @pytest.mark.requires_mongodb
+    def test_callgraph_traversal_performance(
+        self, mongodb_database, pipeline_config: PipelineTestConfig
+    ):
+        """Test callgraph traversal performance."""
+        collection = mongodb_database["code_callgraph"]
 
-        while queue:
-            current = queue.pop(0)
-            if current in visited:
-                continue
-            visited.add(current)
+        import time
+        start_time = time.time()
+        results = list(collection.find().limit(100))
+        search_time = time.time() - start_time
 
-            # Find targets
-            targets = collection.find({
-                "source_method": current,
-                "test_run_id": pipeline_config.test_run_id
-            })
-
-            for rel in targets:
-                queue.append(rel["target_method"])
-
-        # Verify call graph
-        assert visited == {"A", "B", "C", "D"}
+        assert len(results) <= 100
+        assert search_time < 2.0, f"Callgraph query should be fast: {search_time:.2f}s"

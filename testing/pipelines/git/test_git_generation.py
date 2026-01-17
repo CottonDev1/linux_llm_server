@@ -59,11 +59,11 @@ Purpose:"""
             temperature=0.0,
         )
 
-        # Verify response
+        # Verify response (150 tokens can be ~900 chars)
         assert_llm_response_valid(
             response,
             min_length=10,
-            max_length=500,
+            max_length=1000,
             must_contain=["user"],
         )
 
@@ -276,11 +276,11 @@ Purpose:"""
             temperature=0.1,
         )
 
-        # Verify response
+        # Verify response (150 tokens can be ~900 chars)
         assert_llm_response_valid(
             response,
             min_length=20,
-            max_length=300,
+            max_length=1000,
             must_contain=["user"],
         )
 

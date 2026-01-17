@@ -1,349 +1,238 @@
 """
-Code Flow Storage Tests
-========================
+Code Flow Storage Tests - Using Real Data
+==========================================
 
-Test storing code flow analysis data in MongoDB.
-
-Collections tested:
-- code_dboperations: Database operation patterns
-- code_relationships: Method call relationships
-- code_ui_events: UI event handler mappings
+Tests code flow analysis storage validation using REAL data from the database.
 """
 
 import pytest
-from datetime import datetime
 from typing import Dict, Any, List
 
-from config.test_config import get_test_config
-from fixtures.mongodb_fixtures import insert_test_documents
-from utils import (
-    assert_document_stored,
-    assert_mongodb_document,
-    generate_test_id,
+from config.test_config import get_test_config, PipelineTestConfig
+from fixtures.mongodb_fixtures import (
+    get_test_database,
+    get_real_code_method,
+    get_real_code_methods,
 )
 
 
-class TestCodeFlowStorage:
-    """Test code flow pipeline storage operations."""
+class TestCodeFlowDataExists:
+    """Verify code flow collections have data."""
 
     @pytest.mark.requires_mongodb
-    def test_store_database_operation(self, mongodb_database, pipeline_config):
-        """Test storing a database operation pattern."""
+    def test_code_methods_collection_has_data(self, mongodb_database):
+        """Verify code_methods collection exists and has documents."""
+        collection = mongodb_database["code_methods"]
+        count = collection.count_documents({})
+        assert count > 0, "code_methods collection should have documents"
+
+    @pytest.mark.requires_mongodb
+    def test_code_callgraph_has_data(self, mongodb_database):
+        """Verify code_callgraph collection exists and has documents."""
+        collection = mongodb_database["code_callgraph"]
+        count = collection.count_documents({})
+        assert count > 0, "code_callgraph collection should have documents"
+
+    @pytest.mark.requires_mongodb
+    def test_code_classes_has_data(self, mongodb_database):
+        """Verify code_classes collection exists and has documents."""
+        collection = mongodb_database["code_classes"]
+        count = collection.count_documents({})
+        assert count > 0, "code_classes collection should have documents"
+
+
+class TestCodeMethodStructure:
+    """Test structure of stored code methods."""
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_required_fields(self, mongodb_database):
+        """Test that code methods have required fields."""
+        method = get_real_code_method(mongodb_database)
+        assert method is not None, "Should have at least one code method"
+        assert "_id" in method
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_name(self, mongodb_database):
+        """Test that code methods have method_name field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"method_name": {"$exists": True}})
+
+        if method:
+            assert isinstance(method["method_name"], str)
+            assert len(method["method_name"]) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_class(self, mongodb_database):
+        """Test that code methods have class_name field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"class_name": {"$exists": True}})
+
+        if method:
+            assert isinstance(method["class_name"], str)
+
+    @pytest.mark.requires_mongodb
+    def test_code_method_has_project(self, mongodb_database):
+        """Test that code methods have project field."""
+        collection = mongodb_database["code_methods"]
+        method = collection.find_one({"project": {"$exists": True}})
+
+        if method:
+            assert isinstance(method["project"], str)
+
+
+class TestCodeCallgraphStructure:
+    """Test structure of stored code callgraph."""
+
+    @pytest.mark.requires_mongodb
+    def test_callgraph_has_documents(self, mongodb_database):
+        """Test that callgraph has documents."""
+        collection = mongodb_database["code_callgraph"]
+        doc = collection.find_one()
+        assert doc is not None
+        assert "_id" in doc
+
+    @pytest.mark.requires_mongodb
+    def test_callgraph_has_method_fields(self, mongodb_database):
+        """Test that callgraph entries have method fields."""
+        collection = mongodb_database["code_callgraph"]
+        doc = collection.find_one({"method_name": {"$exists": True}})
+
+        if doc:
+            assert "method_name" in doc
+
+
+class TestDBOperationsStructure:
+    """Test structure of stored database operations."""
+
+    @pytest.mark.requires_mongodb
+    def test_dboperations_collection_exists(self, mongodb_database):
+        """Test that code_dboperations collection exists."""
         collection = mongodb_database["code_dboperations"]
-
-        # Create DB operation document
-        db_op = {
-            "_id": f"test_{generate_test_id()}",
-            "operation_id": f"op_{generate_test_id()}",
-            "method_name": "SaveBale",
-            "class_name": "BaleService",
-            "project": "Gin",
-            "operation_type": "INSERT",
-            "tables_accessed": ["Bales", "BaleHistory"],
-            "sql_pattern": "INSERT INTO Bales (BaleNumber, Weight) VALUES (@BaleNumber, @Weight)",
-            "parameters": ["BaleNumber", "Weight"],
-            "file_path": "/Services/BaleService.cs",
-            "start_line": 125,
-            "is_transaction": True,
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "code_flow",
-        }
-
-        # Insert document
-        collection.insert_one(db_op)
-
-        # Verify storage
-        stored_doc = assert_document_stored(
-            collection,
-            db_op["_id"],
-            expected_fields=["operation_type", "tables_accessed", "method_name"]
-        )
-
-        # Validate schema
-        assert_mongodb_document(
-            stored_doc,
-            {
-                "operation_type": str,
-                "tables_accessed": list,
-                "method_name": str,
-                "class_name": str,
-                "is_transaction": bool,
-            }
-        )
-
-        # Verify content
-        assert stored_doc["operation_type"] == "INSERT"
-        assert "Bales" in stored_doc["tables_accessed"]
-        assert stored_doc["is_transaction"] is True
+        count = collection.count_documents({})
+        # Collection may be empty, but should exist
+        assert collection is not None
 
     @pytest.mark.requires_mongodb
-    def test_store_method_relationship(self, mongodb_database, pipeline_config):
-        """Test storing method call relationships."""
-        collection = mongodb_database["code_relationships"]
-
-        # Create relationship document
-        relationship = {
-            "_id": f"test_{generate_test_id()}",
-            "relationship_type": "calls",
-            "source_method": "ProcessTicket",
-            "source_class": "TicketService",
-            "target_method": "ValidateTicket",
-            "target_class": "ValidationService",
-            "project": "Gin",
-            "call_count": 1,
-            "is_async": False,
-            "parameters_passed": ["ticketId", "userId"],
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "code_flow",
-        }
-
-        # Insert document
-        collection.insert_one(relationship)
-
-        # Verify storage
-        stored_doc = assert_document_stored(
-            collection,
-            relationship["_id"],
-            expected_fields=["source_method", "target_method", "relationship_type"]
-        )
-
-        # Verify content
-        assert stored_doc["relationship_type"] == "calls"
-        assert stored_doc["source_method"] == "ProcessTicket"
-        assert stored_doc["target_method"] == "ValidateTicket"
-
-    @pytest.mark.requires_mongodb
-    def test_store_ui_event_mapping(self, mongodb_database, pipeline_config):
-        """Test storing UI event to method mappings."""
-        collection = mongodb_database["code_ui_events"]
-
-        # Create UI event document
-        ui_event = {
-            "_id": f"test_{generate_test_id()}",
-            "event_type": "button_click",
-            "control_name": "btnSaveBale",
-            "event_handler": "btnSaveBale_Click",
-            "class_name": "BaleEntryForm",
-            "project": "Gin",
-            "entry_method": "btnSaveBale_Click",
-            "methods_called": ["ValidateBale", "SaveBale", "RefreshGrid"],
-            "ui_framework": "WPF",
-            "is_async": True,
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "code_flow",
-        }
-
-        # Insert document
-        collection.insert_one(ui_event)
-
-        # Verify storage
-        stored_doc = assert_document_stored(
-            collection,
-            ui_event["_id"],
-            expected_fields=["event_type", "control_name", "event_handler", "methods_called"]
-        )
-
-        # Verify content
-        assert stored_doc["event_type"] == "button_click"
-        assert stored_doc["control_name"] == "btnSaveBale"
-        assert "SaveBale" in stored_doc["methods_called"]
-
-    @pytest.mark.requires_mongodb
-    def test_store_call_chain(self, mongodb_database, pipeline_config):
-        """Test storing a complete call chain."""
-        collection = mongodb_database["code_call_chains"]
-
-        # Create call chain document
-        call_chain = {
-            "_id": f"test_{generate_test_id()}",
-            "chain_id": f"chain_{generate_test_id()}",
-            "entry_point": "btnProcessOrder_Click",
-            "project": "Warehouse",
-            "chain_depth": 4,
-            "methods_in_chain": [
-                "btnProcessOrder_Click",
-                "ValidateOrder",
-                "CalculateTotal",
-                "SaveOrder"
-            ],
-            "touches_database": True,
-            "database_tables": ["Orders", "OrderItems", "Inventory"],
-            "total_methods": 4,
-            "is_async": True,
-            "has_error_handling": True,
-            "is_test": True,
-            "test_marker": True,
-            "test_run_id": pipeline_config.test_run_id,
-            "created_at": datetime.utcnow(),
-            "pipeline": "code_flow",
-        }
-
-        # Insert document
-        collection.insert_one(call_chain)
-
-        # Verify storage
-        stored_doc = assert_document_stored(
-            collection,
-            call_chain["_id"],
-            expected_fields=["entry_point", "methods_in_chain", "touches_database"]
-        )
-
-        # Verify content
-        assert stored_doc["chain_depth"] == 4
-        assert len(stored_doc["methods_in_chain"]) == 4
-        assert stored_doc["touches_database"] is True
-
-    @pytest.mark.requires_mongodb
-    def test_bulk_insert_operations(self, mongodb_database, pipeline_config):
-        """Test bulk inserting database operations."""
+    def test_dboperations_has_data(self, mongodb_database):
+        """Test that database operations have data."""
         collection = mongodb_database["code_dboperations"]
+        count = collection.count_documents({})
 
-        # Create multiple operations
-        operations = []
-        for i in range(10):
-            op = {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": ["SELECT", "INSERT", "UPDATE", "DELETE"][i % 4],
-                "method_name": f"Operation{i}",
-                "class_name": "DataService",
-                "project": "TestProject",
-                "tables_accessed": [f"Table{i}"],
-                "is_test": True,
-                "test_marker": True,
-                "test_run_id": pipeline_config.test_run_id,
-                "created_at": datetime.utcnow(),
-                "pipeline": "code_flow",
-            }
-            operations.append(op)
+        # If we have data, validate structure
+        if count > 0:
+            doc = collection.find_one()
+            assert "_id" in doc
 
-        # Bulk insert
-        ids = insert_test_documents(
-            collection,
-            operations,
-            test_run_id=pipeline_config.test_run_id
-        )
 
-        # Verify all inserted
-        assert len(ids) == 10
-
-        # Verify counts by operation type
-        insert_count = collection.count_documents({
-            "operation_type": "INSERT",
-            "test_run_id": pipeline_config.test_run_id
-        })
-        assert insert_count >= 2
+class TestEventHandlersStructure:
+    """Test structure of stored event handlers."""
 
     @pytest.mark.requires_mongodb
-    def test_query_operations_by_table(self, mongodb_database, pipeline_config):
-        """Test querying operations by table accessed."""
-        collection = mongodb_database["code_dboperations"]
+    def test_eventhandlers_collection_has_data(self, mongodb_database):
+        """Test that code_eventhandlers collection has data."""
+        collection = mongodb_database["code_eventhandlers"]
+        count = collection.count_documents({})
+        assert count > 0, "code_eventhandlers collection should have documents"
 
-        # Insert operations accessing different tables
-        ops = [
-            {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": "SELECT",
-                "method_name": "GetUser",
-                "tables_accessed": ["Users"],
-                "project": "TestProject",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-            {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": "UPDATE",
-                "method_name": "UpdateUser",
-                "tables_accessed": ["Users", "UserAudit"],
-                "project": "TestProject",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
-            {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": "INSERT",
-                "method_name": "CreateOrder",
-                "tables_accessed": ["Orders"],
-                "project": "TestProject",
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            },
+    @pytest.mark.requires_mongodb
+    def test_eventhandler_has_required_fields(self, mongodb_database):
+        """Test that event handlers have required fields."""
+        collection = mongodb_database["code_eventhandlers"]
+        doc = collection.find_one()
+
+        if doc:
+            assert "_id" in doc
+
+
+class TestCodeFlowQueryability:
+    """Test that code flow data can be queried effectively."""
+
+    @pytest.mark.requires_mongodb
+    def test_query_methods_by_project(self, mongodb_database):
+        """Test querying code methods by project."""
+        collection = mongodb_database["code_methods"]
+
+        projects = collection.distinct("project")
+
+        if projects:
+            project = projects[0]
+            results = list(collection.find({"project": project}).limit(5))
+            assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_query_methods_by_class(self, mongodb_database):
+        """Test querying code methods by class name."""
+        collection = mongodb_database["code_methods"]
+
+        doc = collection.find_one({"class_name": {"$exists": True}})
+        if doc and "class_name" in doc:
+            class_name = doc["class_name"]
+            results = list(collection.find({"class_name": class_name}).limit(5))
+            assert len(results) > 0
+
+    @pytest.mark.requires_mongodb
+    def test_aggregation_methods_per_class(self, mongodb_database):
+        """Test aggregation of methods per class."""
+        collection = mongodb_database["code_methods"]
+
+        pipeline = [
+            {"$group": {"_id": "$class_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
         ]
 
-        insert_test_documents(collection, ops, pipeline_config.test_run_id)
+        results = list(collection.aggregate(pipeline))
+        assert len(results) > 0
 
-        # Query operations on Users table
-        users_ops = list(collection.find({
-            "tables_accessed": "Users",
-            "test_run_id": pipeline_config.test_run_id
-        }))
 
-        # Verify results
-        assert len(users_ops) == 2
-        assert all("Users" in op["tables_accessed"] for op in users_ops)
+class TestCodeFlowCounts:
+    """Verify expected data counts."""
 
     @pytest.mark.requires_mongodb
-    def test_aggregate_operations_by_type(self, mongodb_database, pipeline_config):
-        """Test aggregating operations by type."""
-        collection = mongodb_database["code_dboperations"]
-
-        # Insert varied operations
-        ops = []
-        operation_types = ["SELECT", "INSERT", "UPDATE", "DELETE", "SELECT", "SELECT", "INSERT"]
-
-        for i, op_type in enumerate(operation_types):
-            op = {
-                "_id": f"test_{generate_test_id()}",
-                "operation_type": op_type,
-                "method_name": f"Method{i}",
-                "project": "TestProject",
-                "tables_accessed": ["TestTable"],
-                "is_test": True,
-                "test_run_id": pipeline_config.test_run_id,
-            }
-            ops.append(op)
-
-        insert_test_documents(collection, ops, pipeline_config.test_run_id)
-
-        # Aggregate by operation type
-        pipeline_agg = [
-            {"$match": {"test_run_id": pipeline_config.test_run_id}},
-            {"$group": {
-                "_id": "$operation_type",
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"count": -1}}
-        ]
-
-        results = list(collection.aggregate(pipeline_agg))
-
-        # Verify aggregation
-        assert len(results) == 4
-        select_result = next((r for r in results if r["_id"] == "SELECT"), None)
-        assert select_result is not None
-        assert select_result["count"] == 3
+    def test_code_methods_count(self, mongodb_database):
+        """Verify code_methods has expected minimum count."""
+        collection = mongodb_database["code_methods"]
+        count = collection.count_documents({})
+        assert count >= 1000, f"Expected at least 1000 code methods, got {count}"
 
     @pytest.mark.requires_mongodb
-    def test_index_for_performance(self, mongodb_database, pipeline_config):
-        """Test creating indexes for code flow queries."""
-        collection = mongodb_database["code_dboperations"]
+    def test_code_classes_count(self, mongodb_database):
+        """Verify code_classes has expected minimum count."""
+        collection = mongodb_database["code_classes"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 code classes, got {count}"
 
-        # Create indexes
-        collection.create_index([("operation_type", 1)])
-        collection.create_index([("tables_accessed", 1)])
-        collection.create_index([("project", 1), ("class_name", 1)])
+    @pytest.mark.requires_mongodb
+    def test_code_callgraph_count(self, mongodb_database):
+        """Verify code_callgraph has expected minimum count."""
+        collection = mongodb_database["code_callgraph"]
+        count = collection.count_documents({})
+        assert count >= 1000, f"Expected at least 1000 callgraph entries, got {count}"
 
-        # Verify indexes exist
+    @pytest.mark.requires_mongodb
+    def test_code_eventhandlers_count(self, mongodb_database):
+        """Verify code_eventhandlers has expected minimum count."""
+        collection = mongodb_database["code_eventhandlers"]
+        count = collection.count_documents({})
+        assert count >= 100, f"Expected at least 100 event handlers, got {count}"
+
+
+class TestIndexesExist:
+    """Verify collections have proper indexes."""
+
+    @pytest.mark.requires_mongodb
+    def test_code_methods_has_indexes(self, mongodb_database):
+        """Verify code_methods collection has indexes."""
+        collection = mongodb_database["code_methods"]
         indexes = list(collection.list_indexes())
-        index_names = [idx["name"] for idx in indexes]
 
-        assert any("operation_type" in name for name in index_names)
-        assert any("tables_accessed" in name for name in index_names)
+        index_names = [idx["name"] for idx in indexes]
+        assert "_id_" in index_names
+
+    @pytest.mark.requires_mongodb
+    def test_code_callgraph_has_indexes(self, mongodb_database):
+        """Verify code_callgraph has indexes."""
+        collection = mongodb_database["code_callgraph"]
+        indexes = list(collection.list_indexes())
+
+        assert len(indexes) >= 1

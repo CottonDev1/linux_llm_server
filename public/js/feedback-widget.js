@@ -431,6 +431,112 @@ const FeedbackWidget = (function() {
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        /* Document checkbox styles */
+        .feedback-docs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+
+        .feedback-doc-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .feedback-doc-checkbox:hover {
+            border-color: #475569;
+            background: #1e293b;
+        }
+
+        .feedback-doc-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+            accent-color: #3b82f6;
+            cursor: pointer;
+        }
+
+        .feedback-doc-checkbox input[type="checkbox"]:checked + .feedback-doc-info {
+            color: #f1f5f9;
+        }
+
+        .feedback-doc-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .feedback-doc-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #cbd5e1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .feedback-doc-meta {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .feedback-doc-checkbox:has(input:checked) {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .feedback-doc-checkbox:has(input:checked) .feedback-doc-title {
+            color: #93c5fd;
+        }
+
+        /* Document category tags */
+        .feedback-doc-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .feedback-doc-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .tag-department {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .tag-type {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .tag-subject {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
     `;
 
     // Inject styles
@@ -485,11 +591,14 @@ const FeedbackWidget = (function() {
      * Initialize the feedback widget
      * @param {Object} options Configuration options
      * @param {string} options.query The original query
+     * @param {string} options.response The response that feedback is about
      * @param {string} options.database Database name (optional)
      * @param {string[]} options.documentIds IDs of documents shown in results
      * @param {string} options.generatedSql Generated SQL (optional, for SQL queries)
      * @param {string} options.containerId ID of container element (default: 'feedback-widget')
      * @param {string} options.mode 'full' or 'inline' (default: 'full')
+     * @param {string} options.context 'sql' or 'knowledge_base' (default: auto-detect based on generatedSql)
+     * @param {Object} options.metadata Additional metadata (retrieval scores, conversation history, etc.)
      * @param {function} options.onSubmit Callback after successful submission
      */
     function init(options) {
@@ -500,13 +609,19 @@ const FeedbackWidget = (function() {
         // Get or create instance for this container
         const instance = getInstance(containerId);
 
+        // Auto-detect context based on whether SQL was generated
+        const context = options.context || (options.generatedSql ? 'sql' : 'knowledge_base');
+
         instance.config = {
             query: options.query || '',
+            response: options.response || '',
             database: options.database || null,
             documentIds: options.documentIds || [],
             generatedSql: options.generatedSql || null,
             containerId: containerId,
             mode: options.mode || 'full',
+            context: context,
+            metadata: options.metadata || {},
             onSubmit: options.onSubmit || function() {}
         };
 
@@ -514,7 +629,9 @@ const FeedbackWidget = (function() {
             isHelpful: null,
             rating: 0,
             correction: '',
+            expectedAnswer: '',
             comment: '',
+            errorType: '',
             submitted: false
         };
 
@@ -638,12 +755,39 @@ const FeedbackWidget = (function() {
     }
 
     /**
+     * Issue categories for structured feedback.
+     * Each category routes to different improvement mechanisms.
+     */
+    const ISSUE_CATEGORIES = {
+        sql: [
+            { value: 'wrong_columns', label: 'Wrong columns selected', action: 'schema_improvement' },
+            { value: 'wrong_tables', label: 'Wrong table(s) used', action: 'schema_improvement' },
+            { value: 'wrong_join', label: 'Incorrect join or relationship', action: 'schema_improvement' },
+            { value: 'wrong_filter', label: 'Wrong WHERE/filter conditions', action: 'prompt_improvement' },
+            { value: 'wrong_aggregation', label: 'Incorrect GROUP BY or aggregation', action: 'prompt_improvement' },
+            { value: 'syntax_error', label: 'SQL syntax error', action: 'prompt_improvement' },
+            { value: 'missing_data', label: 'Query correct but data missing', action: 'none' },
+            { value: 'performance', label: 'Query too slow', action: 'optimization' }
+        ],
+        knowledge_base: [
+            { value: 'irrelevant_documents', label: 'Retrieved irrelevant documents', action: 'retrieval_improvement', showDocs: true },
+            { value: 'missing_documents', label: 'Missing relevant documents', action: 'retrieval_improvement', showDocs: false },
+            { value: 'misinterpreted_sources', label: 'Misinterpreted the sources', action: 'synthesis_improvement', showDocs: true },
+            { value: 'document_content_wrong', label: 'Document content is incorrect', action: 'document_quality', showDocs: true },
+            { value: 'document_outdated', label: 'Document content is outdated', action: 'document_quality', showDocs: true },
+            { value: 'hallucination', label: 'Made up facts not in sources', action: 'synthesis_improvement', showDocs: false }
+        ]
+    };
+
+    /**
      * Render detailed feedback form for negative feedback
      */
     function renderDetailedFeedbackForm(containerId) {
         const instance = instances[containerId] || { config, state };
         const instanceConfig = instance.config;
         const instanceState = instance.state;
+        const isSqlContext = instanceConfig.context === 'sql';
+        const categories = ISSUE_CATEGORIES[instanceConfig.context] || ISSUE_CATEGORIES.knowledge_base;
 
         return `
             <div class="feedback-detailed-form" data-container-id="${containerId}">
@@ -653,44 +797,145 @@ const FeedbackWidget = (function() {
                 </div>
 
                 <div class="feedback-form-group">
-                    <label class="feedback-form-label">Error Type</label>
-                    <select class="feedback-form-select feedback-error-type">
-                        <option value="">Select error type...</option>
-                        <option value="wrong_columns">Wrong columns selected</option>
-                        <option value="wrong_tables">Wrong table(s) used</option>
-                        <option value="wrong_join">Incorrect join or relationship</option>
-                        <option value="wrong_filter">Wrong WHERE/filter conditions</option>
-                        <option value="wrong_aggregation">Incorrect GROUP BY or aggregation</option>
-                        <option value="syntax_error">SQL syntax error</option>
-                        <option value="missing_data">Query correct but data missing</option>
-                        <option value="performance">Query too slow</option>
-                        <option value="other">Other issue</option>
+                    <label class="feedback-form-label">Issue Type <span style="color: #ef4444;">*</span></label>
+                    <select class="feedback-form-select feedback-error-type" onchange="FeedbackWidget.onIssueTypeChange('${containerId}')">
+                        <option value="">Select issue type...</option>
+                        ${categories.map(cat => `<option value="${cat.value}" data-action="${cat.action}" data-show-docs="${cat.showDocs || false}">${cat.label}</option>`).join('')}
                     </select>
                 </div>
 
-                <div class="feedback-form-group">
-                    <label class="feedback-form-label">What was wrong with the results?</label>
-                    <textarea class="feedback-form-textarea feedback-description"
-                        placeholder="Describe what you expected vs what you got...">${instanceState.comment || ''}</textarea>
+                <!-- Document flagging section (shown conditionally) -->
+                <div class="feedback-form-group feedback-docs-section" style="display: none;">
+                    <label class="feedback-form-label feedback-docs-label">Select the problematic document(s):</label>
+                    <div class="feedback-docs-list">
+                        ${renderDocumentCheckboxes(instanceConfig)}
+                    </div>
                 </div>
 
-                <div class="feedback-form-group">
-                    <label class="feedback-form-label">Provide the correct SQL (optional)</label>
+                ${isSqlContext ? `
+                <div class="feedback-form-group feedback-sql-section" style="display: none;">
+                    <label class="feedback-form-label">Correct SQL (optional)</label>
                     <textarea class="feedback-form-textarea code-input feedback-correct-sql"
-                        placeholder="Paste the correct SQL query here...">${instanceState.correction || instanceConfig.generatedSql || ''}</textarea>
-                    <div class="feedback-form-hint">If you know the correct query, paste it here to help train the system.</div>
+                        placeholder="Paste the correct SQL query here...">${instanceState.correction || ''}</textarea>
                 </div>
+                ` : ''}
 
                 <div class="feedback-form-actions">
                     <button type="button" class="feedback-form-btn feedback-form-btn-cancel" onclick="FeedbackWidget.cancelDetailedForm('${containerId}')">
                         Cancel
                     </button>
-                    <button type="button" class="feedback-form-btn feedback-form-btn-submit" onclick="FeedbackWidget.submitDetailedFeedback('${containerId}')">
+                    <button type="button" class="feedback-form-btn feedback-form-btn-submit" onclick="FeedbackWidget.submitDetailedFeedback('${containerId}')" disabled>
                         Submit Feedback
                     </button>
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Render document checkboxes for flagging with category tags
+     */
+    function renderDocumentCheckboxes(instanceConfig) {
+        const retrievalScores = instanceConfig.metadata?.retrieval_scores || [];
+
+        if (retrievalScores.length === 0) {
+            return '<div style="color: #64748b; font-size: 12px; padding: 8px;">No documents to display</div>';
+        }
+
+        return retrievalScores.map((doc, index) => {
+            // Build category tags
+            const tags = [];
+            if (doc.department) {
+                tags.push(`<span class="feedback-doc-tag tag-department" title="Department">${escapeHtml(formatCategoryName(doc.department))}</span>`);
+            }
+            if (doc.type) {
+                tags.push(`<span class="feedback-doc-tag tag-type" title="Document Type">${escapeHtml(formatCategoryName(doc.type))}</span>`);
+            }
+            if (doc.subject) {
+                tags.push(`<span class="feedback-doc-tag tag-subject" title="Subject">${escapeHtml(formatCategoryName(doc.subject))}</span>`);
+            }
+
+            const tagsHtml = tags.length > 0
+                ? `<div class="feedback-doc-tags">${tags.join('')}</div>`
+                : '';
+
+            return `
+                <label class="feedback-doc-checkbox">
+                    <input type="checkbox" name="flagged_doc" value="${doc.id}" data-index="${index}">
+                    <span class="feedback-doc-info">
+                        <span class="feedback-doc-title">${escapeHtml(doc.title || 'Untitled')}</span>
+                        ${tagsHtml}
+                        <span class="feedback-doc-meta">relevance: ${(doc.score || 0).toFixed(2)}</span>
+                    </span>
+                </label>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Format category name for display (convert snake_case/kebab-case to Title Case)
+     */
+    function formatCategoryName(name) {
+        if (!name) return '';
+        return name
+            .replace(/[_-]/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    /**
+     * Escape HTML for safe rendering
+     */
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    /**
+     * Handle issue type change - show/hide relevant sections
+     */
+    function onIssueTypeChange(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const select = container.querySelector('.feedback-error-type');
+        const selectedOption = select.options[select.selectedIndex];
+        const showDocs = selectedOption?.dataset?.showDocs === 'true';
+        const action = selectedOption?.dataset?.action || '';
+        const issueType = select.value;
+
+        // Show/hide document section
+        const docsSection = container.querySelector('.feedback-docs-section');
+        if (docsSection) {
+            docsSection.style.display = showDocs ? 'block' : 'none';
+
+            // Update label based on issue type
+            const docsLabel = container.querySelector('.feedback-docs-label');
+            if (docsLabel) {
+                if (issueType === 'irrelevant_documents') {
+                    docsLabel.textContent = 'Which documents were NOT relevant to your question?';
+                } else if (issueType === 'misinterpreted_sources') {
+                    docsLabel.textContent = 'Which document(s) were misinterpreted?';
+                } else if (issueType === 'document_content_wrong' || issueType === 'document_outdated') {
+                    docsLabel.textContent = 'Which document(s) have incorrect/outdated content?';
+                } else {
+                    docsLabel.textContent = 'Select the problematic document(s):';
+                }
+            }
+        }
+
+        // Show/hide SQL correction section
+        const sqlSection = container.querySelector('.feedback-sql-section');
+        if (sqlSection) {
+            const showSql = ['wrong_columns', 'wrong_tables', 'wrong_join', 'wrong_filter', 'wrong_aggregation', 'syntax_error'].includes(issueType);
+            sqlSection.style.display = showSql ? 'block' : 'none';
+        }
+
+        // Enable/disable submit button
+        const submitBtn = container.querySelector('.feedback-form-btn-submit');
+        if (submitBtn) {
+            submitBtn.disabled = !issueType;
+        }
     }
 
     /**
@@ -781,16 +1026,21 @@ const FeedbackWidget = (function() {
 
         const feedbackData = {
             query: instanceConfig.query,
+            response: instanceConfig.response,
             database: instanceConfig.database,
             document_ids: instanceConfig.documentIds,
-            feedback_type: instanceState.correction ? 'correction' : 'rating'
+            feedback_type: instanceState.correction ? 'correction' : 'rating',
+            metadata: {
+                ...instanceConfig.metadata,
+                context: instanceConfig.context
+            }
         };
 
         // Add rating data
         if (instanceState.rating > 0 || instanceState.isHelpful !== null) {
             feedbackData.rating = {
                 is_helpful: instanceState.isHelpful,
-                score: instanceState.rating || (instanceState.isHelpful ? 4 : 2),
+                rating: instanceState.rating || (instanceState.isHelpful ? 5 : 1),
                 comment: instanceState.comment || null
             };
         }
@@ -798,9 +1048,9 @@ const FeedbackWidget = (function() {
         // Add correction data if provided
         if (instanceState.correction) {
             feedbackData.correction = {
-                original_sql: instanceConfig.generatedSql,
-                corrected_sql: instanceState.correction,
-                error_type: 'user_correction'
+                original_response: instanceConfig.generatedSql || instanceConfig.response,
+                corrected_response: instanceState.correction,
+                error_type: instanceState.errorType || 'user_correction'
             };
         }
 
@@ -887,45 +1137,88 @@ const FeedbackWidget = (function() {
 
         const instanceConfig = instance.config;
         const instanceState = instance.state;
+        const isSqlContext = instanceConfig.context === 'sql';
 
         // Gather form values
         const errorTypeSelect = container.querySelector('.feedback-error-type');
-        const descriptionInput = container.querySelector('.feedback-description');
+        const selectedOption = errorTypeSelect?.options[errorTypeSelect.selectedIndex];
         const correctSqlInput = container.querySelector('.feedback-correct-sql');
 
-        const errorType = errorTypeSelect?.value || '';
-        const description = descriptionInput?.value || '';
+        const issueType = errorTypeSelect?.value || '';
+        const action = selectedOption?.dataset?.action || '';
         const correctSql = correctSqlInput?.value || '';
 
-        // Store in state for persistence
-        instanceState.comment = description;
-        instanceState.correction = correctSql;
-        instanceState.errorType = errorType;
+        // Gather flagged documents
+        const flaggedDocCheckboxes = container.querySelectorAll('input[name="flagged_doc"]:checked');
+        const flaggedDocuments = Array.from(flaggedDocCheckboxes).map(cb => ({
+            id: cb.value,
+            index: parseInt(cb.dataset.index, 10)
+        }));
 
-        // Build feedback data
+        // Get full document info for flagged docs
+        const retrievalScores = instanceConfig.metadata?.retrieval_scores || [];
+        const flaggedDocumentsFull = flaggedDocuments.map(fd => {
+            const doc = retrievalScores[fd.index];
+            return doc ? { ...doc, flagged: true } : { id: fd.id, flagged: true };
+        });
+
+        // Store in state
+        instanceState.errorType = issueType;
+        instanceState.correction = correctSql;
+
+        // Build structured feedback data
         const feedbackData = {
             query: instanceConfig.query,
+            response: instanceConfig.response,
             database: instanceConfig.database,
             document_ids: instanceConfig.documentIds,
-            feedback_type: correctSql ? 'correction' : 'rating'
+            feedback_type: 'rating',
+            rating: {
+                is_helpful: false,
+                rating: 1,
+                comment: null
+            },
+            metadata: {
+                context: instanceConfig.context,
+                issue_type: issueType,
+                action: action,
+                flagged_documents: flaggedDocumentsFull,
+                all_retrieved_documents: retrievalScores,
+                conversation_history: instanceConfig.metadata?.conversation_history || [],
+                filters: instanceConfig.metadata?.filters || {}
+            }
         };
 
-        // Add rating data
-        feedbackData.rating = {
-            is_helpful: false,
-            score: 1,
-            comment: description || null
-        };
+        // Route feedback based on action type
+        // This determines what gets updated in the backend
+        if (action === 'document_quality') {
+            // Only document_content_wrong and document_outdated affect document quality
+            feedbackData.metadata.affects_document_quality = true;
+            feedbackData.metadata.documents_to_penalize = flaggedDocumentsFull.map(d => d.id);
+        } else if (action === 'retrieval_improvement') {
+            // irrelevant_documents and missing_documents - track for retrieval tuning
+            feedbackData.metadata.affects_document_quality = false;
+            feedbackData.metadata.retrieval_issue = true;
+            if (issueType === 'irrelevant_documents') {
+                feedbackData.metadata.irrelevant_document_ids = flaggedDocumentsFull.map(d => d.id);
+            }
+        } else if (action === 'synthesis_improvement') {
+            // misinterpreted_sources and hallucination - track for prompt tuning
+            feedbackData.metadata.affects_document_quality = false;
+            feedbackData.metadata.synthesis_issue = true;
+            if (issueType === 'misinterpreted_sources') {
+                feedbackData.metadata.misinterpreted_document_ids = flaggedDocumentsFull.map(d => d.id);
+            }
+        }
 
-        // Add correction data if SQL provided
-        if (correctSql && correctSql.trim()) {
-            feedbackData.correction = {
-                original_sql: instanceConfig.generatedSql,
-                corrected_sql: correctSql.trim(),
-                error_type: errorType || 'user_correction',
-                comment: description || null
-            };
+        // Add SQL correction if provided (for SQL context)
+        if (isSqlContext && correctSql && correctSql.trim()) {
             feedbackData.feedback_type = 'correction';
+            feedbackData.correction = {
+                original_response: instanceConfig.generatedSql || instanceConfig.response,
+                corrected_response: correctSql.trim(),
+                error_type: issueType
+            };
         }
 
         // Disable submit button during submission
@@ -1008,7 +1301,8 @@ const FeedbackWidget = (function() {
         dismiss,
         createInline,
         cancelDetailedForm,
-        submitDetailedFeedback
+        submitDetailedFeedback,
+        onIssueTypeChange
     };
 })();
 
