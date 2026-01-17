@@ -140,19 +140,21 @@ tr.expanded .expand-indicator {
     border-radius: 8px;
     flex-shrink: 0;
     overflow: hidden;
+    /* Reduced 25% from 1200px max-width */
+    max-width: 900px;
 }
 
 .ewr-audio-upload-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
+    padding: 10px 15px;
     background: rgba(0, 0, 0, 0.2);
     border-bottom: 1px solid #334155;
 }
 
 .ewr-audio-upload-title {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     color: #e2e8f0;
     margin: 0;
@@ -161,33 +163,33 @@ tr.expanded .expand-indicator {
 .ewr-audio-upload-content {
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    padding: 24px;
+    gap: 14px;
+    padding: 18px;
 }
 
 /* Method Toggle Radio Buttons */
 .ewr-audio-method-toggle {
     display: flex;
-    gap: 24px;
+    gap: 18px;
 }
 
 .ewr-audio-method-option {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     user-select: none;
 }
 
 .ewr-audio-method-option input[type="radio"] {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     accent-color: #3b82f6;
     cursor: pointer;
 }
 
 .ewr-audio-method-label {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
     color: #e2e8f0;
 }
@@ -208,8 +210,8 @@ tr.expanded .expand-indicator {
 .ewr-audio-drop-zone {
     display: flex;
     align-items: center;
-    gap: 20px;
-    padding: 20px 28px;
+    gap: 15px;
+    padding: 15px 21px;
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08));
     border: 2px dashed #334155;
     border-radius: 8px;
@@ -229,32 +231,32 @@ tr.expanded .expand-indicator {
 }
 
 .ewr-audio-drop-zone-icon {
-    font-size: 36px;
+    font-size: 27px;
     flex-shrink: 0;
     color: #60a5fa;
 }
 
 .ewr-audio-drop-zone-text {
-    font-size: 16px;
+    font-size: 14px;
     color: #e2e8f0;
 }
 
 .ewr-audio-drop-zone-subtext {
-    font-size: 14px;
+    font-size: 12px;
     color: #64748b;
-    margin-top: 4px;
+    margin-top: 3px;
 }
 
 .ewr-audio-directory-row {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
 }
 
 .ewr-audio-directory-input {
     flex: 1;
-    padding: 14px 16px;
-    font-size: 14px;
+    padding: 10px 12px;
+    font-size: 13px;
     background: #0f172a;
     border: 1px solid #334155;
     border-radius: 6px;
@@ -402,9 +404,9 @@ tr.expanded .expand-indicator {
     padding: 0 24px;
 }
 
-/* Constrain all direct children to max-width */
+/* Constrain all direct children to max-width (increased 50% from 800px) */
 .ewr-audio-page-container > * {
-    max-width: 800px;
+    max-width: 1200px;
 }
 
 /* Tables column - vertical stacking without shared scroll */
@@ -414,7 +416,7 @@ tr.expanded .expand-indicator {
     gap: 20px;
     flex: 1;
     min-height: 0;
-    max-width: 800px;
+    max-width: 1200px;
 }
 
 

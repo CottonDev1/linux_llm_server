@@ -419,10 +419,11 @@
 
     <script src="audio-manager.js"></script>
     <script>
-        document.addEventListener('page-ready', () => {
+        document.addEventListener('page-ready', async () => {
             initElements();
             setupEventListeners();
             loadSavedDirectoryPath();
+            await refreshPendingFiles();
         });
     </script>
 </body>

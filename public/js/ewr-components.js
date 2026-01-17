@@ -4698,9 +4698,9 @@ class EwrAudioFileList extends HTMLElement {
                 <tr>
                     <th style="width: 30px;"></th>
                     <th style="width: 24px;"></th>
-                    <th style="min-width: 200px;">Filename</th>
+                    <th style="width: 200px;">Filename</th>
                     <th style="width: 75px;">Size</th>
-                    <th style="min-width: 180px;">Status</th>
+                    <th>Status</th>
                     <th style="width: 60px;"></th>
                 </tr>
             `;
@@ -4713,7 +4713,7 @@ class EwrAudioFileList extends HTMLElement {
                     <th style="min-width: 200px;">Filename</th>
                     <th style="width: 75px;">Duration</th>
                     <th style="width: 80px;">Mood</th>
-                    <th style="width: 60px;"></th>
+                    <th style="width: 100px;">Action</th>
                 </tr>
             `;
         }

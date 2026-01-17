@@ -1070,6 +1070,18 @@ function updatePendingGrid() {
         const summaryExcerpt = (analysis.transcription_summary || 'No summary available').substring(0, 150);
         const hasSummary = analysis.transcription_summary && analysis.transcription_summary.length > 150;
 
+        // Get mood color based on emotion
+        const moodColors = {
+            'HAPPY': '#22c55e',
+            'SAD': '#3b82f6',
+            'ANGRY': '#ef4444',
+            'NEUTRAL': '#94a3b8',
+            'FEARFUL': '#a855f7',
+            'DISGUSTED': '#f97316',
+            'SURPRISED': '#eab308'
+        };
+        const moodColor = moodColors[fileItem.mood.toUpperCase()] || '#94a3b8';
+
         return `
             <tr class="${expanded ? 'expanded' : ''}" data-file-id="${fileItem.id}">
                 <td style="width: 40px;">
@@ -1077,15 +1089,14 @@ function updatePendingGrid() {
                 </td>
                 <td class="filename-cell" onclick="togglePendingExpansion('${fileItem.id}')">${escapeHtml(fileItem.filename)}</td>
                 <td>${fileItem.duration}</td>
-                <td><span class="ewr-count-badge warning">${fileItem.mood}</span></td>
-                <td><span class="ewr-count-badge success">${fileItem.status}</span></td>
+                <td style="color: ${moodColor}; font-weight: 500;">${fileItem.mood}</td>
                 <td style="white-space: nowrap;">
-                    <button class="ewr-button ewr-button-small ewr-button-primary" onclick="openSaveModal('${fileItem.id}')">Review</button>
+                    <button class="ewr-button ewr-button-primary" style="padding: 6px 12px; font-size: 12px;" onclick="openSaveModal('${fileItem.id}')">Review</button>
                     <button class="ewr-delete-file-button" onclick="deletePendingFile('${fileItem.id}')" style="margin-left: 8px;">Delete</button>
                 </td>
             </tr>
             <tr class="ewr-expandable-row ${expanded ? 'expanded' : ''}" data-file-id="${fileItem.id}-expanded">
-                <td colspan="6">
+                <td colspan="5">
                     <div class="ewr-expandable-row-content">
                         <div class="ewr-audio-player-card compact">
                             <!-- Audio Player -->
