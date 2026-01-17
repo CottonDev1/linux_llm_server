@@ -146,13 +146,13 @@ tr.expanded .expand-indicator {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 14px;
+    padding: 14px 20px;
     background: rgba(0, 0, 0, 0.2);
     border-bottom: 1px solid #334155;
 }
 
 .ewr-audio-upload-title {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     color: #e2e8f0;
     margin: 0;
@@ -161,18 +161,18 @@ tr.expanded .expand-indicator {
 .ewr-audio-upload-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
+    gap: 18px;
+    padding: 24px;
 }
 
 .ewr-audio-upload-method {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
 }
 
 .ewr-audio-upload-method-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: #94a3b8;
     text-transform: uppercase;
@@ -182,8 +182,8 @@ tr.expanded .expand-indicator {
 .ewr-audio-drop-zone {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 14px 20px;
+    gap: 20px;
+    padding: 20px 28px;
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08));
     border: 2px dashed #334155;
     border-radius: 8px;
@@ -203,37 +203,38 @@ tr.expanded .expand-indicator {
 }
 
 .ewr-audio-drop-zone-icon {
-    font-size: 28px;
+    font-size: 36px;
     flex-shrink: 0;
     color: #60a5fa;
 }
 
 .ewr-audio-drop-zone-text {
-    font-size: 14px;
+    font-size: 16px;
     color: #e2e8f0;
 }
 
 .ewr-audio-drop-zone-subtext {
-    font-size: 12px;
+    font-size: 14px;
     color: #64748b;
+    margin-top: 4px;
 }
 
 .ewr-audio-upload-divider {
     height: 1px;
     background: #334155;
-    margin: 4px 0;
+    margin: 8px 0;
 }
 
 .ewr-audio-directory-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 14px;
 }
 
 .ewr-audio-directory-input {
     flex: 1;
-    padding: 10px 12px;
-    font-size: 13px;
+    padding: 14px 16px;
+    font-size: 14px;
     background: #0f172a;
     border: 1px solid #334155;
     border-radius: 6px;
@@ -246,9 +247,10 @@ tr.expanded .expand-indicator {
 }
 
 .ewr-audio-poll-status {
-    font-size: 11px;
+    font-size: 13px;
     color: #64748b;
-    padding-left: 2px;
+    padding-left: 4px;
+    margin-top: 4px;
 }
 
 
@@ -269,28 +271,28 @@ tr.expanded .expand-indicator {
 /* Allow sections to grow when they have content */
 .ewr-audio-file-section.has-content {
     flex: 1;
-    min-height: 180px;
+    min-height: 250px;
 }
 
 .ewr-audio-file-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 14px;
+    padding: 14px 20px;
     background: rgba(0, 0, 0, 0.2);
     border-bottom: 1px solid #334155;
     flex-shrink: 0;
 }
 
 .ewr-audio-file-title {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     color: #e2e8f0;
     margin: 0;
 }
 
 .ewr-audio-file-count {
-    font-size: 12px;
+    font-size: 14px;
     color: #64748b;
 }
 
@@ -303,7 +305,7 @@ tr.expanded .expand-indicator {
 .ewr-audio-file-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .ewr-audio-file-table thead {
@@ -314,17 +316,17 @@ tr.expanded .expand-indicator {
 }
 
 .ewr-audio-file-table th {
-    padding: 8px 10px;
+    padding: 12px 14px;
     text-align: left;
     font-weight: 500;
     color: #94a3b8;
-    font-size: 11px;
+    font-size: 12px;
     text-transform: uppercase;
     border-bottom: 1px solid #334155;
 }
 
 .ewr-audio-file-table td {
-    padding: 8px 10px;
+    padding: 12px 14px;
     border-bottom: 1px solid #1e293b;
     color: #e2e8f0;
 }
@@ -334,11 +336,11 @@ tr.expanded .expand-indicator {
 }
 
 .ewr-audio-file-footer {
-    padding: 8px 14px;
+    padding: 12px 20px;
     border-top: 1px solid #334155;
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 12px;
     flex-shrink: 0;
     background: rgba(0, 0, 0, 0.1);
 }
@@ -346,28 +348,28 @@ tr.expanded .expand-indicator {
 /* Empty state styling */
 .ewr-audio-empty-state {
     text-align: center;
-    padding: 16px;
+    padding: 24px;
     color: #64748b;
 }
 
 .ewr-audio-empty-state-icon {
     opacity: 0.4;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
 }
 
 .ewr-audio-empty-state-icon svg {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
 }
 
 .ewr-audio-empty-state-text {
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .ewr-audio-empty-state-subtext {
-    font-size: 11px;
+    font-size: 13px;
     color: #475569;
-    margin-top: 2px;
+    margin-top: 4px;
 }
 
 
@@ -379,17 +381,17 @@ tr.expanded .expand-indicator {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 120px);
-    gap: 16px;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 16px;
+    gap: 24px;
+    max-width: 2100px;
+    margin: 0;
+    padding: 0 24px;
 }
 
 /* Tables column - vertical stacking */
 .ewr-audio-tables-column {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 20px;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
