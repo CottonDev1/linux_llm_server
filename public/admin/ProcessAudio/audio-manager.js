@@ -8,12 +8,13 @@
 // ============================================
 
 const state = {
-    unanalyzedFiles: [],    // Files waiting to be processed { id, filename, size, file, selected, expanded, statusLog }
+    unanalyzedFiles: [],    // Files waiting to be processed { id, filename, size, file, selected, expanded, statusLog, metrics }
     pendingFiles: [],       // Analyzed files waiting for save { id, filename, duration, mood, status, analysis, expanded }
     expandedRowId: null,    // Currently expanded row ID
     audioBlobs: new Map(),  // Map of file ID -> Blob URL for playback
     currentModal: null,     // Currently open modal data
-    isProcessing: false     // Flag to track if files are being processed
+    isProcessing: false,    // Flag to track if files are being processed
+    currentGpu: null        // Current GPU being used for processing
 };
 
 // ============================================
@@ -332,19 +333,19 @@ function handleDragOver(e) {
     e.stopPropagation();
     // Set the drop effect to show it's a valid drop target
     e.dataTransfer.dropEffect = 'copy';
-    elements.dropZone.classList.add('dragover');
+    elements.dropZone.classList.add('drag-over');
 }
 
 function handleDragLeave(e) {
     e.preventDefault();
     e.stopPropagation();
-    elements.dropZone.classList.remove('dragover');
+    elements.dropZone.classList.remove('drag-over');
 }
 
 function handleDrop(e) {
     e.preventDefault();
     e.stopPropagation();
-    elements.dropZone.classList.remove('dragover');
+    elements.dropZone.classList.remove('drag-over');
 
     console.log('File dropped on drop zone');
     const files = Array.from(e.dataTransfer.files);
@@ -471,23 +472,30 @@ async function pollDirectory() {
 
 function updateUnanalyzedGrid() {
     const tbody = elements.unanalyzedBody;
+    const section = document.getElementById('unanalyzedSection');
 
     if (state.unanalyzedFiles.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align: center; padding: 60px 20px; color: #64748b;">
-                    <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.3;">📂</div>
-                    <div>No files added yet</div>
-                    <div style="font-size: 13px; margin-top: 8px;">Drop files or poll a directory to begin</div>
+                <td colspan="6">
+                    <div class="ewr-audio-empty-state">
+                        <div class="ewr-audio-empty-state-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <div class="ewr-audio-empty-state-text">No files added</div>
+                    </div>
                 </td>
             </tr>
         `;
-        elements.unanalyzedCount.textContent = 'File count: 0';
+        elements.unanalyzedCount.textContent = '0 files';
         elements.processSelectedBtn.disabled = true;
+        if (section) section.classList.remove('has-content');
         return;
     }
 
-    // Render file rows
+    if (section) section.classList.add('has-content');
+
+    // Render file rows using inline HTML (custom elements don't work well with tables)
     tbody.innerHTML = state.unanalyzedFiles.map(fileItem => {
         const expanded = fileItem.expanded;
         // Use blob URL for dropped files, or stream-file endpoint with filepath for directory-polled files
@@ -514,6 +522,12 @@ function updateUnanalyzedGrid() {
                             : `<div style="color: #94a3b8; font-size: 14px;">${fileItem.status}</div>`
                         }
                     </div>
+                    ${fileItem.metrics && (fileItem.metrics.elapsed || fileItem.metrics.gpu) ? `
+                    <div class="status-metrics" style="display: flex; gap: 16px; margin-top: 6px; font-size: 12px; padding: 4px 8px; background: rgba(59, 130, 246, 0.1); border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                        ${fileItem.metrics.elapsed ? `<span style="color: #60a5fa;">⏱️ ${fileItem.metrics.elapsed}s</span>` : ''}
+                        ${fileItem.metrics.gpu ? `<span style="color: #10b981;">🎮 ${escapeHtml(fileItem.metrics.gpu)}</span>` : ''}
+                    </div>
+                    ` : ''}
                 </td>
                 <td style="width: 60px;">
                     <button class="ewr-delete-file-button" onclick="deleteUnanalyzedFile('${fileItem.id}')">Delete</button>
@@ -782,6 +796,7 @@ async function uploadFileToServer(file) {
 
 async function analyzeFile(filepath, filename, fileId) {
     // Use streaming endpoint for real-time progress updates
+    console.log('Starting analysis for:', filepath);
     const response = await fetch('/api/audio/analyze-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -792,45 +807,103 @@ async function analyzeFile(filepath, filename, fileId) {
         })
     });
 
+    console.log('Analysis response status:', response.status, response.statusText);
     if (!response.ok) {
-        throw new Error('Analysis failed');
+        const errorText = await response.text();
+        console.error('Analysis failed with response:', errorText);
+        throw new Error('Analysis failed: ' + errorText);
     }
 
     // Read SSE stream for progress updates
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let result = null;
+    let buffer = ''; // Buffer for incomplete SSE lines
+    let eventCount = 0;
 
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const text = decoder.decode(value);
-        const lines = text.split('\n');
+        // Append decoded chunk to buffer
+        buffer += decoder.decode(value, { stream: true });
 
+        // Process complete lines (SSE events are separated by double newlines)
+        const events = buffer.split('\n\n');
+        // Keep the last potentially incomplete event in the buffer
+        buffer = events.pop() || '';
+
+        for (const event of events) {
+            const lines = event.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    eventCount++;
+                    const jsonStr = line.slice(6);
+                    console.log(`SSE Event #${eventCount}:`, jsonStr.slice(0, 200) + (jsonStr.length > 200 ? '...' : ''));
+                    try {
+                        const data = JSON.parse(jsonStr);
+
+                        if (data.type === 'progress') {
+                            // Update status in the grid with step type for coloring
+                            updateFileStatus(fileId, data.message, data.step || 'info', {
+                                elapsed: data.elapsed,
+                                gpu: data.gpu
+                            });
+                        } else if (data.type === 'complete' || data.type === 'result') {
+                            // Python sends 'complete', handle both for compatibility
+                            console.log('Received complete event, result keys:', Object.keys(data.result || {}));
+                            result = data.result;
+                            const totalTime = data.total_time || data.result?.processing_info?.total_time_seconds;
+                            const gpu = data.gpu || data.result?.processing_info?.gpu;
+                            updateFileStatus(fileId, '✓ Analysis complete', 'save', {
+                                elapsed: totalTime,
+                                gpu: gpu
+                            });
+                        } else if (data.type === 'error') {
+                            console.error('Received error event:', data);
+                            updateFileStatus(fileId, `✗ ${data.error || data.message}`, 'error');
+                            throw new Error(data.error || data.message);
+                        }
+                    } catch (e) {
+                        // Re-throw actual errors, ignore JSON parse errors
+                        if (e.message && (e.message.includes('Analysis') || e.message.includes('error'))) {
+                            throw e;
+                        }
+                        console.warn('SSE parse error:', e.message, 'Line length:', line.length, 'Preview:', line.slice(0, 100));
+                    }
+                }
+            }
+        }
+    }
+
+    console.log(`SSE stream ended. Total events: ${eventCount}, Result received: ${!!result}`);
+
+    // Process any remaining data in buffer
+    if (buffer.trim()) {
+        console.log('Processing remaining buffer, length:', buffer.length, 'Preview:', buffer.slice(0, 200));
+        const lines = buffer.split('\n');
         for (const line of lines) {
             if (line.startsWith('data: ')) {
+                const jsonStr = line.slice(6);
+                console.log('Final buffer event, length:', jsonStr.length, 'Preview:', jsonStr.slice(0, 200));
                 try {
-                    const data = JSON.parse(line.slice(6));
-
-                    if (data.type === 'progress') {
-                        // Update status in the grid with step type for coloring
-                        updateFileStatus(fileId, data.message, data.step || 'info');
-                    } else if (data.type === 'complete' || data.type === 'result') {
-                        // Python sends 'complete', handle both for compatibility
+                    const data = JSON.parse(jsonStr);
+                    console.log('Final buffer parsed, type:', data.type);
+                    if (data.type === 'complete' || data.type === 'result') {
+                        console.log('Found complete event in final buffer!');
                         result = data.result;
-                        updateFileStatus(fileId, '✓ Analysis complete', 'save');
+                        const totalTime = data.total_time || data.result?.processing_info?.total_time_seconds;
+                        const gpu = data.gpu || data.result?.processing_info?.gpu;
+                        updateFileStatus(fileId, '✓ Analysis complete', 'save', {
+                            elapsed: totalTime,
+                            gpu: gpu
+                        });
                     } else if (data.type === 'error') {
-                        updateFileStatus(fileId, `✗ ${data.error || data.message}`, 'error');
+                        console.error('Found error in final buffer:', data);
                         throw new Error(data.error || data.message);
                     }
                 } catch (e) {
-                    // Ignore JSON parse errors for incomplete chunks
-                    if (e.message !== 'Analysis failed' && !e.message.startsWith('Analysis')) {
-                        console.debug('SSE parse error (may be incomplete chunk):', e);
-                    } else {
-                        throw e;
-                    }
+                    console.warn('Final buffer parse error:', e.message, 'Line length:', line.length);
                 }
             }
         }
@@ -891,21 +964,36 @@ function getLogColorBright(stepType) {
 }
 
 // Update status for a specific file in the grid
-function updateFileStatus(fileId, statusMessage, stepType = 'info') {
+function updateFileStatus(fileId, statusMessage, stepType = 'info', extraData = {}) {
     const fileItem = state.unanalyzedFiles.find(f => f.id === fileId);
     if (fileItem) {
-        // Initialize statusLog if needed
+        // Initialize statusLog and metrics if needed
         if (!fileItem.statusLog) {
             fileItem.statusLog = [];
+        }
+        if (!fileItem.metrics) {
+            fileItem.metrics = { elapsed: 0, gpu: null };
+        }
+
+        // Update metrics from extraData
+        if (extraData.elapsed !== undefined) {
+            fileItem.metrics.elapsed = extraData.elapsed;
+        }
+        if (extraData.gpu) {
+            fileItem.metrics.gpu = extraData.gpu;
+            state.currentGpu = extraData.gpu;
         }
 
         // Add timestamped log entry
         const now = new Date();
         const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+        // Include elapsed time in the log message if available
+        const elapsedStr = extraData.elapsed !== undefined ? ` [${extraData.elapsed}s]` : '';
+
         fileItem.statusLog.push({
             time: timeStr,
-            message: statusMessage,
+            message: statusMessage + elapsedStr,
             type: stepType
         });
 
@@ -965,20 +1053,27 @@ function formatDuration(seconds) {
 
 function updatePendingGrid() {
     const tbody = elements.pendingBody;
+    const section = document.getElementById('pendingSection');
 
     if (state.pendingFiles.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align: center; padding: 60px 20px; color: #64748b;">
-                    <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.3;">✓</div>
-                    <div>No analyzed files pending upload</div>
-                    <div style="font-size: 13px; margin-top: 8px;">Files will appear here after analysis</div>
+                <td colspan="6">
+                    <div class="ewr-audio-empty-state">
+                        <div class="ewr-audio-empty-state-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="ewr-audio-empty-state-text">No pending files</div>
+                    </div>
                 </td>
             </tr>
         `;
-        elements.pendingCount.textContent = 'File count: 0';
+        elements.pendingCount.textContent = '0 files';
+        if (section) section.classList.remove('has-content');
         return;
     }
+
+    if (section) section.classList.add('has-content');
 
     tbody.innerHTML = state.pendingFiles.map(fileItem => {
         const expanded = fileItem.expanded;

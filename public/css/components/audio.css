@@ -126,3 +126,271 @@ tr.expanded .expand-indicator {
     font-size: 14px;
     color: #f1f5f9;
 }
+
+
+/* ============================================
+   EWR Audio Upload Component
+   ============================================ */
+
+.ewr-audio-upload-section {
+    display: flex;
+    flex-direction: column;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.ewr-audio-upload-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid #334155;
+}
+
+.ewr-audio-upload-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin: 0;
+}
+
+.ewr-audio-upload-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.ewr-audio-upload-method {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ewr-audio-upload-method-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ewr-audio-drop-zone {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08));
+    border: 2px dashed #334155;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ewr-audio-drop-zone:hover {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(139, 92, 246, 0.12));
+}
+
+.ewr-audio-drop-zone.drag-over,
+.ewr-audio-drop-zone.dragover {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.ewr-audio-drop-zone-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    color: #60a5fa;
+}
+
+.ewr-audio-drop-zone-text {
+    font-size: 14px;
+    color: #e2e8f0;
+}
+
+.ewr-audio-drop-zone-subtext {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.ewr-audio-upload-divider {
+    height: 1px;
+    background: #334155;
+    margin: 4px 0;
+}
+
+.ewr-audio-directory-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ewr-audio-directory-input {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 13px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #e2e8f0;
+}
+
+.ewr-audio-directory-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.ewr-audio-poll-status {
+    font-size: 11px;
+    color: #64748b;
+    padding-left: 2px;
+}
+
+
+/* ============================================
+   EWR Audio File List Component
+   ============================================ */
+
+.ewr-audio-file-section {
+    display: flex;
+    flex-direction: column;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* Allow sections to grow when they have content */
+.ewr-audio-file-section.has-content {
+    flex: 1;
+    min-height: 180px;
+}
+
+.ewr-audio-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid #334155;
+    flex-shrink: 0;
+}
+
+.ewr-audio-file-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin: 0;
+}
+
+.ewr-audio-file-count {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.ewr-audio-file-table-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.ewr-audio-file-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ewr-audio-file-table thead {
+    position: sticky;
+    top: 0;
+    background: #0f172a;
+    z-index: 1;
+}
+
+.ewr-audio-file-table th {
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 500;
+    color: #94a3b8;
+    font-size: 11px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #334155;
+}
+
+.ewr-audio-file-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #1e293b;
+    color: #e2e8f0;
+}
+
+.ewr-audio-file-table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.ewr-audio-file-footer {
+    padding: 8px 14px;
+    border-top: 1px solid #334155;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Empty state styling */
+.ewr-audio-empty-state {
+    text-align: center;
+    padding: 16px;
+    color: #64748b;
+}
+
+.ewr-audio-empty-state-icon {
+    opacity: 0.4;
+    margin-bottom: 4px;
+}
+
+.ewr-audio-empty-state-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.ewr-audio-empty-state-text {
+    font-size: 12px;
+}
+
+.ewr-audio-empty-state-subtext {
+    font-size: 11px;
+    color: #475569;
+    margin-top: 2px;
+}
+
+
+/* ============================================
+   Audio Page Container - Max Width Constraint
+   ============================================ */
+
+.ewr-audio-page-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px);
+    gap: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+/* Tables column - vertical stacking */
+.ewr-audio-tables-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}

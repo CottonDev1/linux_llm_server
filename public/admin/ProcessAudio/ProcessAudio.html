@@ -5,289 +5,328 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Analysis Center - Admin</title>
     <script src="/js/ewr-admin-loader.js"></script>
+    <link rel="stylesheet" href="/css/components/audio.css">
+    <style>
+        /* Status log in table */
+        .status-log {
+            max-height: 60px;
+            overflow-y: auto;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            padding: 4px 8px;
+        }
+
+        .status-log-entry {
+            white-space: nowrap;
+            line-height: 1.4;
+        }
+
+        .status-metrics {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            font-size: 10px;
+            padding: 3px 6px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 3px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Checkbox styling */
+        .file-checkbox {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        /* Expand indicator */
+        .expand-indicator {
+            cursor: pointer;
+            color: #64748b;
+            font-size: 10px;
+            user-select: none;
+        }
+
+        .expand-indicator:hover {
+            color: #3b82f6;
+        }
+
+        /* Expandable row */
+        .expandable-row {
+            display: none;
+        }
+
+        .expandable-row.expanded {
+            display: table-row;
+        }
+
+        .expandable-content {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+        }
+
+        /* Compact buttons */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: #f87171;
+            border: 1px solid #7f1d1d;
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+
+        .btn-danger:hover {
+            background: rgba(248, 113, 113, 0.1);
+        }
+
+        /* Modal styles (keep existing but compacted) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+            max-width: 850px;
+            width: 95%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .modal-header h3 {
+            color: #f1f5f9;
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover { color: #f1f5f9; }
+
+        .modal-tabs {
+            display: flex;
+            border-bottom: 1px solid #334155;
+            padding: 0 20px;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-tab {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 10px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .modal-tab:hover { color: #f1f5f9; }
+        .modal-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-tab-content { display: none; }
+        .modal-tab-content.active { display: block; }
+
+        .modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-label {
+            display: block;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .modal-form-input, .modal-form-select, .modal-form-textarea {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        .modal-form-input:focus, .modal-form-select:focus, .modal-form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .emotions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .emotion-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .emotion-card.primary { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .emotion-card.detected { border-color: #10b981; }
+        .emotion-icon { font-size: 24px; margin-bottom: 6px; }
+        .emotion-name { font-size: 12px; font-weight: 600; color: #f1f5f9; }
+        .emotion-badge { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: #334155; color: #94a3b8; }
+        .emotion-badge.primary { background: #3b82f6; color: white; }
+        .emotion-badge.detected { background: #10b981; color: white; }
+
+        .detected-name-field { background: #0f172a !important; border-color: #10b981 !important; }
+        .detected-name-field:not(:placeholder-shown) { color: #10b981 !important; font-weight: 500; }
+
+        /* Transcript styling */
+        .transcript-container { color: #e2e8f0; font-size: 13px; line-height: 1.5; }
+        .transcript-speaker {
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-right: 6px;
+            font-size: 11px;
+            display: inline-block;
+        }
+        .transcript-speaker.caller-1 { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+        .transcript-speaker.caller-2 { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    </style>
 </head>
 <body>
     <ewr-admin-page title="Audio Analysis Center">
-        <!-- Input Row: File Drop Zone + Directory Polling -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
-            <!-- File Drop Zone (Left) -->
-            <div>
-                <div class="ewr-file-drop-zone" id="dropZone" style="cursor: pointer;">
-                    <div class="ewr-file-drop-zone-icon" style="font-size: 56px; pointer-events: none;">🎵</div>
-                    <div class="ewr-file-drop-zone-text" style="font-size: 18px; pointer-events: none;">Drop files here or click to browse</div>
-                    <div class="ewr-file-drop-zone-subtext" style="font-size: 14px; pointer-events: none;">Supports WAV, MP3, M4A (multiple files)</div>
-                </div>
-                <input type="file" id="fileInput" accept=".wav,.mp3,.m4a,.wav,.mpeg" multiple style="display: none;">
-            </div>
+        <div class="ewr-audio-page-container">
+            <!-- Upload Files Section -->
+            <ewr-audio-upload
+                title="Upload Files"
+                drop-zone-id="dropZone"
+                file-input-id="fileInput"
+                directory-input-id="directoryPath"
+                poll-btn-id="pollBtn"
+                poll-status-id="pollStatus"
+                accepted-formats=".wav,.mp3,.m4a"
+                format-description="WAV, MP3, M4A supported">
+            </ewr-audio-upload>
 
-            <!-- Directory Polling (Right) -->
-            <div class="ewr-directory-poller">
-                <div class="ewr-directory-poller-title" style="font-size: 18px; margin-bottom: 16px;">Directory Polling</div>
-                <div class="ewr-directory-poller-row">
-                    <input type="text" id="directoryPath" class="ewr-directory-poller-input"
-                           placeholder="Enter directory path (e.g., C:\AudioFiles)" style="font-size: 15px; padding: 12px;">
-                    <button class="ewr-button ewr-button-medium ewr-button-info" id="pollBtn" style="font-size: 15px;">Poll</button>
-                </div>
-                <div class="ewr-directory-poller-status" id="pollStatus" style="font-size: 14px; margin-top: 12px;">Ready to poll</div>
-            </div>
-        </div>
+            <!-- Vertically Stacked File Lists -->
+            <div class="ewr-audio-tables-column">
+                <!-- Unanalyzed Files -->
+                <ewr-audio-file-list
+                    title="Unanalyzed Files"
+                    list-type="unanalyzed"
+                    table-id="unanalyzedTable"
+                    body-id="unanalyzedBody"
+                    count-id="unanalyzedCount"
+                    section-id="unanalyzedSection"
+                    empty-icon="folder"
+                    empty-text="No files added"
+                    show-checkbox="true"
+                    show-process-btn="true"
+                    process-btn-id="processSelectedBtn">
+                </ewr-audio-file-list>
 
-        <!-- Unanalyzed Files Section -->
-        <div class="ewr-content-card" style="margin-bottom: 32px; padding: 24px;">
-            <div class="ewr-section-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <h2 class="ewr-section-header-title" style="font-size: 20px;">Unanalyzed Files</h2>
-                <span id="unanalyzedCount" style="font-size: 14px; color: #94a3b8;">File count: 0</span>
-            </div>
-
-            <div class="ewr-grid-multi-color-container" style="max-height: 400px; overflow-y: auto;">
-                <table class="ewr-grid-multi-color" id="unanalyzedTable" style="font-size: 14px;">
-                    <thead>
-                        <tr>
-                            <th class="ewr-checkbox-cell" style="width: 40px;">
-                                <input type="checkbox" class="ewr-select-all-checkbox" id="selectAllUnanalyzed" checked>
-                            </th>
-                            <th style="width: 30px;"></th>
-                            <th>Filename</th>
-                            <th style="width: 70px;">Size</th>
-                            <th>Status</th>
-                            <th style="width: 80px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="unanalyzedBody">
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 60px 20px; color: #64748b;">
-                                <div style="font-size: 56px; margin-bottom: 16px; opacity: 0.3;">📂</div>
-                                <div style="font-size: 16px;">No files added yet</div>
-                                <div style="font-size: 14px; margin-top: 10px; color: #94a3b8;">Drop files or poll a directory to begin</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="padding: 16px; border-top: 1px solid #334155; display: flex; justify-content: flex-end;">
-                <button class="ewr-button ewr-button-medium ewr-button-primary" id="processSelectedBtn" disabled>
-                    Process Selected
-                </button>
+                <!-- Pending Upload Files -->
+                <ewr-audio-file-list
+                    title="Pending Upload"
+                    list-type="pending"
+                    table-id="pendingTable"
+                    body-id="pendingBody"
+                    count-id="pendingCount"
+                    section-id="pendingSection"
+                    empty-icon="check"
+                    empty-text="No pending files"
+                    show-checkbox="false"
+                    show-refresh-btn="true"
+                    refresh-btn-id="refreshPendingBtn"
+                    refresh-handler="refreshPendingFiles()">
+                </ewr-audio-file-list>
             </div>
         </div>
-
-        <!-- Pending Upload Section -->
-        <div class="ewr-content-card" style="padding: 24px;">
-            <div class="ewr-section-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; align-items: baseline; gap: 12px;">
-                    <h2 class="ewr-section-header-title" style="font-size: 20px; margin: 0;">Pending Upload</h2>
-                    <span id="pendingSavePath" style="font-size: 18px; color: #10b981;"></span>
-                </div>
-                <span id="pendingCount" style="font-size: 14px; color: #94a3b8;">File count: 0</span>
-            </div>
-
-            <div class="ewr-grid-multi-color-container" style="max-height: 400px; overflow-y: auto;">
-                <table class="ewr-grid-multi-color" id="pendingTable" style="font-size: 15px;">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px;"></th>
-                            <th>Filename</th>
-                            <th style="width: 100px;">Duration</th>
-                            <th style="width: 120px;">Mood</th>
-                            <th style="width: 100px;">Status</th>
-                            <th style="width: 100px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pendingBody">
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 60px 20px; color: #64748b;">
-                                <div style="font-size: 56px; margin-bottom: 16px; opacity: 0.3;">✓</div>
-                                <div style="font-size: 16px;">No analyzed files pending upload</div>
-                                <div style="font-size: 14px; margin-top: 10px; color: #94a3b8;">Files will appear here after analysis</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="padding: 16px; border-top: 1px solid #334155; display: flex; justify-content: flex-end;">
-                <button class="ewr-button ewr-button-medium ewr-button-info" id="refreshPendingBtn" onclick="refreshPendingFiles()">
-                    Refresh
-                </button>
-            </div>
-        </div>
-
-        <!-- Page-specific styles -->
-        <style>
-            .modal-form-input, .modal-form-select, .modal-form-textarea {
-                background: #0f172a;
-                border: 1px solid #334155;
-                color: #f1f5f9;
-                padding: 10px 14px;
-                font-size: 14px;
-                border-radius: 4px;
-                transition: all 0.2s;
-                font-family: inherit;
-                width: 100%;
-            }
-
-            .modal-form-input:focus, .modal-form-select:focus, .modal-form-textarea:focus {
-                outline: none;
-                border-color: #3b82f6;
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            }
-
-            .modal-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.7);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
-            }
-
-            .modal-content {
-                background: #1e293b;
-                border: 1px solid #334155;
-                border-radius: 12px;
-                display: flex;
-                flex-direction: column;
-                max-height: 90vh;
-            }
-
-            .modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 16px 24px;
-                border-bottom: 1px solid #334155;
-            }
-
-            .modal-header h3 {
-                color: #f1f5f9;
-                margin: 0;
-                font-size: 18px;
-            }
-
-            .modal-close {
-                background: transparent;
-                border: none;
-                color: #94a3b8;
-                font-size: 24px;
-                cursor: pointer;
-                padding: 0;
-                line-height: 1;
-            }
-
-            .modal-close:hover { color: #f1f5f9; }
-
-            .modal-footer {
-                padding: 16px 24px;
-                border-top: 1px solid #334155;
-                display: flex;
-                justify-content: flex-end;
-                gap: 12px;
-            }
-
-            .modal-tabs {
-                display: flex;
-                border-bottom: 1px solid #334155;
-                padding: 0 24px;
-                background: #1e293b;
-            }
-
-            .modal-tab {
-                background: transparent;
-                border: none;
-                color: #94a3b8;
-                padding: 12px 20px;
-                font-size: 14px;
-                cursor: pointer;
-                border-bottom: 2px solid transparent;
-                transition: all 0.2s;
-            }
-
-            .modal-tab:hover { color: #f1f5f9; }
-            .modal-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
-
-            .modal-tab-content { display: none; }
-            .modal-tab-content.active { display: block; }
-
-            .modal-label {
-                display: block;
-                font-size: 12px;
-                color: #94a3b8;
-                margin-bottom: 6px;
-                text-transform: uppercase;
-            }
-
-            .emotions-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 16px;
-            }
-
-            .emotion-card {
-                background: #0f172a;
-                border: 1px solid #334155;
-                border-radius: 8px;
-                padding: 16px;
-                text-align: center;
-                transition: all 0.2s;
-            }
-
-            .emotion-card.primary { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
-            .emotion-card.detected { border-color: #10b981; }
-            .emotion-icon { font-size: 32px; margin-bottom: 8px; }
-            .emotion-name { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
-            .emotion-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #334155; color: #94a3b8; }
-            .emotion-badge.primary { background: #3b82f6; color: white; }
-            .emotion-badge.detected { background: #10b981; color: white; }
-
-            .detected-name-field { background: #0f172a !important; border-color: #10b981 !important; }
-            .detected-name-field:not(:placeholder-shown) { color: #10b981 !important; font-weight: 500; }
-            .detected-name-field::placeholder { color: #475569; font-style: italic; }
-
-            /* Transcript Speaker Styling */
-            .transcript-container { color: #e2e8f0; }
-            .transcript-segment { margin-bottom: 12px; }
-            .transcript-speaker {
-                font-weight: 600;
-                padding: 2px 8px;
-                border-radius: 4px;
-                margin-right: 8px;
-                font-size: 12px;
-                display: inline-block;
-                margin-bottom: 4px;
-            }
-            .transcript-speaker.caller-1 {
-                background: rgba(59, 130, 246, 0.2);
-                color: #60a5fa;
-                border: 1px solid #3b82f6;
-            }
-            .transcript-speaker.caller-2 {
-                background: rgba(16, 185, 129, 0.2);
-                color: #34d399;
-                border: 1px solid #10b981;
-            }
-            .transcript-text { color: #e2e8f0; }
-            .transcript-emotion {
-                font-size: 11px;
-                color: #fbbf24;
-                margin-left: 8px;
-                font-style: italic;
-            }
-            .transcript-separator {
-                border: none;
-                border-top: 1px dashed #475569;
-                margin: 8px 0;
-            }
-        </style>
     </ewr-admin-page>
 
-    <!-- Save Analysis Modal (outside layout, needs to be at body level for z-index) -->
+    <!-- Save Analysis Modal -->
     <div id="saveModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="max-width: 900px; width: 95%;">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">Audio Analysis Review</h3>
                 <button class="modal-close" onclick="closeSaveModal()">&times;</button>
@@ -300,20 +339,20 @@
                 <button class="modal-tab" data-tab="emotions" onclick="switchModalTab('emotions')">Emotions</button>
             </div>
 
-            <div class="modal-body" style="padding: 24px; max-height: 60vh; overflow-y: auto;">
+            <div class="modal-body">
                 <div class="modal-tab-content active" data-tab="details">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                         <div>
                             <label class="modal-label">Customer Support Staff *</label>
-                            <select id="modalStaff" class="modal-form-select"><option value="">Select staff member...</option></select>
+                            <select id="modalStaff" class="modal-form-select"><option value="">Select staff...</option></select>
                         </div>
                         <div>
                             <label class="modal-label">Detected Staff Name</label>
-                            <input type="text" id="modalDetectedName" class="modal-form-input detected-name-field" readonly placeholder="Auto-detected from transcript">
+                            <input type="text" id="modalDetectedName" class="modal-form-input detected-name-field" readonly placeholder="Auto-detected">
                         </div>
                         <div>
                             <label class="modal-label">EWR Customer *</label>
-                            <input type="text" id="modalCustomer" class="modal-form-input" placeholder="Enter customer name">
+                            <input type="text" id="modalCustomer" class="modal-form-input" placeholder="Customer name">
                         </div>
                         <div>
                             <label class="modal-label">Primary Mood *</label>
@@ -334,7 +373,7 @@
                                 <option value="">Select outcome...</option>
                                 <option value="Issue Resolved">Issue Resolved</option>
                                 <option value="Issue Unresolved">Issue Unresolved</option>
-                                <option value="Issue Logged in Central">Issue Logged in Central</option>
+                                <option value="Issue Logged in Central">Logged in Central</option>
                                 <option value="Undetermined">Undetermined</option>
                             </select>
                         </div>
@@ -347,27 +386,27 @@
                             <input type="text" id="modalDuration" class="modal-form-input" readonly>
                         </div>
                         <div>
-                            <label class="modal-label">Language Detected</label>
+                            <label class="modal-label">Language</label>
                             <input type="text" id="modalLanguage" class="modal-form-input" readonly>
                         </div>
-                        <div>
+                        <div style="grid-column: span 2;">
                             <label class="modal-label">Filename</label>
                             <input type="text" id="modalFilename" class="modal-form-input" readonly>
                         </div>
                     </div>
                 </div>
 
-                <div class="modal-tab-content" data-tab="summary" style="display: none;">
+                <div class="modal-tab-content" data-tab="summary">
                     <label class="modal-label">AI-Generated Summary</label>
-                    <textarea id="modalSummary" class="modal-form-textarea" readonly style="min-height: 200px;"></textarea>
+                    <textarea id="modalSummary" class="modal-form-textarea" readonly style="min-height: 180px;"></textarea>
                 </div>
 
-                <div class="modal-tab-content" data-tab="transcription" style="display: none;">
-                    <label class="modal-label">Call Transcript (Speaker Separated)</label>
-                    <div id="modalTranscription" class="transcript-container" style="min-height: 300px; max-height: 400px; overflow-y: auto; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 16px; font-size: 14px; line-height: 1.6;"></div>
+                <div class="modal-tab-content" data-tab="transcription">
+                    <label class="modal-label">Call Transcript</label>
+                    <div id="modalTranscription" class="transcript-container" style="min-height: 250px; max-height: 350px; overflow-y: auto; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 12px;"></div>
                 </div>
 
-                <div class="modal-tab-content" data-tab="emotions" style="display: none;">
+                <div class="modal-tab-content" data-tab="emotions">
                     <div class="emotions-grid" id="emotionsGrid"></div>
                 </div>
 
@@ -375,16 +414,14 @@
             </div>
 
             <div class="modal-footer">
-                <button class="ewr-button ewr-button-medium ewr-button-secondary" onclick="closeSaveModal()">Cancel</button>
-                <button class="ewr-button ewr-button-medium ewr-button-success" id="saveAnalysisBtn" onclick="saveAnalysis()">Save to MongoDB</button>
+                <button class="btn-sm btn-secondary" onclick="closeSaveModal()">Cancel</button>
+                <button class="btn-sm btn-success" id="saveAnalysisBtn" onclick="saveAnalysis()">Save to MongoDB</button>
             </div>
         </div>
     </div>
 
-    <!-- Page-specific script -->
     <script src="audio-manager.js"></script>
     <script>
-        // Initialize when page layout is fully ready (event bubbles to document)
         document.addEventListener('page-ready', () => {
             initElements();
             setupEventListeners();

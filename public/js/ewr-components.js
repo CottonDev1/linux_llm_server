@@ -3866,6 +3866,8 @@ class EwrAudioFileRow extends HTMLElement {
     }
 
     connectedCallback() {
+        // Use display:contents so the <tr> children become direct children of <tbody> for table layout
+        this.style.display = 'contents';
         this.render();
     }
 
@@ -4070,3 +4072,197 @@ class EwrAudioFileRow extends HTMLElement {
 }
 
 customElements.define('ewr-audio-file-row', EwrAudioFileRow);
+
+
+/**
+ * EWR-AudioUpload Component
+ * File upload section with drag & drop and directory polling
+ *
+ * Usage:
+ * <ewr-audio-upload
+ *     title="Upload Files"
+ *     drop-zone-id="dropZone"
+ *     file-input-id="fileInput"
+ *     directory-input-id="directoryPath"
+ *     poll-btn-id="pollBtn"
+ *     poll-status-id="pollStatus">
+ * </ewr-audio-upload>
+ */
+class EwrAudioUpload extends HTMLElement {
+    constructor() {
+        super();
+    }
+
+    connectedCallback() {
+        const title = this.getAttribute('title') || 'Upload Files';
+        const dropZoneId = this.getAttribute('drop-zone-id') || 'dropZone';
+        const fileInputId = this.getAttribute('file-input-id') || 'fileInput';
+        const directoryInputId = this.getAttribute('directory-input-id') || 'directoryPath';
+        const pollBtnId = this.getAttribute('poll-btn-id') || 'pollBtn';
+        const pollStatusId = this.getAttribute('poll-status-id') || 'pollStatus';
+        const acceptedFormats = this.getAttribute('accepted-formats') || '.wav,.mp3,.m4a';
+        const formatDescription = this.getAttribute('format-description') || 'WAV, MP3, M4A supported';
+
+        this.innerHTML = `
+            <div class="ewr-audio-upload-section">
+                <div class="ewr-audio-upload-header">
+                    <h3 class="ewr-audio-upload-title">${title}</h3>
+                </div>
+                <div class="ewr-audio-upload-content">
+                    <!-- Drag & Drop Method -->
+                    <div class="ewr-audio-upload-method">
+                        <div class="ewr-audio-upload-method-title">Drag & Drop</div>
+                        <div class="ewr-audio-drop-zone" id="${dropZoneId}">
+                            <span class="ewr-audio-drop-zone-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9 18V5l12-2v13"/>
+                                    <circle cx="6" cy="18" r="3"/>
+                                    <circle cx="18" cy="16" r="3"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="ewr-audio-drop-zone-text">Drop audio files or click to browse</div>
+                                <div class="ewr-audio-drop-zone-subtext">${formatDescription}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="file" id="${fileInputId}" accept="${acceptedFormats}" multiple style="display: none;">
+
+                    <!-- Horizontal Divider -->
+                    <div class="ewr-audio-upload-divider"></div>
+
+                    <!-- Poll Directory Method -->
+                    <div class="ewr-audio-upload-method">
+                        <div class="ewr-audio-upload-method-title">Poll Directory</div>
+                        <div class="ewr-audio-directory-row">
+                            <input type="text" id="${directoryInputId}" class="ewr-audio-directory-input" placeholder="Enter directory path...">
+                            <button class="ewr-button ewr-button-small ewr-button-secondary" id="${pollBtnId}">Poll</button>
+                        </div>
+                        <div class="ewr-audio-poll-status" id="${pollStatusId}">Ready to poll</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+customElements.define('ewr-audio-upload', EwrAudioUpload);
+
+
+/**
+ * EWR-AudioFileList Component
+ * A file list section for displaying audio files (unanalyzed or pending)
+ *
+ * Usage:
+ * <ewr-audio-file-list
+ *     title="Unanalyzed Files"
+ *     list-type="unanalyzed"
+ *     table-id="unanalyzedTable"
+ *     body-id="unanalyzedBody"
+ *     count-id="unanalyzedCount"
+ *     section-id="unanalyzedSection"
+ *     empty-icon="folder"
+ *     empty-text="No files added"
+ *     show-checkbox="true"
+ *     show-process-btn="true"
+ *     process-btn-id="processSelectedBtn">
+ * </ewr-audio-file-list>
+ */
+class EwrAudioFileList extends HTMLElement {
+    constructor() {
+        super();
+    }
+
+    connectedCallback() {
+        const title = this.getAttribute('title') || 'Files';
+        const listType = this.getAttribute('list-type') || 'unanalyzed';
+        const tableId = this.getAttribute('table-id') || `${listType}Table`;
+        const bodyId = this.getAttribute('body-id') || `${listType}Body`;
+        const countId = this.getAttribute('count-id') || `${listType}Count`;
+        const sectionId = this.getAttribute('section-id') || `${listType}Section`;
+        const emptyIcon = this.getAttribute('empty-icon') || 'folder';
+        const emptyText = this.getAttribute('empty-text') || 'No files';
+        const showCheckbox = this.getAttribute('show-checkbox') !== 'false';
+        const showProcessBtn = this.getAttribute('show-process-btn') === 'true';
+        const processBtnId = this.getAttribute('process-btn-id') || 'processSelectedBtn';
+        const showRefreshBtn = this.getAttribute('show-refresh-btn') === 'true';
+        const refreshBtnId = this.getAttribute('refresh-btn-id') || 'refreshBtn';
+        const refreshHandler = this.getAttribute('refresh-handler') || '';
+
+        // Icon SVG map
+        const icons = {
+            'folder': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+            'check': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+            'clock': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+        };
+
+        const iconSvg = icons[emptyIcon] || icons['folder'];
+
+        // Build table headers based on list type
+        let tableHeaders = '';
+        if (listType === 'unanalyzed') {
+            tableHeaders = `
+                <tr>
+                    ${showCheckbox ? '<th style="width: 30px;"><input type="checkbox" class="ewr-file-checkbox" id="selectAll' + listType.charAt(0).toUpperCase() + listType.slice(1) + '" checked></th>' : ''}
+                    <th style="width: 24px;"></th>
+                    <th>Filename</th>
+                    <th style="width: 50px;">Size</th>
+                    <th style="min-width: 200px;">Status</th>
+                    <th style="width: 50px;"></th>
+                </tr>
+            `;
+        } else {
+            // pending type
+            tableHeaders = `
+                <tr>
+                    <th style="width: 24px;"></th>
+                    <th>Filename</th>
+                    <th style="width: 60px;">Duration</th>
+                    <th style="width: 70px;">Mood</th>
+                    <th style="width: 60px;">Status</th>
+                    <th style="width: 60px;"></th>
+                </tr>
+            `;
+        }
+
+        // Build footer buttons
+        let footerButtons = '';
+        if (showProcessBtn) {
+            footerButtons += `<button class="ewr-button ewr-button-small ewr-button-primary" id="${processBtnId}" disabled>Process Selected</button>`;
+        }
+        if (showRefreshBtn) {
+            footerButtons += `<button class="ewr-button ewr-button-small ewr-button-secondary" id="${refreshBtnId}" ${refreshHandler ? `onclick="${refreshHandler}"` : ''}>Refresh</button>`;
+        }
+
+        this.innerHTML = `
+            <div class="ewr-audio-file-section" id="${sectionId}">
+                <div class="ewr-audio-file-header">
+                    <h3 class="ewr-audio-file-title">${title}</h3>
+                    <span class="ewr-audio-file-count" id="${countId}">0 files</span>
+                </div>
+                <div class="ewr-audio-file-table-container">
+                    <table class="ewr-audio-file-table" id="${tableId}">
+                        <thead>
+                            ${tableHeaders}
+                        </thead>
+                        <tbody id="${bodyId}">
+                            <tr>
+                                <td colspan="6">
+                                    <div class="ewr-audio-empty-state">
+                                        <div class="ewr-audio-empty-state-icon">${iconSvg}</div>
+                                        <div class="ewr-audio-empty-state-text">${emptyText}</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="ewr-audio-file-footer">
+                    ${footerButtons}
+                </div>
+            </div>
+        `;
+    }
+}
+
+customElements.define('ewr-audio-file-list', EwrAudioFileList);
