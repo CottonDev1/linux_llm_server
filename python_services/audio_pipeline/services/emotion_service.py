@@ -111,19 +111,44 @@ class EmotionService:
         clean_text = re.sub(r'<\|[^|]+\|>', '', text)
         return clean_text.strip()
 
+    # Emotion severity ranking (worst/most concerning to best)
+    # Used to determine the primary emotion - we want to surface the worst emotion
+    EMOTION_SEVERITY = {
+        "ANGRY": 1,      # Worst - indicates conflict or frustration
+        "DISGUSTED": 2,  # Very negative reaction
+        "FEARFUL": 3,    # Concern or worry
+        "SAD": 4,        # Negative but less intense
+        "SURPRISED": 5,  # Could indicate unexpected issues
+        "NEUTRAL": 6,    # Normal/baseline
+        "HAPPY": 7,      # Best - positive interaction
+    }
+
     def get_primary_emotion(self, emotions: List[str]) -> str:
         """
         Determine primary emotion from list of detected emotions.
+        Returns the WORST (most severe) emotion to surface potential issues.
 
         Args:
             emotions: List of detected emotions
 
         Returns:
-            Primary emotion string
+            Primary emotion string (the worst/most concerning emotion detected)
         """
         if not emotions:
             return "NEUTRAL"
-        return emotions[0]
+
+        # Find the emotion with the lowest severity score (worst)
+        worst_emotion = "NEUTRAL"
+        worst_score = self.EMOTION_SEVERITY.get("NEUTRAL", 6)
+
+        for emotion in emotions:
+            emotion_upper = emotion.upper()
+            score = self.EMOTION_SEVERITY.get(emotion_upper, 6)
+            if score < worst_score:
+                worst_score = score
+                worst_emotion = emotion_upper
+
+        return worst_emotion
 
     def merge_emotions(self, emotion_lists: List[List[str]]) -> List[str]:
         """

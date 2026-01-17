@@ -333,6 +333,7 @@
                 <button class="modal-tab active" data-tab="details" onclick="switchModalTab('details')">Details</button>
                 <button class="modal-tab" data-tab="summary" onclick="switchModalTab('summary')">Summary</button>
                 <button class="modal-tab" data-tab="transcription" onclick="switchModalTab('transcription')">Transcription</button>
+                <button class="modal-tab" data-tab="standouts" onclick="switchModalTab('standouts')">Standouts</button>
                 <button class="modal-tab" data-tab="emotions" onclick="switchModalTab('emotions')">Emotions</button>
             </div>
 
@@ -401,6 +402,11 @@
                 <div class="modal-tab-content" data-tab="transcription">
                     <label class="modal-label">Call Transcript</label>
                     <div id="modalTranscription" class="transcript-container" style="min-height: 250px; max-height: 350px; overflow-y: auto; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 12px;"></div>
+                </div>
+
+                <div class="modal-tab-content" data-tab="standouts">
+                    <label class="modal-label">Emotional Standouts (Non-neutral lines requiring attention)</label>
+                    <div id="modalStandouts" class="transcript-container" style="min-height: 250px; max-height: 350px; overflow-y: auto; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 12px;"></div>
                 </div>
 
                 <div class="modal-tab-content" data-tab="emotions">

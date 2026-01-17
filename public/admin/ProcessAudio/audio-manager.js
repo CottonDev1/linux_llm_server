@@ -55,6 +55,7 @@ function initElements() {
         modalFilename: document.getElementById('modalFilename'),
         modalSummary: document.getElementById('modalSummary'),
         modalTranscription: document.getElementById('modalTranscription'),
+        modalStandouts: document.getElementById('modalStandouts'),
         emotionsGrid: document.getElementById('emotionsGrid'),
         modalAnalysisData: document.getElementById('modalAnalysisData'),
         saveAnalysisBtn: document.getElementById('saveAnalysisBtn')
@@ -1059,7 +1060,6 @@ function updatePendingGrid() {
 
     tbody.innerHTML = state.pendingFiles.map(fileItem => {
         const expanded = fileItem.expanded;
-        const audioSrc = state.audioBlobs.get(fileItem.id) || `/api/audio/stream/${encodeURIComponent(fileItem.filename)}`;
         const analysis = fileItem.analysis || {};
 
         // Extract metadata for display
@@ -1070,7 +1070,7 @@ function updatePendingGrid() {
         const summaryExcerpt = (analysis.transcription_summary || 'No summary available').substring(0, 150);
         const hasSummary = analysis.transcription_summary && analysis.transcription_summary.length > 150;
 
-        // Get mood color based on emotion
+        // Get mood color based on emotion (SenseVoice emotions)
         const moodColors = {
             'HAPPY': '#22c55e',
             'SAD': '#3b82f6',
@@ -1078,7 +1078,9 @@ function updatePendingGrid() {
             'NEUTRAL': '#94a3b8',
             'FEARFUL': '#a855f7',
             'DISGUSTED': '#f97316',
-            'SURPRISED': '#eab308'
+            'SURPRISED': '#eab308',
+            'UNKNOWN': '#64748b',
+            'EMO_UNKNOWN': '#64748b'
         };
         const moodColor = moodColors[fileItem.mood.toUpperCase()] || '#94a3b8';
 
@@ -1099,9 +1101,6 @@ function updatePendingGrid() {
                 <td colspan="5">
                     <div class="ewr-expandable-row-content">
                         <div class="ewr-audio-player-card compact">
-                            <!-- Audio Player -->
-                            <audio controls preload="metadata" src="${audioSrc}" style="width: 100%; margin-bottom: 16px;"></audio>
-
                             <!-- Metadata Grid -->
                             <div class="ewr-audio-player-card-metadata" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                                 <div class="ewr-audio-player-card-metadata-item">
@@ -1346,7 +1345,9 @@ const EMOTION_ICONS = {
     'NEUTRAL': '😐',
     'FEARFUL': '😨',
     'DISGUSTED': '🤢',
-    'SURPRISED': '😮'
+    'SURPRISED': '😮',
+    'UNKNOWN': '❓',
+    'EMO_UNKNOWN': '❓'
 };
 
 function openSaveModal(fileId) {
@@ -1408,6 +1409,9 @@ function openSaveModal(fileId) {
     // Transcription tab - format with speaker separation
     formatTranscriptionDisplay(analysis, transcriptionText);
 
+    // Standouts tab - show non-happy/unknown lines
+    formatStandoutsDisplay(analysis, transcriptionText);
+
     // Emotions tab
     populateEmotionsGrid(analysis.emotions);
 
@@ -1433,107 +1437,215 @@ function switchModalTab(tabName) {
 
 /**
  * Format and display transcription with speaker separation
+ * Format: Caller X : EMOTION : 'text' with blank lines between turns
+ * Parses SenseVoice format: <|en|><|EMOTION|><|Speech|><|withitn|>text
+ * SenseVoice emotions: HAPPY, SAD, ANGRY, NEUTRAL, FEARFUL, DISGUSTED, SURPRISED, EMO_UNKNOWN
  * @param {Object} analysis - The full analysis object
- * @param {string} transcriptionText - The raw transcription text
+ * @param {string} transcriptionText - The raw transcription text (contains emotion tags)
  */
 function formatTranscriptionDisplay(analysis, transcriptionText) {
     const container = elements.modalTranscription;
     if (!container) return;
 
+    // Use raw_transcription if available, otherwise fall back to transcriptionText
+    const rawText = analysis.raw_transcription || transcriptionText || '';
+
+    // Get speaker diarization segments if available
     const diarization = analysis.speaker_diarization || {};
     const segments = diarization.segments || [];
-    const emotions = analysis.emotions || {};
-    const primaryEmotion = emotions.primary || '';
 
-    // If we have speaker segments, format them nicely
-    if (segments.length > 0) {
-        let html = '';
-        segments.forEach((segment, index) => {
-            const speaker = segment.speaker || 'Unknown';
-            const text = segment.text || '';
-            const speakerClass = speaker.toLowerCase().replace(' ', '-');
+    let lines = [];
+    let lastText = ''; // Track last text to avoid duplicates
+    let segmentIndex = 0; // Track which diarization segment we're on
 
-            // Add separator between segments (except first)
-            if (index > 0) {
-                html += '<hr class="transcript-separator">';
+    // Parse SenseVoice format: <|en|><|EMOTION|><|Speech|><|withitn|>text
+    const senseVoicePattern = /<\|en\|><\|([^|]+)\|><\|Speech\|><\|[^|]+\|>/g;
+
+    // Check if this is SenseVoice format
+    if (rawText.includes('<|en|>')) {
+        // Parse SenseVoice format
+        const parts = rawText.split(senseVoicePattern);
+
+        // parts will be: [empty, emotion1, text1, emotion2, text2, ...]
+        for (let i = 1; i < parts.length; i += 2) {
+            let emotion = parts[i] || 'UNKNOWN';
+            const text = (parts[i + 1] || '').trim();
+
+            // Skip empty text or just punctuation
+            if (!text || text === '.' || text === ',' || text.length < 2) continue;
+
+            // Skip duplicates
+            if (text === lastText) continue;
+            lastText = text;
+
+            // Map EMO_UNKNOWN variants to display as UNKNOWN
+            if (emotion === 'EMO_UNKNOWN' || emotion === 'EMO_UNKOWN') {
+                emotion = 'UNKNOWN';
             }
 
-            // Check if this segment has an emotion tag in the text
-            let emotionTag = '';
-            const emotionMatch = text.match(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/i);
-            if (emotionMatch) {
-                emotionTag = `<span class="transcript-emotion">[${emotionMatch[1]}]</span>`;
+            // Get speaker from diarization segments (round-robin if we run out)
+            let speaker = 'Speaker';
+            if (segments.length > 0) {
+                const seg = segments[segmentIndex % segments.length];
+                speaker = seg.speaker || 'Speaker';
+                segmentIndex++;
             }
 
-            // Clean the text of emotion tags for display
-            const cleanText = text.replace(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/gi, '').trim();
+            lines.push(`${speaker} : ${emotion} : '${text}'`);
+        }
+    } else if (rawText.includes('[')) {
+        // Format with [EMOTION] tags (processed by backend)
+        const textLines = rawText.split('\n');
 
-            html += `
-                <div class="transcript-segment">
-                    <span class="transcript-speaker ${speakerClass}">${escapeHtml(speaker)}</span>
-                    ${emotionTag}
-                    <div class="transcript-text">${escapeHtml(cleanText)}</div>
-                </div>
-            `;
-        });
-        container.innerHTML = html;
-    } else {
-        // Fallback: Try to parse speaker labels from transcription text
-        const lines = transcriptionText.split('\n');
-        let html = '';
-        let lastSpeaker = '';
-
-        lines.forEach((line, index) => {
+        textLines.forEach((line) => {
             line = line.trim();
-            if (!line || line === '─'.repeat(40)) return;
+            if (!line || line === '─'.repeat(40) || line.startsWith('─')) return;
 
-            // Check for Caller 1/Caller 2 pattern
+            // Check for Caller 1/Caller 2 pattern with [EMOTION] tag
             const speakerMatch = line.match(/^(Caller [12]):\s*(.*)/i);
             if (speakerMatch) {
                 const speaker = speakerMatch[1];
-                const text = speakerMatch[2];
-                const speakerClass = speaker.toLowerCase().replace(' ', '-');
+                let text = speakerMatch[2].trim();
 
-                // Add separator when speaker changes
-                if (lastSpeaker && lastSpeaker !== speaker) {
-                    html += '<hr class="transcript-separator">';
-                }
-                lastSpeaker = speaker;
+                // Extract emotion from [EMOTION] tag
+                const emotionMatch = text.match(/\[([A-Z_]+)\]/);
+                const emotion = emotionMatch ? emotionMatch[1] : 'UNKNOWN';
 
-                // Check for emotion
-                let emotionTag = '';
-                const emotionMatch = text.match(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/i);
-                if (emotionMatch) {
-                    emotionTag = `<span class="transcript-emotion">[${emotionMatch[1]}]</span>`;
-                }
-                const cleanText = text.replace(/\[(HAPPY|SAD|ANGRY|NEUTRAL|FEARFUL|DISGUSTED|SURPRISED)\]/gi, '').trim();
+                // Remove emotion tag from text
+                const cleanText = text.replace(/\[[A-Z_]+\]\s*/g, '').trim();
 
-                html += `
-                    <div class="transcript-segment">
-                        <span class="transcript-speaker ${speakerClass}">${escapeHtml(speaker)}</span>
-                        ${emotionTag}
-                        <div class="transcript-text">${escapeHtml(cleanText)}</div>
-                    </div>
-                `;
-            } else if (line) {
-                // Plain text without speaker label
-                html += `<div class="transcript-segment"><div class="transcript-text">${escapeHtml(line)}</div></div>`;
+                if (!cleanText || cleanText === lastText) return;
+                lastText = cleanText;
+
+                lines.push(`${speaker} : ${emotion} : '${cleanText}'`);
+            } else if (line && line !== lastText) {
+                lastText = line;
+                lines.push(line);
             }
         });
+    } else {
+        // Plain text fallback
+        const textLines = rawText.split('\n');
 
-        // If no speaker formatting was found, just display as plain text
-        if (!html) {
-            html = `<div class="transcript-text" style="white-space: pre-wrap;">${escapeHtml(transcriptionText)}</div>`;
+        textLines.forEach((line) => {
+            line = line.trim();
+            if (!line || line === '─'.repeat(40) || line.startsWith('─')) return;
+
+            const speakerMatch = line.match(/^(Caller [12]):\s*(.*)/i);
+            if (speakerMatch) {
+                const speaker = speakerMatch[1];
+                const text = speakerMatch[2].trim();
+
+                if (!text || text === lastText) return;
+                lastText = text;
+
+                lines.push(`${speaker} : '${text}'`);
+            } else if (line && line !== lastText) {
+                lastText = line;
+                lines.push(line);
+            }
+        });
+    }
+
+    // Join with double newlines for blank lines between turns
+    const formattedText = lines.join('\n\n');
+
+    // Display in a simple pre-formatted box
+    container.innerHTML = `<pre style="white-space: pre-wrap; margin: 0; font-family: inherit; font-size: 13px; line-height: 1.6;">${escapeHtml(formattedText)}</pre>`;
+}
+
+/**
+ * Format and display transcription standouts (non-happy/neutral/unknown lines)
+ * Shows only lines with negative or concerning emotions that may need attention
+ * @param {Object} analysis - The full analysis object
+ * @param {string} transcriptionText - The raw transcription text
+ */
+function formatStandoutsDisplay(analysis, transcriptionText) {
+    const container = elements.modalStandouts;
+    if (!container) return;
+
+    // Emotions that are NOT standouts (normal/positive/unknown)
+    const nonStandoutEmotions = ['HAPPY', 'NEUTRAL', 'UNKNOWN', 'EMO_UNKNOWN', 'EMO_UNKOWN'];
+
+    const rawText = analysis.raw_transcription || transcriptionText || '';
+    const diarization = analysis.speaker_diarization || {};
+    const segments = diarization.segments || [];
+
+    let standoutLines = [];
+    let lastText = '';
+    let segmentIndex = 0;
+
+    const senseVoicePattern = /<\|en\|><\|([^|]+)\|><\|Speech\|><\|[^|]+\|>/g;
+
+    if (rawText.includes('<|en|>')) {
+        const parts = rawText.split(senseVoicePattern);
+
+        for (let i = 1; i < parts.length; i += 2) {
+            let emotion = parts[i] || 'UNKNOWN';
+            const text = (parts[i + 1] || '').trim();
+
+            if (!text || text === '.' || text === ',' || text.length < 2) continue;
+            if (text === lastText) continue;
+            lastText = text;
+
+            // Skip non-standout emotions
+            if (nonStandoutEmotions.includes(emotion.toUpperCase())) {
+                segmentIndex++;
+                continue;
+            }
+
+            let speaker = 'Speaker';
+            if (segments.length > 0) {
+                const seg = segments[segmentIndex % segments.length];
+                speaker = seg.speaker || 'Speaker';
+            }
+            segmentIndex++;
+
+            standoutLines.push(`${speaker} : ${emotion} : '${text}'`);
         }
+    } else if (rawText.includes('[')) {
+        const textLines = rawText.split('\n');
 
-        container.innerHTML = html;
+        textLines.forEach((line) => {
+            line = line.trim();
+            if (!line || line.startsWith('─')) return;
+
+            const speakerMatch = line.match(/^(Caller [12]):\s*(.*)/i);
+            if (speakerMatch) {
+                const speaker = speakerMatch[1];
+                let text = speakerMatch[2].trim();
+
+                const emotionMatch = text.match(/\[([A-Z_]+)\]/);
+                const emotion = emotionMatch ? emotionMatch[1] : 'UNKNOWN';
+
+                // Skip non-standout emotions
+                if (nonStandoutEmotions.includes(emotion.toUpperCase())) return;
+
+                const cleanText = text.replace(/\[[A-Z_]+\]\s*/g, '').trim();
+                if (!cleanText || cleanText === lastText) return;
+                lastText = cleanText;
+
+                standoutLines.push(`${speaker} : ${emotion} : '${cleanText}'`);
+            }
+        });
+    }
+
+    if (standoutLines.length === 0) {
+        container.innerHTML = `<div style="color: #22c55e; text-align: center; padding: 40px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">✓</div>
+            <div>No emotional standouts detected</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">All lines were HAPPY, NEUTRAL, or UNKNOWN</div>
+        </div>`;
+    } else {
+        const formattedText = standoutLines.join('\n\n');
+        container.innerHTML = `<pre style="white-space: pre-wrap; margin: 0; font-family: inherit; font-size: 13px; line-height: 1.6; color: #f87171;">${escapeHtml(formattedText)}</pre>`;
     }
 }
 
 function populateEmotionsGrid(emotions) {
     if (!elements.emotionsGrid) return;
 
-    const allEmotions = ['HAPPY', 'SAD', 'ANGRY', 'NEUTRAL', 'FEARFUL', 'DISGUSTED', 'SURPRISED'];
+    const allEmotions = ['HAPPY', 'SAD', 'ANGRY', 'NEUTRAL', 'FEARFUL', 'DISGUSTED', 'SURPRISED', 'UNKNOWN'];
     const primaryEmotion = emotions?.primary?.toUpperCase() || '';
     const detectedEmotions = (emotions?.detected || []).map(e => e.toUpperCase());
 
