@@ -6,41 +6,31 @@
     <title>Audio Search - EWR Admin</title>
     <link rel="stylesheet" href="../../css/layout.css">
     <style>
-        .search-card {
-            background: var(--card-bg);
-            border: 2px solid var(--card-border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+        .search-page-content {
+            padding: 0;
         }
 
-        .search-card h3 {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0 0 20px 0;
-        }
-
-        .search-controls {
+        /* Filter form styling */
+        .filter-form {
             display: grid;
-            grid-template-columns: repeat(6, 1fr) auto;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
-            margin-bottom: 20px;
+            padding: 16px;
         }
 
-        .form-group {
+        .filter-group {
             display: flex;
             flex-direction: column;
             gap: 6px;
         }
 
-        .form-group label {
+        .filter-group label {
             font-size: 13px;
             font-weight: 600;
             color: var(--text-secondary);
         }
 
-        .form-input, .form-select {
+        .filter-input, .filter-select {
             background: var(--input-bg);
             border: 1px solid var(--card-border);
             border-radius: 6px;
@@ -49,156 +39,21 @@
             font-size: 14px;
         }
 
-        .form-input:focus, .form-select:focus {
+        .filter-input:focus, .filter-select:focus {
             outline: none;
             border-color: var(--accent-cyan);
         }
 
-        .btn-search {
-            background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-search:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
-        }
-
-        .btn-clear {
-            background: transparent;
-            border: 1px solid var(--card-border);
-            color: var(--text-secondary);
-            padding: 10px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-clear:hover {
-            border-color: var(--text-secondary);
-            color: var(--text-primary);
-        }
-
-        .results-info {
+        .filter-buttons {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            padding: 12px 16px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
+            gap: 8px;
+            align-items: flex-end;
+            padding-top: 4px;
         }
 
-        .results-count {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .results-count strong {
-            color: var(--accent-cyan);
-        }
-
-        .results-table-container {
-            max-height: 600px;
-            overflow-y: auto;
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-        }
-
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-
-        .results-table thead {
-            background: var(--card-bg);
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .results-table th {
-            padding: 14px 16px;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text-primary);
-            border-bottom: 2px solid var(--card-border);
-        }
-
-        .results-table td {
-            padding: 12px 16px;
-            color: var(--text-secondary);
-            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
-        }
-
-        .results-table tbody tr:hover {
-            background: rgba(34, 211, 238, 0.05);
-        }
-
-        .results-table .filename-link {
-            color: #60a5fa;
-            text-decoration: underline;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-
-        .results-table .filename-link:hover {
-            color: #93c5fd;
-        }
-
-        .mood-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .mood-HAPPY { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-        .mood-SAD { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .mood-ANGRY { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .mood-NEUTRAL { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
-        .mood-FEARFUL { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
-        .mood-DISGUSTED { background: rgba(234, 179, 8, 0.2); color: #facc15; }
-        .mood-SURPRISED { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
-
-        .loading-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-        }
-
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(34, 211, 238, 0.2);
-            border-top-color: var(--accent-cyan);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
+        /* Results grid wrapper */
+        .results-wrapper {
+            padding: 16px;
         }
 
         /* Modal Styles */
@@ -307,6 +162,27 @@
             gap: 16px;
         }
 
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
         .call-summary-content,
         .call-transcription-content {
             background: rgba(0, 0, 0, 0.2);
@@ -361,111 +237,16 @@
             border-top: 1px solid var(--card-border);
         }
 
-        .btn-cancel {
-            background: transparent;
-            border: 1px solid var(--card-border);
-            color: var(--text-secondary);
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .btn-cancel:hover {
-            border-color: var(--text-secondary);
-            color: var(--text-primary);
-        }
-
-        .btn-save {
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .btn-save:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        @media (max-width: 1200px) {
-            .search-controls {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
         @media (max-width: 768px) {
-            .search-controls {
+            .filter-form {
                 grid-template-columns: 1fr 1fr;
             }
         }
 
-        .btn-delete {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-delete:hover {
-            background: rgba(239, 68, 68, 0.3);
-            border-color: #f87171;
-        }
-
-        .btn-delete:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-view {
-            background: rgba(59, 130, 246, 0.2);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: #60a5fa;
-            padding: 6px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-view:hover {
-            background: rgba(59, 130, 246, 0.3);
-            border-color: #60a5fa;
-        }
-
-        .btn-view svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .btn-trash {
-            background: transparent;
-            border: none;
-            color: #f87171;
-            cursor: pointer;
-            padding: 6px 8px;
-            border-radius: 4px;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-trash:hover {
-            background: rgba(239, 68, 68, 0.2);
-        }
-
-        .btn-trash svg {
-            width: 16px;
-            height: 16px;
+        @media (max-width: 480px) {
+            .filter-form {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -479,28 +260,27 @@
             <ewr-admin-header title="Audio Search" show-refresh="false"></ewr-admin-header>
 
             <main class="app-content">
-                <div class="content-wrapper">
-                    <!-- Search Card -->
-                    <div class="search-card">
-                        <h3>Search Filters</h3>
-                        <div class="search-controls">
-                            <div class="form-group">
+                <div class="content-wrapper search-page-content">
+                    <!-- Collapsible Filters -->
+                    <ewr-collapsible title="Search Filters" id="searchFilters">
+                        <div class="filter-form">
+                            <div class="filter-group">
                                 <label for="searchDateFrom">Date From</label>
-                                <input type="date" id="searchDateFrom" class="form-input">
+                                <input type="date" id="searchDateFrom" class="filter-input">
                             </div>
-                            <div class="form-group">
+                            <div class="filter-group">
                                 <label for="searchDateTo">Date To</label>
-                                <input type="date" id="searchDateTo" class="form-input">
+                                <input type="date" id="searchDateTo" class="filter-input">
                             </div>
-                            <div class="form-group">
+                            <div class="filter-group">
                                 <label for="searchStaffInput">Staff Member</label>
-                                <select id="searchStaffInput" class="form-select">
+                                <select id="searchStaffInput" class="filter-select">
                                     <option value="">All Staff</option>
                                 </select>
                             </div>
-                            <div class="form-group">
+                            <div class="filter-group">
                                 <label for="searchMoodFilter">Mood</label>
-                                <select id="searchMoodFilter" class="form-select">
+                                <select id="searchMoodFilter" class="filter-select">
                                     <option value="">All Moods</option>
                                     <option value="HAPPY">HAPPY</option>
                                     <option value="SAD">SAD</option>
@@ -511,56 +291,30 @@
                                     <option value="SURPRISED">SURPRISED</option>
                                 </select>
                             </div>
-                            <div class="form-group">
+                            <div class="filter-group">
                                 <label for="searchOutcomeFilter">Outcome</label>
-                                <select id="searchOutcomeFilter" class="form-select">
+                                <select id="searchOutcomeFilter" class="filter-select">
                                     <option value="">All Outcomes</option>
                                     <option value="Issue Resolved">Issue Resolved</option>
                                     <option value="Issue Unresolved">Issue Unresolved</option>
                                     <option value="Issue Logged in Central">Issue Logged in Central</option>
                                 </select>
                             </div>
-                            <div class="form-group">
+                            <div class="filter-group">
                                 <label for="searchEwrCustomer">Customer</label>
-                                <input type="text" id="searchEwrCustomer" class="form-input" placeholder="Customer...">
-                            </div>
-                            <div class="form-group" style="flex-direction: row; gap: 8px; align-self: end;">
-                                <button class="btn-search" onclick="searchAnalyses()">Search</button>
-                                <button class="btn-clear" onclick="clearFilters()">Clear</button>
+                                <input type="text" id="searchEwrCustomer" class="filter-input" placeholder="Customer...">
                             </div>
                         </div>
-                    </div>
+                        <div slot="footer">
+                            <ewr-btn variant="primary" id="searchBtn">Search</ewr-btn>
+                            <ewr-btn variant="secondary" id="clearBtn">Clear</ewr-btn>
+                        </div>
+                    </ewr-collapsible>
 
                     <!-- Results Section -->
-                    <div class="search-card">
-                        <div class="results-info">
-                            <span class="results-count">Showing <strong id="resultsCount">0</strong> results</span>
-                        </div>
-                        <div id="searchResults" class="results-table-container">
-                            <table class="results-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 50px;">View</th>
-                                        <th>Date</th>
-                                        <th>Time</th>
-                                        <th>Staff</th>
-                                        <th>Customer</th>
-                                        <th>Mood</th>
-                                        <th>Outcome</th>
-                                        <th>Filename</th>
-                                        <th style="width: 50px;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="searchResultsBody">
-                                    <tr>
-                                        <td colspan="9" class="loading-state">
-                                            <div class="loading-spinner"></div>
-                                            <div>Loading recent analyses...</div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="results-wrapper">
+                        <ewr-audio-results-grid id="resultsGrid" max-height="600px">
+                        </ewr-audio-results-grid>
                     </div>
                 </div>
             </main>
@@ -638,12 +392,13 @@
             </div>
 
             <div class="modal-footer">
-                <button class="btn-cancel" onclick="closeCallAnalysisModal()">Close</button>
+                <ewr-btn variant="secondary" onclick="closeCallAnalysisModal()">Close</ewr-btn>
             </div>
         </div>
     </div>
 
     <script src="../../js/ewr-components.js"></script>
+    <script type="module" src="../../js/components/index.js"></script>
     <script src="../../js/auth-client.js"></script>
     <script src="../js/sidebar.js"></script>
     <script>
@@ -660,6 +415,9 @@
             await initSidebar();
             displayUserInfo();
             await loadMonitoredUsers();
+
+            // Set up button event listeners
+            setupEventListeners();
 
             // Check for URL parameters (from staff card navigation)
             const urlParams = new URLSearchParams(window.location.search);
@@ -685,6 +443,26 @@
                 loadRecentAnalyses();
             }
         });
+
+        // Set up event listeners for buttons and grid
+        function setupEventListeners() {
+            // Search button
+            document.getElementById('searchBtn')?.addEventListener('click', searchAnalyses);
+            document.getElementById('searchBtn')?.addEventListener('ewr-click', searchAnalyses);
+
+            // Clear button
+            document.getElementById('clearBtn')?.addEventListener('click', clearFilters);
+            document.getElementById('clearBtn')?.addEventListener('ewr-click', clearFilters);
+
+            // Results grid events
+            const grid = document.getElementById('resultsGrid');
+            grid?.addEventListener('ewr-view', (e) => {
+                viewAnalysis(e.detail.id);
+            });
+            grid?.addEventListener('ewr-delete', (e) => {
+                deleteAnalysis(e.detail.id, e.detail.filename);
+            });
+        }
 
         // Load monitored users for staff dropdown
         async function loadMonitoredUsers() {
@@ -741,7 +519,9 @@
 
         // Load recent analyses (last 20)
         async function loadRecentAnalyses() {
-            const searchResultsBody = document.getElementById('searchResultsBody');
+            const grid = document.getElementById('resultsGrid');
+            grid.loading = true;
+            clearResultsGrid();
 
             try {
                 const response = await fetch('/api/audio/search?limit=20');
@@ -753,20 +533,17 @@
                 const data = await response.json();
                 displaySearchResults(data.results || []);
             } catch (error) {
-                searchResultsBody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="empty-state">
-                            <div class="empty-state-icon">!</div>
-                            <div>Failed to load analyses: ${error.message}</div>
-                        </td>
-                    </tr>
-                `;
+                console.error('Failed to load analyses:', error);
+            } finally {
+                grid.loading = false;
             }
         }
 
         // Search analyses with filters
         async function searchAnalyses() {
-            const searchResultsBody = document.getElementById('searchResultsBody');
+            const grid = document.getElementById('resultsGrid');
+            grid.loading = true;
+            clearResultsGrid();
 
             // Get filter values
             const date_from = document.getElementById('searchDateFrom').value;
@@ -775,16 +552,6 @@
             const outcome = document.getElementById('searchOutcomeFilter').value;
             const customer_support_staff = document.getElementById('searchStaffInput').value.trim();
             const ewr_customer = document.getElementById('searchEwrCustomer').value.trim();
-
-            // Show loading
-            searchResultsBody.innerHTML = `
-                <tr>
-                    <td colspan="9" class="loading-state">
-                        <div class="loading-spinner"></div>
-                        <div>Searching...</div>
-                    </td>
-                </tr>
-            `;
 
             try {
                 const params = new URLSearchParams();
@@ -805,38 +572,30 @@
                 const data = await response.json();
                 displaySearchResults(data.results || []);
             } catch (error) {
-                searchResultsBody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="empty-state">
-                            <div class="empty-state-icon">!</div>
-                            <div>Search failed: ${error.message}</div>
-                        </td>
-                    </tr>
-                `;
-                document.getElementById('resultsCount').textContent = '0';
+                console.error('Search failed:', error);
+            } finally {
+                grid.loading = false;
             }
+        }
+
+        // Clear results grid
+        function clearResultsGrid() {
+            const grid = document.getElementById('resultsGrid');
+            // Remove all existing rows
+            const existingRows = grid.querySelectorAll('ewr-audio-result-row');
+            existingRows.forEach(row => row.remove());
         }
 
         // Display search results
         function displaySearchResults(results) {
-            const searchResultsBody = document.getElementById('searchResultsBody');
-            const resultsCount = document.getElementById('resultsCount');
-
-            resultsCount.textContent = results.length;
+            const grid = document.getElementById('resultsGrid');
+            clearResultsGrid();
 
             if (!results || results.length === 0) {
-                searchResultsBody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="empty-state">
-                            <div class="empty-state-icon">No results</div>
-                            <div>No analyses found matching your criteria</div>
-                        </td>
-                    </tr>
-                `;
                 return;
             }
 
-            searchResultsBody.innerHTML = results.map(result => {
+            results.forEach(result => {
                 const filename = result.filename || result.metadata?.filename || 'Unknown';
                 let date = result.call_date || result.metadata?.call_date;
                 let time = result.call_time || result.metadata?.call_time;
@@ -847,36 +606,25 @@
                 }
                 const staff = result.customer_support_staff || result.metadata?.customer_support_staff || 'N/A';
                 const customer = result.ewr_customer || result.metadata?.ewr_customer || 'N/A';
-                const mood = result.mood || result.metadata?.mood || 'N/A';
+                const mood = result.mood || result.metadata?.mood || 'NEUTRAL';
                 const outcome = result.outcome || result.metadata?.outcome || 'N/A';
                 const id = result._id || result.id;
 
-                return `
-                    <tr>
-                        <td>
-                            <button class="btn-view" onclick="viewAnalysis('${id}')" title="View Details">
-                                <ewr-icon name="eye" size="16"></ewr-icon>
-                            </button>
-                        </td>
-                        <td>${date}</td>
-                        <td>${time}</td>
-                        <td>${staff}</td>
-                        <td>${customer}</td>
-                        <td><span class="mood-badge mood-${mood}">${mood}</span></td>
-                        <td>${outcome}</td>
-                        <td>
-                            <span class="filename-link" onclick="viewAnalysis('${id}')">
-                                ${filename}
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn-trash" onclick="deleteAnalysis('${id}', '${escapeHtml(filename)}')" title="Delete">
-                                <ewr-icon name="trash-2" size="16"></ewr-icon>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                const row = document.createElement('ewr-audio-result-row');
+                row.setAttribute('result-id', id);
+                row.setAttribute('date', date);
+                row.setAttribute('time', time);
+                row.setAttribute('staff', staff);
+                row.setAttribute('customer', customer);
+                row.setAttribute('mood', mood);
+                row.setAttribute('outcome', outcome);
+                row.setAttribute('filename', filename);
+
+                grid.appendChild(row);
+            });
+
+            // Update count
+            grid._updateResultsCount?.();
         }
 
         // View analysis details page
@@ -920,13 +668,6 @@
                 };
             }
             return { date: 'N/A', time: 'N/A' };
-        }
-
-        // Escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML.replace(/'/g, "\\'");
         }
 
         // Clear all filters
@@ -1001,7 +742,7 @@
                     </div>
                 `).join('');
             } else {
-                emotionGrid.innerHTML = '<div class="empty-state">No emotion data available</div>';
+                emotionGrid.innerHTML = '<div class="emotion-item"><div class="emotion-label">No emotion data available</div></div>';
             }
 
             // Raw tab
