@@ -89,43 +89,38 @@
                     <div class="documents-layout">
                         <!-- Full Width Card -->
                         <div class="card ewr_chat-card-full">
-                            <!-- Collapsible Filter Settings -->
+                            <!-- Collapsible Document Filters -->
                             <div class="ewr-collapsible no-margin" id="filterCollapsible">
                                 <div class="ewr-collapsible-header" onclick="toggleCollapsible('filterCollapsible')">
-                                    <span class="ewr-collapsible-title">Filter Settings</span>
+                                    <span class="ewr-collapsible-title">Document Filters</span>
                                     <button class="ewr-collapse-toggle">
                                         <span class="toggle-icon">▼</span>
                                     </button>
                                 </div>
                                 <div class="ewr-collapsible-content">
                                     <div class="ewr-edit-filters-horizontal">
-                                        <ewr-edit-div-vert
-                                            label="Department"
-                                            type="select"
-                                            id="browserDepartmentFilter"
-                                            default-text="All Departments">
-                                        </ewr-edit-div-vert>
-
-                                        <ewr-edit-div-vert
-                                            label="Doc Type"
-                                            type="select"
-                                            id="categoryFilter"
-                                            default-text="All Types">
-                                        </ewr-edit-div-vert>
-
-                                        <ewr-edit-div-vert
-                                            label="Subject"
-                                            type="select"
-                                            id="browserSubjectFilter"
-                                            default-text="All Subjects">
-                                        </ewr-edit-div-vert>
-
-                                        <ewr-edit-div-vert
-                                            label="Search"
-                                            type="input"
-                                            id="searchFilter"
-                                            placeholder="Search documents...">
-                                        </ewr-edit-div-vert>
+                                        <div class="ewr-edit-div-vert">
+                                            <label class="ewr-label">Department</label>
+                                            <select id="browserDepartmentFilter" class="ewr-select-edit">
+                                                <option value="">All Departments</option>
+                                            </select>
+                                        </div>
+                                        <div class="ewr-edit-div-vert">
+                                            <label class="ewr-label">Doc Type</label>
+                                            <select id="categoryFilter" class="ewr-select-edit">
+                                                <option value="">All Types</option>
+                                            </select>
+                                        </div>
+                                        <div class="ewr-edit-div-vert">
+                                            <label class="ewr-label">Subject</label>
+                                            <select id="browserSubjectFilter" class="ewr-select-edit">
+                                                <option value="">All Subjects</option>
+                                            </select>
+                                        </div>
+                                        <div class="ewr-edit-div-vert">
+                                            <label class="ewr-label">Result Title Contains</label>
+                                            <input type="text" id="searchFilter" class="ewr-input-edits" placeholder="Filter loaded results by title...">
+                                        </div>
                                     </div>
                                 </div>
                                 <!-- Footer with Action Buttons -->
@@ -292,21 +287,24 @@
             }
         }
 
-        // Populate all dropdowns using component API
+        // Populate all dropdowns with standard select elements
         function populateDropdowns() {
             const browserDept = document.getElementById('browserDepartmentFilter');
             const browserType = document.getElementById('categoryFilter');
             const browserSubject = document.getElementById('browserSubjectFilter');
 
-            // Use setOptions method from ewr-horiz-select component
+            // Populate standard select elements
             if (browserDept) {
-                browserDept.setOptions(categoryData.departments, 'All Departments');
+                browserDept.innerHTML = '<option value="">All Departments</option>' +
+                    categoryData.departments.map(d => `<option value="${d.id || d.name}">${d.name || d.id}</option>`).join('');
             }
             if (browserType) {
-                browserType.setOptions(categoryData.types, 'All Types');
+                browserType.innerHTML = '<option value="">All Types</option>' +
+                    categoryData.types.map(t => `<option value="${t.id || t.name}">${t.name || t.id}</option>`).join('');
             }
             if (browserSubject) {
-                browserSubject.setOptions(categoryData.subjects, 'All Subjects');
+                browserSubject.innerHTML = '<option value="">All Subjects</option>' +
+                    categoryData.subjects.map(s => `<option value="${s.id || s.name}">${s.name || s.id}</option>`).join('');
             }
         }
 
@@ -328,18 +326,20 @@
                 return;
             }
 
-            let filteredTitles;
+            let filteredDocs;
             if (searchTerm) {
-                filteredTitles = allLoadedDocuments.filter(title =>
-                    title.toLowerCase().includes(searchTerm)
-                );
+                // Support both string (title only) and object format
+                filteredDocs = allLoadedDocuments.filter(doc => {
+                    const title = typeof doc === 'string' ? doc : (doc.title || '');
+                    return title.toLowerCase().includes(searchTerm);
+                });
             } else {
-                filteredTitles = [...allLoadedDocuments];
+                filteredDocs = [...allLoadedDocuments];
             }
 
-            // Use component API to set documents
-            if (filteredTitles.length > 0) {
-                documentListComponent.setDocuments(filteredTitles);
+            // Use component API to set documents (with category tags)
+            if (filteredDocs.length > 0) {
+                documentListComponent.setDocuments(filteredDocs);
             } else {
                 documentListComponent.showEmpty('No documents match your search criteria');
             }
@@ -375,7 +375,8 @@
                 const aggData = await aggResponse.json();
 
                 if (aggData.success) {
-                    allLoadedDocuments = aggData.titles || [];
+                    // Use documents array (with metadata) if available, fall back to titles
+                    allLoadedDocuments = aggData.documents || aggData.titles || [];
                     applyNameFilter();
                 } else {
                     allLoadedDocuments = [];

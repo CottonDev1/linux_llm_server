@@ -92,10 +92,10 @@
                     <div class="documents-layout">
                         <!-- Full Width Card -->
                         <div class="card ewr_chat-card-full">
-                            <!-- Collapsible Document Type -->
+                            <!-- Collapsible Document Filters -->
                             <div class="ewr-collapsible no-margin" id="filterCollapsible">
                                 <div class="ewr-collapsible-header" onclick="toggleCollapsible('filterCollapsible')">
-                                    <span class="ewr-collapsible-title">Document Type</span>
+                                    <span class="ewr-collapsible-title">Document Filters</span>
                                     <button class="ewr-collapse-toggle">
                                         <span class="toggle-icon">▼</span>
                                     </button>
@@ -121,8 +121,8 @@
                                             </select>
                                         </div>
                                         <div class="ewr-edit-div-vert">
-                                            <label class="ewr-label">Search</label>
-                                            <input type="text" id="searchFilter" class="ewr-input-edits" placeholder="Search documents...">
+                                            <label class="ewr-label">Result Title Contains</label>
+                                            <input type="text" id="searchFilter" class="ewr-input-edits" placeholder="Filter loaded results by title...">
                                         </div>
                                     </div>
                                 </div>
@@ -287,11 +287,21 @@
         async function loadDocuments() {
             const documentListComponent = document.getElementById('documentList');
 
+            // Get filter elements
+            const departmentSelect = document.getElementById('browserDepartmentFilter');
+            const docTypeSelect = document.getElementById('categoryFilter');
+            const subjectSelect = document.getElementById('browserSubjectFilter');
+
             // Get filter values
-            const department = document.getElementById('browserDepartmentFilter')?.value || '';
-            const docType = document.getElementById('categoryFilter')?.value || '';
-            const subject = document.getElementById('browserSubjectFilter')?.value || '';
+            const department = departmentSelect?.value || '';
+            const docType = docTypeSelect?.value || '';
+            const subject = subjectSelect?.value || '';
             const search = document.getElementById('searchFilter')?.value?.trim() || '';
+
+            // Get display text for selected options (for filter tags)
+            const departmentText = departmentSelect?.selectedOptions[0]?.text || '';
+            const docTypeText = docTypeSelect?.selectedOptions[0]?.text || '';
+            const subjectText = subjectSelect?.selectedOptions[0]?.text || '';
 
             // Show loading state using component API
             documentListComponent.showLoading();
@@ -309,20 +319,32 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    const titles = data.titles || [];
-                    allLoadedDocuments = titles;
+                    // Use documents array (with metadata) if available, fall back to titles
+                    const documents = data.documents || data.titles || [];
+                    console.log('API Response - has documents array:', !!data.documents, 'Sample:', documents[0]);
+                    allLoadedDocuments = documents;
 
-                    if (titles.length === 0) {
+                    // Update filter tags (only show if a specific value is selected, not "All...")
+                    documentListComponent.setFilterTags({
+                        department: department ? departmentText : '',
+                        docType: docType ? docTypeText : '',
+                        subject: subject ? subjectText : ''
+                    });
+
+                    if (documents.length === 0) {
                         documentListComponent.showEmpty('No documents found. Try adjusting your filter criteria.');
                     } else {
-                        documentListComponent.setDocuments(titles);
+                        // Pass full document objects to display category tags
+                        documentListComponent.setDocuments(documents);
                     }
                 } else {
                     allLoadedDocuments = [];
+                    documentListComponent.clearFilterTags();
                     documentListComponent.showError(data.error || 'Failed to load documents');
                 }
             } catch (error) {
                 allLoadedDocuments = [];
+                documentListComponent.clearFilterTags();
                 documentListComponent.showError(error.message);
             }
         }
@@ -336,14 +358,17 @@
                 return; // No documents loaded yet
             }
 
-            // Filter documents based on search term
-            const filteredTitles = searchTerm
-                ? allLoadedDocuments.filter(title => title.toLowerCase().includes(searchTerm))
+            // Filter documents based on search term (supports both string and object formats)
+            const filteredDocs = searchTerm
+                ? allLoadedDocuments.filter(doc => {
+                    const title = typeof doc === 'string' ? doc : (doc.title || '');
+                    return title.toLowerCase().includes(searchTerm);
+                })
                 : allLoadedDocuments;
 
             // Update display using component API
-            if (filteredTitles.length > 0) {
-                documentListComponent.setDocuments(filteredTitles);
+            if (filteredDocs.length > 0) {
+                documentListComponent.setDocuments(filteredDocs);
             } else {
                 documentListComponent.showEmpty('No documents match your search criteria');
             }

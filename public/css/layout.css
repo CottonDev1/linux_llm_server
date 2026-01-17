@@ -200,8 +200,9 @@ body {
 }
 
 .nav-icon {
-    width: 20px;
-    height: 20px;
+    /* Uses unified sidebar icon sizing from design tokens */
+    width: var(--sidebar-icon-size, 18px);
+    height: var(--sidebar-icon-size, 18px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -215,7 +216,8 @@ body {
 }
 
 .nav-text {
-    font-size: 14px;
+    /* Uses unified sidebar text sizing from design tokens */
+    font-size: var(--sidebar-text-size, 13px);
     font-weight: 500;
 }
 

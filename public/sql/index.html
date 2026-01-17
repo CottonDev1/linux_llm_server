@@ -355,15 +355,19 @@
             box-shadow: none;
         }
 
-        /* Reset/Danger button - dark red gradient (matches ewr-button-action-green-gradient style) */
+        /* Reset/Danger button - red gradient variant
+           Uses unified MEDIUM sizing from buttons.css design tokens */
         .ewr-button-reset {
-            padding: 8px 18px;
-            font-size: 15px;
+            /* Unified medium sizing via CSS variables */
+            padding: var(--btn-padding-md);
+            height: var(--btn-height-md);
+            font-size: var(--btn-font-md);
+            border-radius: var(--btn-radius-md);
             font-weight: 600;
             border: none;
-            border-radius: 5px;
             cursor: pointer;
             transition: all 0.2s ease;
+            /* Red gradient for danger/reset actions */
             background: linear-gradient(180deg, #dc2626 0%, #b91c1c 30%, #991b1b 70%, #7f1d1d 100%);
             color: #ffffff;
             box-shadow:
@@ -371,6 +375,10 @@
                 inset 0 1px 1px rgba(255, 255, 255, 0.3),
                 inset 0 -1px 1px rgba(0, 0, 0, 0.1);
             text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
         }
 
         .ewr-button-reset:hover {
@@ -465,19 +473,26 @@
             cursor: pointer;
         }
 
-        /* Compact button styles for settings bar */
+        /* Compact button styles for settings bar
+           Uses unified MEDIUM sizing from buttons.css design tokens */
         .btn-connect,
         .btn-load,
         .btn-clear-sm,
         .btn-save-sm {
-            padding: 6px 14px;
-            font-size: 12px;
+            /* Unified medium sizing via CSS variables */
+            padding: var(--btn-padding-md);
+            height: var(--btn-height-md);
+            font-size: var(--btn-font-md);
+            border-radius: var(--btn-radius-md);
             font-weight: 600;
             border: none;
-            border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
         }
 
         .btn-connect {
@@ -1189,22 +1204,26 @@
             opacity: 0.6;
         }
 
+        /* Send button - uses unified CHAT sizing from design tokens */
         .btn-send {
+            /* Unified chat sizing via CSS variables */
+            padding: var(--btn-padding-chat);
+            height: var(--btn-height-chat);
+            font-size: var(--btn-font-chat);
+            border-radius: var(--btn-radius-lg);
             background: var(--accent-primary);
             color: #ffffff;
             border: none;
-            padding: 10px 20px;
-            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            border-radius: 8px;
             transition: all 0.2s ease;
-            height: 48px;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             white-space: nowrap;
             box-shadow: 0 1px 3px var(--shadow-color);
+            box-sizing: border-box;
         }
 
         .btn-send:hover:not(:disabled) {
@@ -1217,20 +1236,24 @@
             cursor: not-allowed;
         }
 
+        /* Clear chat button - uses unified CHAT sizing (same height as send) */
         .btn-clear-chat {
+            /* Unified chat sizing via CSS variables */
+            padding: var(--btn-padding-chat);
+            height: var(--btn-height-chat);
+            font-size: var(--btn-font-md);
+            border-radius: var(--btn-radius-lg);
             background: var(--bg-tertiary);
             color: var(--text-secondary);
             border: 1px solid var(--border-primary);
-            padding: 10px 16px;
-            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            border-radius: 8px;
             transition: all 0.2s ease;
-            height: 48px;
             display: flex;
             align-items: center;
+            justify-content: center;
             white-space: nowrap;
+            box-sizing: border-box;
         }
 
         .btn-clear-chat:hover:not(:disabled) {

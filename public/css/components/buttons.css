@@ -3,7 +3,51 @@
  * Consistent button styling across EWR applications
  *
  * Usage: <button class="ewr-btn ewr-btn-primary">Click Me</button>
+ *
+ * UNIFIED SIZING SYSTEM (2024)
+ * ============================
+ * This file uses CSS custom properties for consistent sizing:
+ *
+ * Sizes:
+ * - Small  (sm):   26px height, 11px font - for compact areas, inline actions
+ * - Medium (md):   32px height, 13px font - DEFAULT for filter panels, forms
+ * - Large  (lg):   38px height, 14px font - for prominent CTAs, modals
+ * - Chat:          44px height, 16px font - specifically for chat send/clear buttons
+ *
+ * Usage:
+ * - Filter buttons: use .ewr-btn-md or default (no size class)
+ * - Chat buttons: use .ewr-button-send, .ewr-button-clear (auto-sized)
+ * - Sidebar: use .ewr-btn-sm for compact navigation
  */
+
+/* ============================================
+   Design System Tokens
+   ============================================ */
+:root {
+    /* Button Size Tokens */
+    --btn-height-sm: 26px;
+    --btn-height-md: 32px;
+    --btn-height-lg: 38px;
+    --btn-height-chat: 44px;
+
+    --btn-padding-sm: 5px 10px;
+    --btn-padding-md: 7px 14px;
+    --btn-padding-lg: 9px 18px;
+    --btn-padding-chat: 10px 20px;
+
+    --btn-font-sm: 11px;
+    --btn-font-md: 13px;
+    --btn-font-lg: 14px;
+    --btn-font-chat: 16px;
+
+    --btn-radius-sm: 4px;
+    --btn-radius-md: 5px;
+    --btn-radius-lg: 6px;
+
+    /* Sidebar Tokens */
+    --sidebar-icon-size: 18px;
+    --sidebar-text-size: 13px;
+}
 
 /* ============================================
    Base Button
@@ -13,10 +57,12 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
+    /* Default to medium size */
+    padding: var(--btn-padding-md);
+    height: var(--btn-height-md);
+    border-radius: var(--btn-radius-md);
+    font-size: var(--btn-font-md);
+    font-weight: 600;
     font-family: inherit;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -24,6 +70,7 @@
     text-decoration: none;
     white-space: nowrap;
     user-select: none;
+    box-sizing: border-box;
 }
 
 .ewr-btn:disabled {
@@ -34,27 +81,49 @@
 }
 
 /* ============================================
-   Button Sizes
+   Button Sizes (Unified System)
    ============================================ */
-.ewr-btn-xs {
-    padding: 4px 8px;
-    font-size: 11px;
-    border-radius: 4px;
+.ewr-btn-sm {
+    padding: var(--btn-padding-sm);
+    height: var(--btn-height-sm);
+    font-size: var(--btn-font-sm);
+    border-radius: var(--btn-radius-sm);
 }
 
-.ewr-btn-sm {
-    padding: 6px 12px;
-    font-size: 12px;
+.ewr-btn-md {
+    padding: var(--btn-padding-md);
+    height: var(--btn-height-md);
+    font-size: var(--btn-font-md);
+    border-radius: var(--btn-radius-md);
 }
 
 .ewr-btn-lg {
-    padding: 12px 24px;
-    font-size: 16px;
+    padding: var(--btn-padding-lg);
+    height: var(--btn-height-lg);
+    font-size: var(--btn-font-lg);
+    border-radius: var(--btn-radius-lg);
+}
+
+.ewr-btn-chat {
+    padding: var(--btn-padding-chat);
+    height: var(--btn-height-chat);
+    font-size: var(--btn-font-chat);
+    border-radius: var(--btn-radius-lg);
+}
+
+/* Legacy size aliases for backward compatibility */
+.ewr-btn-xs {
+    padding: var(--btn-padding-sm);
+    height: var(--btn-height-sm);
+    font-size: var(--btn-font-sm);
+    border-radius: var(--btn-radius-sm);
 }
 
 .ewr-btn-xl {
-    padding: 16px 32px;
-    font-size: 18px;
+    padding: 12px 28px;
+    height: 46px;
+    font-size: 16px;
+    border-radius: var(--btn-radius-lg);
 }
 
 /* ============================================
@@ -329,14 +398,17 @@
 
 /* ============================================
    Action Button - Metallic Green Gradient Style
+   Uses MEDIUM size by default (for filter panels)
    ============================================ */
 
 .ewr-button-action-green-gradient {
-    padding: 5px 12px;
-    font-size: 12px;
+    /* Unified medium sizing */
+    padding: var(--btn-padding-md);
+    height: var(--btn-height-md);
+    font-size: var(--btn-font-md);
+    border-radius: var(--btn-radius-md);
     font-weight: 600;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: linear-gradient(180deg, #6ee7b7 0%, #34d399 30%, #10b981 70%, #059669 100%);
@@ -346,6 +418,10 @@
         inset 0 1px 1px rgba(255, 255, 255, 0.4),
         inset 0 -1px 1px rgba(0, 0, 0, 0.1);
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 .ewr-button-action-green-gradient:hover {
@@ -396,13 +472,16 @@
         inset 0 -1px 1px rgba(255, 255, 255, 0.1);
 }
 
-/* Special Button - Light Blue Metallic Gradient with black text */
+/* Special Button - Light Blue Metallic Gradient with black text
+   Uses MEDIUM size by default (for filter panels) */
 .ewr-button-special-lightBlue-gradient {
-    padding: 5px 12px;
-    font-size: 12px;
+    /* Unified medium sizing */
+    padding: var(--btn-padding-md);
+    height: var(--btn-height-md);
+    font-size: var(--btn-font-md);
+    border-radius: var(--btn-radius-md);
     font-weight: 600;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 30%, #7dd3fc 70%, #38bdf8 100%);
@@ -412,6 +491,10 @@
         inset 0 1px 1px rgba(255, 255, 255, 0.6),
         inset 0 -1px 1px rgba(0, 0, 0, 0.1);
     text-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 .ewr-button-special-lightBlue-gradient:hover:not(:disabled) {
@@ -439,17 +522,24 @@
     opacity: 0.6;
 }
 
-/* Reset Button - Subtle gray for secondary actions */
+/* Reset Button - Subtle gray for secondary actions
+   Uses MEDIUM size by default (for filter panels) */
 .ewr-button-reset {
-    padding: 5px 12px;
-    font-size: 12px;
+    /* Unified medium sizing */
+    padding: var(--btn-padding-md);
+    height: var(--btn-height-md);
+    font-size: var(--btn-font-md);
+    border-radius: var(--btn-radius-md);
     font-weight: 500;
     border: 1px solid rgba(100, 116, 139, 0.5);
-    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: transparent;
     color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 .ewr-button-reset:hover:not(:disabled) {
@@ -657,15 +747,19 @@
 
 /* ============================================
    Chat Action Buttons - Send & Clear
+   Uses CHAT size for consistent chat bar appearance
    ============================================ */
 
 /* Send Button - Light Blue Metallic Gradient with Glyph */
 .ewr-button-send {
-    padding: 9px 18px;
-    font-size: 18px;
+    /* Unified chat sizing */
+    padding: var(--btn-padding-chat);
+    height: var(--btn-height-chat);
+    min-width: var(--btn-height-chat);
+    font-size: var(--btn-font-chat);
+    border-radius: var(--btn-radius-lg);
     font-weight: 600;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 30%, #7dd3fc 70%, #38bdf8 100%);
@@ -675,12 +769,11 @@
         inset 0 1px 1px rgba(255, 255, 255, 0.6),
         inset 0 -1px 1px rgba(0, 0, 0, 0.1);
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
-    height: 42px;
-    min-width: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 
 .ewr-button-send:hover:not(:disabled) {
@@ -709,13 +802,17 @@
     opacity: 0.6;
 }
 
-/* Show Button - Small version of Send button for inline actions */
+/* Show Button - Small version of Send button for inline actions
+   Uses SMALL size */
 .ewr-button-show {
-    padding: 4px 10px;
-    font-size: 11px;
+    /* Unified small sizing */
+    padding: var(--btn-padding-sm);
+    height: var(--btn-height-sm);
+    min-width: var(--btn-height-sm);
+    font-size: var(--btn-font-sm);
+    border-radius: var(--btn-radius-sm);
     font-weight: 600;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 30%, #7dd3fc 70%, #38bdf8 100%);
@@ -725,12 +822,11 @@
         inset 0 1px 1px rgba(255, 255, 255, 0.6),
         inset 0 -1px 1px rgba(0, 0, 0, 0.1);
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
-    height: 24px;
-    min-width: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 
 .ewr-button-show:hover {
@@ -750,13 +846,17 @@
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
-/* Clear Button - Metallic Gray Gradient */
+/* Clear Button - Metallic Gray Gradient
+   Uses CHAT size for consistent chat bar appearance (same height as send) */
 .ewr-button-clear {
-    padding: 9px 18px;
-    font-size: 12px;
+    /* Unified chat sizing - matches send button height */
+    padding: var(--btn-padding-chat);
+    height: var(--btn-height-chat);
+    min-width: 70px;
+    font-size: var(--btn-font-md);
+    border-radius: var(--btn-radius-lg);
     font-weight: 600;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
     transition: all 0.2s ease;
     background: linear-gradient(180deg, #9ca3af 0%, #6b7280 30%, #4b5563 70%, #374151 100%);
@@ -766,11 +866,11 @@
         inset 0 1px 1px rgba(255, 255, 255, 0.3),
         inset 0 -1px 1px rgba(0, 0, 0, 0.1);
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
-    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 
 .ewr-button-clear:hover:not(:disabled) {

@@ -72,6 +72,10 @@ class EwrFilterPanel extends HTMLElement {
         const showActions = this.getAttribute('show-actions') === 'true';
         const noMargin = this.hasAttribute('no-margin');
 
+        // Remove ID from custom element to avoid duplicate IDs
+        // The inner div will have this ID for toggleCollapsible to work
+        this.removeAttribute('id');
+
         // Capture slotted content before replacing innerHTML
         const statusSlot = this.querySelector('[slot="status"]');
         const actionsSlot = this.querySelector('[slot="actions"]');
@@ -142,15 +146,15 @@ class EwrFilterPanel extends HTMLElement {
             .ewr-filter-panel-grid {
                 display: flex;
                 flex-wrap: wrap;
-                gap: var(--filter-panel-gap, 16px);
-                padding: 16px;
+                gap: var(--filter-panel-gap, 20px);
+                padding: 16px 20px;
                 justify-content: flex-start;
+                align-items: flex-end;
             }
 
             .ewr-filter-panel-grid > * {
                 flex: 0 1 auto;
                 min-width: 150px;
-                max-width: 220px;
             }
 
             /* Stack container for vertically stacked inputs */

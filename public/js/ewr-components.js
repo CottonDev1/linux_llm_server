@@ -154,11 +154,14 @@ class EwrCollapsiblePanel extends HTMLElement {
         const title = this.getAttribute('title') || 'Settings';
         const collapsed = this.hasAttribute('collapsed');
 
+        // Remove ID from custom element to avoid duplicate IDs
+        this.removeAttribute('id');
+
         this.innerHTML = `
-            <div class="ewr-collapsible-div ${collapsed ? 'collapsed' : ''}" id="${panelId}">
+            <div class="ewr-collapsible ${collapsed ? 'collapsed' : ''}" id="${panelId}">
                 <div class="ewr-collapsible-header" onclick="toggleCollapsible('${panelId}')">
                     <span class="ewr-collapsible-title">${title}</span>
-                    <button class="ewr-collapse-toggle">
+                    <button class="ewr-collapse-toggle" type="button">
                         <span class="toggle-icon">▼</span>
                     </button>
                 </div>
@@ -755,6 +758,9 @@ class EwrConnectionSettings extends HTMLElement {
         const collapsed = this.hasAttribute('collapsed');
         const contentClass = this.getAttribute('content-class') || '';
 
+        // Remove ID from custom element to avoid duplicate IDs
+        this.removeAttribute('id');
+
         // Capture child elements before replacing innerHTML
         const children = Array.from(this.children);
         const footerChildren = children.filter(c => c.getAttribute('slot') === 'footer');
@@ -762,10 +768,10 @@ class EwrConnectionSettings extends HTMLElement {
 
         // Create the container structure
         this.innerHTML = `
-            <div class="ewr-collapsible-div ${collapsed ? 'collapsed' : ''}" id="${panelId}">
+            <div class="ewr-collapsible ${collapsed ? 'collapsed' : ''}" id="${panelId}">
                 <div class="ewr-collapsible-header" onclick="toggleCollapsible('${panelId}')">
                     <span class="ewr-collapsible-title">${title}</span>
-                    <button class="ewr-collapse-toggle">
+                    <button class="ewr-collapse-toggle" type="button">
                         <span class="toggle-icon">▼</span>
                     </button>
                 </div>
@@ -793,25 +799,25 @@ class EwrConnectionSettings extends HTMLElement {
 
     // Toggle collapsed state
     toggle() {
-        const panel = this.querySelector('.ewr-collapsible-div');
+        const panel = this.querySelector('.ewr-collapsible');
         if (panel) panel.classList.toggle('collapsed');
     }
 
     // Collapse the panel
     collapse() {
-        const panel = this.querySelector('.ewr-collapsible-div');
+        const panel = this.querySelector('.ewr-collapsible');
         if (panel) panel.classList.add('collapsed');
     }
 
     // Expand the panel
     expand() {
-        const panel = this.querySelector('.ewr-collapsible-div');
+        const panel = this.querySelector('.ewr-collapsible');
         if (panel) panel.classList.remove('collapsed');
     }
 
     // Check if collapsed
     get isCollapsed() {
-        const panel = this.querySelector('.ewr-collapsible-div');
+        const panel = this.querySelector('.ewr-collapsible');
         return panel ? panel.classList.contains('collapsed') : false;
     }
 }
@@ -2533,6 +2539,7 @@ class EwrDocumentList extends HTMLElement {
                 <div class="ewr-document-list-header">
                     <span class="ewr-document-list-title">${title}: <span class="ewr-document-list-count" id="${id}-count">0</span></span>
                 </div>
+                <div class="ewr-document-list-filters" id="${id}-filters" style="display: none;"></div>
                 <div class="ewr-document-list-content" id="${id}-content">
                     <div class="ewr-document-list-empty">
                         <div class="ewr-document-list-empty-icon">${emptyIcon}</div>
@@ -2542,6 +2549,48 @@ class EwrDocumentList extends HTMLElement {
                 </div>
             </div>
         `;
+
+        // Inject filter tag styles if not already present
+        this._injectFilterStyles();
+    }
+
+    _injectFilterStyles() {
+        if (document.getElementById('ewr-document-list-filter-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'ewr-document-list-filter-styles';
+        style.textContent = `
+            .ewr-document-list-filters {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 8px 16px 12px;
+                align-items: center;
+            }
+
+            .ewr-filter-tag {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 10px;
+                background: rgba(59, 130, 246, 0.15);
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                border-radius: 4px;
+                font-size: 12px;
+                color: #93c5fd;
+            }
+
+            .ewr-filter-tag-label {
+                color: #64748b;
+                font-weight: 500;
+            }
+
+            .ewr-filter-tag-value {
+                color: #e2e8f0;
+                font-weight: 600;
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     // Get content container element
@@ -2554,6 +2603,48 @@ class EwrDocumentList extends HTMLElement {
     getCountElement() {
         const id = this.getAttribute('id') || 'documentList';
         return this.querySelector(`#${id}-count`);
+    }
+
+    // Get filters container element
+    getFiltersElement() {
+        const id = this.getAttribute('id') || 'documentList';
+        return this.querySelector(`#${id}-filters`);
+    }
+
+    // Set filter tags to display active filters
+    // filters: { department: 'Value', docType: 'Value', subject: 'Value' }
+    setFilterTags(filters) {
+        const filtersEl = this.getFiltersElement();
+        if (!filtersEl) return;
+
+        const tags = [];
+
+        if (filters.department) {
+            tags.push(`<span class="ewr-filter-tag"><span class="ewr-filter-tag-label">Department:</span><span class="ewr-filter-tag-value">${filters.department}</span></span>`);
+        }
+        if (filters.docType) {
+            tags.push(`<span class="ewr-filter-tag"><span class="ewr-filter-tag-label">Doc Type:</span><span class="ewr-filter-tag-value">${filters.docType}</span></span>`);
+        }
+        if (filters.subject) {
+            tags.push(`<span class="ewr-filter-tag"><span class="ewr-filter-tag-label">Subject:</span><span class="ewr-filter-tag-value">${filters.subject}</span></span>`);
+        }
+
+        if (tags.length > 0) {
+            filtersEl.innerHTML = tags.join('');
+            filtersEl.style.display = 'flex';
+        } else {
+            filtersEl.innerHTML = '';
+            filtersEl.style.display = 'none';
+        }
+    }
+
+    // Clear filter tags
+    clearFilterTags() {
+        const filtersEl = this.getFiltersElement();
+        if (filtersEl) {
+            filtersEl.innerHTML = '';
+            filtersEl.style.display = 'none';
+        }
     }
 
     // Show loading state
@@ -2606,32 +2697,48 @@ class EwrDocumentList extends HTMLElement {
     }
 
     // Set documents and display in THREE-ROW grid
-    setDocuments(titles, onItemClick) {
+    // Accepts either array of strings (titles) or array of document objects
+    // Document object format: { title, department?, type?, subject? }
+    setDocuments(documents, onItemClick) {
         const content = this.getContentElement();
         const count = this.getCountElement();
         const onClickAttr = this.getAttribute('on-item-click');
 
         if (!content || !count) return;
 
-        const docCount = titles.length;
+        const docCount = documents.length;
         count.textContent = docCount;
 
         if (docCount > 0) {
-            // Build THREE-ROW grid HTML with file type icons
+            // Build THREE-ROW grid HTML with file type icons and category tags
             const gridHtml = `
                 <div class="ewr-document-grid-3row">
-                    ${titles.map(title => {
+                    ${documents.map(doc => {
+                        // Support both string (title only) and object format
+                        const isObject = typeof doc === 'object' && doc !== null;
+                        const title = isObject ? (doc.title || 'Untitled') : doc;
+                        const department = isObject ? doc.department : null;
+                        const docType = isObject ? doc.type : null;
+                        const subject = isObject ? doc.subject : null;
+
                         const escapedTitle = this._escapeHtml(title);
                         const escapedForClick = title.replace(/'/g, "\\'");
                         const clickHandler = onClickAttr ? `${onClickAttr}('${escapedForClick}')` :
                                            onItemClick ? `(${onItemClick})('${escapedForClick}')` : '';
                         const fileIcon = this._getFileIcon(title);
+
+                        // Build category tags HTML
+                        const tags = this._buildCategoryTags(department, docType, subject);
+
                         return `
-                            <div class="ewr-document-grid-item"
+                            <div class="ewr-document-grid-item ${tags ? 'has-tags' : ''}"
                                  title="${escapedTitle}"
                                  ${clickHandler ? `onclick="${clickHandler}"` : ''}>
                                 <span class="ewr-document-grid-icon">${fileIcon}</span>
-                                <div class="ewr-document-grid-title">${escapedTitle}</div>
+                                <div class="ewr-document-grid-info">
+                                    <div class="ewr-document-grid-title">${escapedTitle}</div>
+                                    ${tags}
+                                </div>
                             </div>
                         `;
                     }).join('')}
@@ -2641,6 +2748,31 @@ class EwrDocumentList extends HTMLElement {
         } else {
             this.showEmpty();
         }
+    }
+
+    // Build category tags HTML for a document
+    _buildCategoryTags(department, type, subject) {
+        const tags = [];
+
+        if (department) {
+            tags.push(`<span class="ewr-doc-tag tag-department" title="Department">${this._escapeHtml(this._formatCategoryName(department))}</span>`);
+        }
+        if (type) {
+            tags.push(`<span class="ewr-doc-tag tag-type" title="Document Type">${this._escapeHtml(this._formatCategoryName(type))}</span>`);
+        }
+        if (subject) {
+            tags.push(`<span class="ewr-doc-tag tag-subject" title="Subject">${this._escapeHtml(this._formatCategoryName(subject))}</span>`);
+        }
+
+        return tags.length > 0 ? `<div class="ewr-doc-tags">${tags.join('')}</div>` : '';
+    }
+
+    // Format category name for display (convert snake_case/kebab-case to Title Case)
+    _formatCategoryName(name) {
+        if (!name) return '';
+        return name
+            .replace(/[_-]/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
     }
 
     // Get file type icon based on extension (returns Lucide icon name)

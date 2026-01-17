@@ -203,25 +203,41 @@
 
 /* ============================================
    Chat Action Buttons
+   NOTE: Primary styles defined in buttons.css using design tokens.
+   These are fallback/override styles for chat-specific contexts.
    ============================================ */
 .ewr-button-send {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--accent-primary, #3b82f6) 0%, #2563eb 100%);
+    /* Uses unified chat sizing from buttons.css design tokens */
+    width: var(--btn-height-chat, 44px);
+    height: var(--btn-height-chat, 44px);
+    min-width: var(--btn-height-chat, 44px);
+    border-radius: var(--btn-radius-lg, 6px);
+    /* Light blue metallic gradient matching /sql page send button */
+    background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 30%, #7dd3fc 70%, #38bdf8 100%);
     border: none;
-    color: white;
-    font-size: 18px;
+    color: #0c4a6e;
+    font-size: var(--btn-font-chat, 16px);
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.2),
+        inset 0 1px 1px rgba(255, 255, 255, 0.6),
+        inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+    box-sizing: border-box;
 }
 
 .ewr-button-send:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 30%, #bae6fd 70%, #7dd3fc 100%);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.25),
+        inset 0 1px 1px rgba(255, 255, 255, 0.7),
+        inset 0 -1px 1px rgba(0, 0, 0, 0.1);
 }
 
 .ewr-button-send:disabled {
@@ -230,18 +246,32 @@
 }
 
 .ewr-button-clear {
-    padding: 8px 16px;
-    border-radius: 8px;
-    background: var(--bg-tertiary, #475569);
+    /* Uses unified chat sizing - same height as send button */
+    padding: var(--btn-padding-chat, 10px 20px);
+    height: var(--btn-height-chat, 44px);
+    min-width: 70px;
+    border-radius: var(--btn-radius-lg, 6px);
+    /* Metallic gray gradient */
+    background: linear-gradient(180deg, #9ca3af 0%, #6b7280 30%, #4b5563 70%, #374151 100%);
     border: none;
-    color: var(--text-primary, #f1f5f9);
-    font-size: 13px;
+    color: #ffffff;
+    font-size: var(--btn-font-md, 13px);
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.2),
+        inset 0 1px 1px rgba(255, 255, 255, 0.3),
+        inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
 }
 
 .ewr-button-clear:hover {
-    background: var(--border-primary, #64748b);
+    background: linear-gradient(180deg, #d1d5db 0%, #9ca3af 30%, #6b7280 70%, #4b5563 100%);
 }
 
 /* ============================================
