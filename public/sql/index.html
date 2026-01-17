@@ -1303,6 +1303,86 @@
 
         .loading-text {
             color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .loading-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .loading-detail {
+            color: var(--text-tertiary);
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .loading-detail:not(:empty)::before {
+            content: "- ";
+        }
+
+        /* Message Timing Metrics - Green arrows stacked horizontally */
+        .message-timing-metrics {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2px;
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
+            border-radius: 6px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .message-timing-metrics .timing-step {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .message-timing-metrics .timing-step.completed {
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.25) 0%, rgba(16, 185, 129, 0.12) 100%);
+        }
+
+        .message-timing-metrics .timing-label {
+            color: #10b981;
+            font-weight: 500;
+        }
+
+        .message-timing-metrics .timing-value {
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        .message-timing-metrics .timing-sep {
+            color: #10b981;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 0 2px;
+        }
+
+        .message-timing-metrics .timing-total-sep {
+            color: #10b981;
+            margin: 0 6px;
+            opacity: 0.5;
+        }
+
+        .message-timing-metrics .timing-total-step {
+            background: linear-gradient(180deg, rgba(34, 211, 238, 0.2) 0%, rgba(34, 211, 238, 0.1) 100%);
+        }
+
+        .message-timing-metrics .timing-total-step .timing-label {
+            color: #22d3ee;
+        }
+
+        .message-timing-metrics .timing-total-step .timing-value {
+            color: #67e8f9;
         }
 
         /* Modal Styles */
@@ -1532,6 +1612,10 @@
             }
         }
     </style>
+    <!-- Component scripts - load before body is parsed -->
+    <script src="../js/auth-client.js"></script>
+    <script src="../js/ewr-components.js"></script>
+    <script src="../js/sidebar.js"></script>
 </head>
 <body>
     <!-- Main Layout -->
@@ -1957,10 +2041,7 @@
         </div>
     </div>
 
-    <script src="../js/auth-client.js"></script>
-    <script src="../js/ewr-components.js"></script>
     <script src="../js/ewr-containers.js"></script>
-    <script src="../js/sidebar.js"></script>
     <script src="../js/system-status.js"></script>
     <script src="../js/feedback-widget.js"></script>
     <script>

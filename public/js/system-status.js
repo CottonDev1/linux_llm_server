@@ -142,8 +142,8 @@ function updateStatusIndicator(status) {
             }
         }
 
-        // Update any ewr-header-status components
-        document.querySelectorAll('ewr-header-status').forEach(component => {
+        // Update any ewr-website-status components
+        document.querySelectorAll('ewr-website-status').forEach(component => {
             if (typeof component.updateStatus === 'function') {
                 component.updateStatus(status, statusKey);
             }

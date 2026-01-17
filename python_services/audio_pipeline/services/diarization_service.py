@@ -102,11 +102,45 @@ class DiarizationService:
 
         try:
             # Load the pyannote speaker diarization pipeline
-            # Note: 'token' parameter replaced deprecated 'use_auth_token' in newer versions
-            self.pipeline = Pipeline.from_pretrained(
-                "pyannote/speaker-diarization-3.1",
-                token=self.HF_TOKEN
-            )
+            # Try different authentication methods for different pyannote versions
+            pipeline = None
+            model_name = "pyannote/speaker-diarization-3.1"
+
+            # Method 1: Try without token (works if model is cached or public)
+            try:
+                pipeline = Pipeline.from_pretrained(model_name)
+                print("Loaded pyannote pipeline without token")
+            except Exception as e1:
+                print(f"Loading without token failed: {e1}")
+
+                # Method 2: Try with use_auth_token (older pyannote versions)
+                if self.HF_TOKEN and pipeline is None:
+                    try:
+                        pipeline = Pipeline.from_pretrained(
+                            model_name,
+                            use_auth_token=self.HF_TOKEN
+                        )
+                        print("Loaded pyannote pipeline with use_auth_token")
+                    except TypeError as e2:
+                        print(f"Loading with use_auth_token failed: {e2}")
+
+                        # Method 3: Try with token parameter (some versions)
+                        try:
+                            pipeline = Pipeline.from_pretrained(
+                                model_name,
+                                token=self.HF_TOKEN
+                            )
+                            print("Loaded pyannote pipeline with token")
+                        except Exception as e3:
+                            print(f"Loading with token failed: {e3}")
+
+            if pipeline is None:
+                raise RuntimeError(
+                    "Could not load pyannote pipeline. "
+                    "Ensure HF_TOKEN is set or the model is cached locally."
+                )
+
+            self.pipeline = pipeline
 
             # Move to GPU if available
             if self.device == "cuda":

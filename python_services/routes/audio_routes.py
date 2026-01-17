@@ -178,13 +178,20 @@ async def analyze_audio_stream(
     user_ip = request.client.host if request.client else "Unknown"
 
     async def generate_progress():
+        import time
+        start_time = time.time()
+
         # Use an async queue to receive progress updates from the analysis
         progress_queue = asyncio.Queue()
         analysis_result = {"result": None, "error": None}
 
+        def get_elapsed():
+            """Get elapsed time since start"""
+            return round(time.time() - start_time, 1)
+
         async def progress_callback(step: str, message: str):
             """Callback that puts progress messages on the queue"""
-            await progress_queue.put({"step": step, "message": message})
+            await progress_queue.put({"step": step, "message": message, "elapsed": get_elapsed()})
 
         async def run_analysis():
             """Run the analysis in a background task"""
@@ -202,15 +209,29 @@ async def analyze_audio_stream(
                 await progress_queue.put(None)
 
         try:
+            # Get GPU info for display
+            gpu_info = "CPU"
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    gpu_id = int(os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0])
+                    gpu_name = torch.cuda.get_device_name(0)  # Get first visible device
+                    # Shorten common GPU names
+                    if "GeForce" in gpu_name:
+                        gpu_name = gpu_name.replace("NVIDIA GeForce ", "")
+                    gpu_info = f"GPU {gpu_id}: {gpu_name}"
+            except Exception:
+                pass
+
             # Progress: Starting
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'init', 'message': 'Initializing audio analysis...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'init', 'message': f'Initializing on {gpu_info}...', 'gpu': gpu_info, 'elapsed': get_elapsed()})}\n\n"
             await asyncio.sleep(0.1)
 
             from audio_pipeline import get_audio_analysis_service
             audio_service = get_audio_analysis_service()
 
             # Progress: Loading audio
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'load', 'message': 'Loading audio file...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'load', 'message': 'Loading audio file...', 'elapsed': get_elapsed()})}\n\n"
             await asyncio.sleep(0.1)
 
             # Get audio metadata first to show duration
@@ -219,17 +240,17 @@ async def analyze_audio_stream(
                 metadata = audio_service._get_audio_metadata(audio_path)
                 duration = metadata.get('duration_seconds', 0)
                 duration_str = f"{int(duration // 60)}m {int(duration % 60)}s"
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'metadata', 'message': f'Audio loaded: {duration_str} duration'})}\n\n"
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'metadata', 'message': f'Audio loaded: {duration_str} duration', 'elapsed': get_elapsed()})}\n\n"
             await asyncio.sleep(0.1)
 
             # Progress: Transcribing
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'transcribe', 'message': 'Transcribing audio with SenseVoice...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'transcribe', 'message': 'Transcribing audio with SenseVoice...', 'elapsed': get_elapsed()})}\n\n"
 
             # Check if chunking will be used
             if hasattr(audio_service, 'vad_available') and not audio_service.vad_available:
                 if duration > 25:
                     chunks = int(duration / 25) + 1
-                    yield f"data: {json.dumps({'type': 'progress', 'step': 'transcribe', 'message': f'Will process {chunks} audio chunks (long recording)...'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'progress', 'step': 'transcribe', 'message': f'Will process {chunks} audio chunks (long recording)...', 'elapsed': get_elapsed()})}\n\n"
 
             # Start the analysis in a background task
             analysis_task = asyncio.create_task(run_analysis())
@@ -244,11 +265,12 @@ async def analyze_audio_stream(
                         # Analysis complete
                         break
 
-                    # Yield progress event
-                    yield f"data: {json.dumps({'type': 'progress', 'step': progress['step'], 'message': progress['message']})}\n\n"
+                    # Yield progress event with timing info
+                    elapsed = progress.get('elapsed', get_elapsed())
+                    yield f"data: {json.dumps({'type': 'progress', 'step': progress['step'], 'message': progress['message'], 'elapsed': elapsed})}\n\n"
 
                 except asyncio.TimeoutError:
-                    yield f"data: {json.dumps({'type': 'progress', 'step': 'waiting', 'message': 'Still processing...'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'progress', 'step': 'waiting', 'message': 'Still processing...', 'elapsed': get_elapsed()})}\n\n"
 
             # Wait for the task to complete (should already be done)
             await analysis_task
@@ -267,7 +289,7 @@ async def analyze_audio_stream(
             # Progress: Emotions
             emotions = result.get("emotions", {}).get("detected", [])
             primary = result.get("emotions", {}).get("primary", "NEUTRAL")
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'emotions', 'message': f'Emotions detected: {primary} ({len(emotions)} total)'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'emotions', 'message': f'Emotions detected: {primary} ({len(emotions)} total)', 'elapsed': get_elapsed()})}\n\n"
             await asyncio.sleep(0.1)
 
             # Clean up temp file ONLY if it's in our upload directory
@@ -275,15 +297,29 @@ async def analyze_audio_stream(
             try:
                 audio_path_obj = Path(audio_path).resolve()
                 unanalyzed_dir_resolved = UNANALYZED_DIR.resolve()
-                # Only delete if the file is in our unanalyzed_uploads directory
-                if audio_path_obj.parent == unanalyzed_dir_resolved:
+                # Only delete if the file is inside our unanalyzed_uploads directory
+                # Use string comparison with normalized paths for reliability
+                audio_path_str = str(audio_path_obj)
+                unanalyzed_dir_str = str(unanalyzed_dir_resolved)
+                is_in_unanalyzed = audio_path_str.startswith(unanalyzed_dir_str + os.sep)
+
+                print(f"File cleanup check: audio_path={audio_path_str}")
+                print(f"File cleanup check: unanalyzed_dir={unanalyzed_dir_str}")
+                print(f"File cleanup check: is_in_unanalyzed={is_in_unanalyzed}")
+
+                if is_in_unanalyzed:
                     if os.path.exists(audio_path):
                         os.unlink(audio_path)
                         print(f"Cleaned up uploaded temp file: {audio_path}")
+                        yield f"data: {json.dumps({'type': 'progress', 'step': 'cleanup', 'message': 'Removed source file from uploads'})}\n\n"
+                    else:
+                        print(f"File already removed: {audio_path}")
                 else:
                     print(f"Preserved original file (not in upload dir): {audio_path}")
             except Exception as e:
-                print(f"Cleanup note: {e}")
+                print(f"Cleanup error: {e}")
+                import traceback
+                traceback.print_exc()
 
             # Save as pending
             pending_dir = Path(__file__).parent.parent / "audio-files"
@@ -300,12 +336,17 @@ async def analyze_audio_stream(
             with open(pending_file_path, 'w', encoding='utf-8') as f:
                 json.dump(result, f, indent=2, ensure_ascii=False)
 
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'save', 'message': f'Saved to pending: {json_filename}'})}\n\n"
+            total_time = get_elapsed()
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'save', 'message': f'Saved to pending: {json_filename}', 'elapsed': total_time})}\n\n"
 
-            # Final result
-            yield f"data: {json.dumps({'type': 'complete', 'result': result})}\n\n"
+            # Final result - include timing and GPU info
+            result["processing_info"] = {
+                "total_time_seconds": total_time,
+                "gpu": gpu_info
+            }
+            yield f"data: {json.dumps({'type': 'complete', 'result': result, 'total_time': total_time, 'gpu': gpu_info})}\n\n"
 
-            log_pipeline("AUDIO", user_ip, "Streaming audio analysis completed", json_filename)
+            log_pipeline("AUDIO", user_ip, "Streaming audio analysis completed", json_filename, details={"time": total_time, "gpu": gpu_info})
 
         except Exception as e:
             log_error("AUDIO", user_ip, "Streaming audio analysis failed", str(e))

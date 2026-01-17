@@ -608,7 +608,14 @@ function initializeCharts() {
         },
         scales: {
             x: {
-                display: false
+                display: true,
+                grid: {
+                    display: false
+                },
+                ticks: {
+                    color: 'rgba(255, 255, 255, 0.6)',
+                    font: { size: 10 }
+                }
             },
             y: {
                 beginAtZero: true,
@@ -616,7 +623,8 @@ function initializeCharts() {
                     color: 'rgba(255, 255, 255, 0.1)'
                 },
                 ticks: {
-                    color: 'rgba(255, 255, 255, 0.6)'
+                    color: 'rgba(255, 255, 255, 0.6)',
+                    font: { size: 10 }
                 }
             }
         },
@@ -627,49 +635,59 @@ function initializeCharts() {
         }
     };
 
-    // TPS Chart
+    // TPS Chart - Grouped vertical bar chart with minutes 1-5
     const tpsCtx = document.getElementById('tpsChart')?.getContext('2d');
     if (tpsCtx) {
         tpsChart = new Chart(tpsCtx, {
-            type: 'line',
+            type: 'bar',
             data: {
-                labels: [],
+                labels: ['1 min', '2 min', '3 min', '4 min', '5 min'],
                 datasets: [
                     {
                         label: 'SQL',
-                        data: [],
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: true,
-                        tension: 0.4
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 2,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.85
                     },
                     {
                         label: 'General',
-                        data: [],
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        fill: true,
-                        tension: 0.4
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: '#10b981',
+                        borderRadius: 2,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.85
                     },
                     {
                         label: 'Code',
-                        data: [],
-                        borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                        fill: true,
-                        tension: 0.4
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 2,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.85
                     },
                     {
                         label: 'Embedding',
-                        data: [],
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        fill: true,
-                        tension: 0.4
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 2,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.85
                     }
                 ]
             },
-            options: chartOptions
+            options: {
+                ...chartOptions,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: ${context.raw.toFixed(1)} t/s`
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -679,25 +697,17 @@ function initializeCharts() {
         requestsChart = new Chart(reqCtx, {
             type: 'bar',
             data: {
-                labels: ['SQL', 'General', 'Code', 'Embedding'],
+                labels: ['SQL', 'General', 'Code', 'Embed'],
                 datasets: [{
                     data: [0, 0, 0, 0],
-                    backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b']
+                    backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b'],
+                    borderRadius: 3
                 }]
             },
             options: {
                 ...chartOptions,
-                scales: {
-                    ...chartOptions.scales,
-                    x: {
-                        display: true,
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            color: 'rgba(255, 255, 255, 0.6)'
-                        }
-                    }
+                plugins: {
+                    legend: { display: false }
                 }
             }
         });
@@ -705,14 +715,28 @@ function initializeCharts() {
 }
 
 function updateCharts() {
-    // Update main TPS chart
+    // Update main TPS chart - aggregate into 5 minute buckets
     if (tpsChart) {
-        const labels = metricsHistory.sql.timestamps.slice(-30);
-        tpsChart.data.labels = labels;
-        tpsChart.data.datasets[0].data = metricsHistory.sql.tps.slice(-30);
-        tpsChart.data.datasets[1].data = metricsHistory.general.tps.slice(-30);
-        tpsChart.data.datasets[2].data = metricsHistory.code.tps.slice(-30);
-        tpsChart.data.datasets[3].data = metricsHistory.embedding.tps.slice(-30);
+        // Calculate average TPS for each minute (assuming ~10 samples per minute at 6s intervals)
+        const samplesPerMinute = 10;
+        const getMinuteAverages = (tpsArray) => {
+            const result = [0, 0, 0, 0, 0];
+            const data = tpsArray.slice(-50); // Last 5 minutes worth
+            for (let min = 0; min < 5; min++) {
+                const start = min * samplesPerMinute;
+                const end = Math.min(start + samplesPerMinute, data.length);
+                const slice = data.slice(start, end);
+                if (slice.length > 0) {
+                    result[min] = slice.reduce((a, b) => a + b, 0) / slice.length;
+                }
+            }
+            return result;
+        };
+
+        tpsChart.data.datasets[0].data = getMinuteAverages(metricsHistory.sql.tps);
+        tpsChart.data.datasets[1].data = getMinuteAverages(metricsHistory.general.tps);
+        tpsChart.data.datasets[2].data = getMinuteAverages(metricsHistory.code.tps);
+        tpsChart.data.datasets[3].data = getMinuteAverages(metricsHistory.embedding.tps);
         tpsChart.update('none');
     }
 

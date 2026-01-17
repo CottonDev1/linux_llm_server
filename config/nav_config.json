@@ -245,14 +245,14 @@
       }
     },
     "MarkdownViewer": {
-      "name": "Markdown Viewer",
+      "name": "Admin Guides",
       "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M20.56 18H3.44C2.65 18 2 17.37 2 16.59V7.41C2 6.63 2.65 6 3.44 6h17.12c.79 0 1.44.63 1.44 1.41v9.18c0 .78-.65 1.41-1.44 1.41zM6.5 15.5v-3l1.5 1.5 1.5-1.5v3h1.5v-6H9.5l-1.5 1.5-1.5-1.5H5v6h1.5zm7 0h3v-1.5h-1.5v-4.5H13.5v6zm5-4.5v1h1.5v1h-1.5v1h1.5v1.5H17v-6h3v1.5h-1.5z\"/></svg>",
       "order": 9.5,
       "expanded": false,
       "defaultRole": "user",
       "pages": {
         "index": {
-          "name": "Markdown Viewer",
+          "name": "Admin Guides",
           "order": 1,
           "requiredRole": "user",
           "icon": "<svg viewBox=\"0 0 24 24\"><path d=\"M20.56 18H3.44C2.65 18 2 17.37 2 16.59V7.41C2 6.63 2.65 6 3.44 6h17.12c.79 0 1.44.63 1.44 1.41v9.18c0 .78-.65 1.41-1.44 1.41zM6.5 15.5v-3l1.5 1.5 1.5-1.5v3h1.5v-6H9.5l-1.5 1.5-1.5-1.5H5v6h1.5zm7 0h3v-1.5h-1.5v-4.5H13.5v6zm5-4.5v1h1.5v1h-1.5v1h1.5v1.5H17v-6h3v1.5h-1.5z\"/></svg>"

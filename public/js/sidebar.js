@@ -13,7 +13,7 @@ const PUBLIC_NAV_CONFIG = {
                 id: 'dashboard',
                 name: 'Dashboard',
                 url: '/',
-                icon: '<ewr-icon name="home" size="20"></ewr-icon>'
+                icon: '<ewr-icon name="home" size="16"></ewr-icon>'
             }
         ]
     },
@@ -24,19 +24,19 @@ const PUBLIC_NAV_CONFIG = {
                 id: 'sql-query',
                 name: 'SQL Chat',
                 url: '/sql',
-                icon: '<ewr-icon name="database" size="20"></ewr-icon>'
+                icon: '<ewr-icon name="database" size="16"></ewr-icon>'
             },
             {
                 id: 'kb-assistant',
                 name: 'Knowledge Base Assistant',
                 url: '/knowledge-base/index.html',
-                icon: '<ewr-icon name="book-open" size="20"></ewr-icon>'
+                icon: '<ewr-icon name="book-open" size="16"></ewr-icon>'
             },
             {
                 id: 'document-browser',
                 name: 'Document Browser',
                 url: '/knowledge-base/documents.html',
-                icon: '<ewr-icon name="folder-open" size="20"></ewr-icon>'
+                icon: '<ewr-icon name="folder-open" size="16"></ewr-icon>'
             }
         ]
     }
@@ -82,7 +82,112 @@ function isActivePage(itemUrl) {
  * @param {string|null} userRole - The current user's role
  */
 function generateSidebarHTML(userRole = null) {
-    let html = '';
+    // Modern professional styles for public sidebar (matching admin)
+    let html = `
+        <style>
+            /* Public sidebar - modern professional styling */
+            .sidebar-nav .nav-section {
+                margin-bottom: 8px;
+            }
+
+            .sidebar-nav .nav-section-title {
+                padding: 8px 20px 6px;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+                color: #475569;
+            }
+
+            .sidebar-nav .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 9px 16px;
+                margin: 1px 8px;
+                color: #94a3b8;
+                text-decoration: none;
+                transition: all 0.15s ease;
+                position: relative;
+                border-radius: 6px;
+                font-size: 13px;
+            }
+
+            .sidebar-nav .nav-item::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 3px;
+                height: 0;
+                background: linear-gradient(180deg, #00d4ff 0%, #0099cc 100%);
+                border-radius: 0 2px 2px 0;
+                transition: height 0.15s ease;
+            }
+
+            .sidebar-nav .nav-item:hover {
+                background: rgba(255, 255, 255, 0.04);
+                color: #e2e8f0;
+            }
+
+            .sidebar-nav .nav-item:hover::before {
+                height: 16px;
+            }
+
+            .sidebar-nav .nav-item.active {
+                background: rgba(0, 212, 255, 0.08);
+                color: #00d4ff;
+            }
+
+            .sidebar-nav .nav-item.active::before {
+                height: 20px;
+            }
+
+            .sidebar-nav .nav-item.active .nav-icon {
+                color: #00d4ff;
+            }
+
+            .sidebar-nav .nav-icon {
+                width: 16px;
+                height: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                opacity: 0.7;
+                transition: opacity 0.15s ease;
+            }
+
+            .sidebar-nav .nav-item:hover .nav-icon {
+                opacity: 1;
+            }
+
+            .sidebar-nav .nav-text {
+                font-size: 13px;
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* Section divider between nav sections */
+            .sidebar-nav .nav-section + .nav-section::before {
+                content: '';
+                display: block;
+                height: 1px;
+                background: linear-gradient(90deg,
+                    transparent 0%,
+                    rgba(100, 116, 139, 0.4) 20%,
+                    rgba(148, 163, 184, 0.5) 50%,
+                    rgba(100, 116, 139, 0.4) 80%,
+                    transparent 100%
+                );
+                margin: 12px 16px;
+                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+            }
+        </style>
+    `;
 
     for (const [sectionKey, section] of Object.entries(PUBLIC_NAV_CONFIG)) {
         html += `
@@ -106,7 +211,7 @@ function generateSidebarHTML(userRole = null) {
         if (sectionKey === 'main' && userRole === 'admin') {
             html += `
                 <a href="/admin/index.html" class="nav-item" data-nav-id="admin-dashboard">
-                    <span class="nav-icon"><ewr-icon name="settings" size="20"></ewr-icon></span>
+                    <span class="nav-icon"><ewr-icon name="settings" size="16"></ewr-icon></span>
                     <span class="nav-text">Admin Dashboard</span>
                 </a>
             `;

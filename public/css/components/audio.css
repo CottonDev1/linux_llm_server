@@ -300,8 +300,9 @@ tr.expanded .expand-indicator {
 }
 
 .ewr-audio-file-count {
-    font-size: 14px;
-    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    color: #22c55e;
 }
 
 .ewr-audio-file-table-container {
@@ -345,13 +346,19 @@ tr.expanded .expand-indicator {
 }
 
 .ewr-audio-file-footer {
-    padding: 12px 20px;
+    padding: 10px 16px;
     border-top: 1px solid #334155;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     gap: 12px;
     flex-shrink: 0;
     background: rgba(0, 0, 0, 0.1);
+}
+
+.ewr-audio-file-footer-buttons {
+    display: flex;
+    gap: 8px;
 }
 
 /* Empty state styling */
@@ -408,4 +415,31 @@ tr.expanded .expand-indicator {
     flex: 1;
     min-height: 0;
     max-width: 800px;
+}
+
+
+/* ============================================
+   EWR Audio File List - Collapsible Styles
+   ============================================ */
+
+/* Collapsed state - rotate icon (uses .ewr-collapse-toggle from collapsible.css) */
+.ewr-audio-file-section.collapsed .ewr-collapse-toggle .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+/* Collapsed state - hide content */
+.ewr-audio-file-section.collapsed .ewr-audio-file-content {
+    display: none;
+}
+
+/* Collapsed state - rounded corners on header */
+.ewr-audio-file-section.collapsed .ewr-audio-file-header {
+    border-bottom: none;
+    border-radius: 8px;
+}
+
+/* Collapsed state - reduce min-height */
+.ewr-audio-file-section.collapsed {
+    min-height: auto;
+    flex: 0 0 auto;
 }

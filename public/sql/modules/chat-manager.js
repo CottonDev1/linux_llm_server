@@ -13,7 +13,7 @@ import { getConnectionConfig } from './connection-manager.js';
 import { scrollToBottom, escapeHtml, updateSendButton, autoResizeTextarea } from './ui-manager.js';
 import { updateTokenTrackerFromHistory, updateTokenDisplay, hideContextLimitAlert } from './token-tracker.js';
 import { createSqlBlock, createResultsTable } from './results-display.js';
-import { initPipelineTiming, updatePipelineStep, finalizePipelineTiming, clearTimingDisplay } from './pipeline-timing.js';
+import { initPipelineTiming, updatePipelineStep, finalizePipelineTiming, clearTimingDisplay, getPipelineTimingTracker, formatDuration } from './pipeline-timing.js';
 import { updateSessionMetrics, displaySessionMetrics } from './session-metrics.js';
 import { handlePositiveFeedback, handleNegativeFeedback } from './feedback-manager.js';
 
@@ -287,6 +287,66 @@ export function addUserMessage(text) {
 }
 
 /**
+ * Build a timing metrics display HTML for inclusion in messages
+ * @param {Object} timing - Timing data from result or tracker
+ * @returns {string} HTML string for timing metrics display
+ */
+function buildTimingMetricsHtml(timing) {
+    const tracker = getPipelineTimingTracker();
+    const stepTimings = tracker.stepTimings || {};
+
+    // If no timing data, return empty
+    if (Object.keys(stepTimings).length === 0 && !timing?.processing_time) {
+        return '';
+    }
+
+    const steps = [
+        { id: 'preprocessing', label: 'Analyze' },
+        { id: 'security', label: 'Security' },
+        { id: 'rules', label: 'Rules' },
+        { id: 'schema', label: 'Schema' },
+        { id: 'generating', label: 'Generate' },
+        { id: 'fixing', label: 'Fix' },
+        { id: 'executing', label: 'Execute' }
+    ];
+
+    let metricsHtml = '<div class="message-timing-metrics">';
+
+    steps.forEach((step, index) => {
+        const duration = stepTimings[step.id];
+        const value = duration !== undefined ? formatDuration(duration) : '--';
+        const statusClass = duration !== undefined ? 'completed' : '';
+
+        if (index > 0) {
+            metricsHtml += '<span class="timing-sep">›</span>';
+        }
+
+        metricsHtml += `
+            <span class="timing-step ${statusClass}">
+                <span class="timing-label">${step.label}</span>
+                <span class="timing-value">${value}</span>
+            </span>
+        `;
+    });
+
+    // Add total time
+    const totalMs = timing?.processing_time ? timing.processing_time * 1000 :
+                    (tracker.startTime ? Date.now() - tracker.startTime : null);
+    if (totalMs) {
+        metricsHtml += `
+            <span class="timing-total-sep">|</span>
+            <span class="timing-step timing-total-step">
+                <span class="timing-label">Total</span>
+                <span class="timing-value">${formatDuration(totalMs)}</span>
+            </span>
+        `;
+    }
+
+    metricsHtml += '</div>';
+    return metricsHtml;
+}
+
+/**
  * Add an assistant message to the chat display with query results
  * @param {Object} result - The query result object from the backend
  * @param {string} originalQuery - The original natural language query
@@ -336,11 +396,15 @@ export function addAssistantMessage(result, originalQuery) {
         </div>
     ` : '';
 
+    // Build timing metrics display
+    const timingMetricsHtml = buildTimingMetricsHtml(result);
+
     messageDiv.innerHTML = `
         <div class="message-text">
             ${responseText}
             ${hasResults ? createResultsTable(resultWithQuery) : tsqlButton}
         </div>
+        ${timingMetricsHtml}
         <div id="${feedbackContainerId}" class="feedback-buttons">
             <button class="feedback-btn-icon" data-message-id="${messageId}" data-feedback="positive" title="Helpful">👍</button>
             <button class="feedback-btn-icon" data-message-id="${messageId}" data-feedback="negative" title="Not helpful">👎</button>
@@ -618,11 +682,14 @@ export function addLoadingMessage() {
     const loadingId = `loading-${Date.now()}`;
     loadingDiv.id = loadingId;
 
-    // Simple loading indicator
+    // Loading indicator with step and detail display
     loadingDiv.innerHTML = `
         <div class="loading-indicator">
             <div class="spinner"></div>
-            <span class="loading-text" id="${loadingId}-text">Waiting on response</span>
+            <div class="loading-content">
+                <span class="loading-text" id="${loadingId}-text">Waiting on response</span>
+                <span class="loading-detail" id="${loadingId}-detail"></span>
+            </div>
         </div>
     `;
 

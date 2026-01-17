@@ -321,60 +321,61 @@
             font-size: 13px;
         }
 
-        /* Charts Section */
+        /* Charts Section - Horizontal compact layout */
         .charts-section {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        @media (max-width: 1200px) {
-            .charts-section {
-                grid-template-columns: 1fr;
-            }
+            display: flex;
+            gap: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 12px;
         }
 
         .chart-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 20px;
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 10px 12px;
+            min-width: 0;
         }
 
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .chart-title {
             font-weight: 600;
             color: var(--text-primary);
-            font-size: 16px;
+            font-size: 12px;
         }
 
         .chart-legend {
             display: flex;
-            gap: 16px;
-            font-size: 12px;
+            gap: 8px;
+            font-size: 10px;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             color: var(--text-muted);
         }
 
         .legend-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
         }
 
         .chart-container {
-            height: 200px;
+            height: 120px;
             position: relative;
         }
 
@@ -865,26 +866,68 @@
             margin-bottom: 20px;
         }
 
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
         .tab-btn {
-            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
             background: transparent;
             border: none;
-            color: var(--text-muted);
-            font-size: 14px;
+            color: #64748b;
+            font-size: 13px;
             font-weight: 500;
             border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .tab-btn .tab-icon {
+            font-size: 15px;
+            opacity: 0.7;
         }
 
         .tab-btn:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+            background: rgba(255, 255, 255, 0.04);
         }
 
         .tab-btn.active {
-            background: var(--accent-cyan);
-            color: #000;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(0, 153, 204, 0.1) 100%);
+            color: #00d4ff;
+            box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.3);
+        }
+
+        .tab-btn.active .tab-icon {
+            opacity: 1;
+        }
+
+        .tab-btn .tab-label {
+            font-weight: 500;
+        }
+
+        .tab-btn .tab-description {
+            display: none;
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 400;
+        }
+
+        @media (min-width: 1400px) {
+            .tab-btn .tab-description {
+                display: block;
+            }
         }
 
         .tab-content {
@@ -1720,6 +1763,9 @@
             color: #10b981;
         }
     </style>
+    <script src="../js/auth-client.js"></script>
+    <script src="../js/ewr-components.js"></script>
+    <script src="js/sidebar.js"></script>
 </head>
 <body>
     <!-- Toast Container -->
@@ -1740,11 +1786,26 @@
                 <div class="content-wrapper">
                     <!-- Tab Navigation -->
                     <div class="tab-nav">
-                        <button class="tab-btn active" onclick="switchTab('servers')">Server Status</button>
-                        <button class="tab-btn" onclick="switchTab('models')">Model Library</button>
-                        <button class="tab-btn" onclick="switchTab('optimization')">Optimization</button>
-                        <button class="tab-btn" onclick="switchTab('docs')">LLM Documentation</button>
-                        <button class="tab-btn" onclick="switchTab('logs')">System Logs</button>
+                        <button class="tab-btn active" onclick="switchTab('servers')">
+                            <span class="tab-icon">📊</span>
+                            <span class="tab-label">Status</span>
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('models')">
+                            <span class="tab-icon">🧠</span>
+                            <span class="tab-label">Models</span>
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('optimization')">
+                            <span class="tab-icon">⚡</span>
+                            <span class="tab-label">Config</span>
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('docs')">
+                            <span class="tab-icon">📖</span>
+                            <span class="tab-label">Docs</span>
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('logs')">
+                            <span class="tab-icon">📋</span>
+                            <span class="tab-label">Logs</span>
+                        </button>
                     </div>
 
                     <!-- Tab: Server Status -->
@@ -1816,6 +1877,56 @@
                             </div>
                         </div>
 
+                        <!-- Performance Charts - moved to top -->
+                        <div class="charts-section" style="margin-bottom: 20px;">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">Tokens Per Second (Last 5 min)</div>
+                                    <div class="chart-legend">
+                                        <div class="legend-item">
+                                            <span class="legend-dot" style="background: #3b82f6;"></span>
+                                            <span>SQL</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-dot" style="background: #10b981;"></span>
+                                            <span>General</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-dot" style="background: #8b5cf6;"></span>
+                                            <span>Code</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-dot" style="background: #f59e0b;"></span>
+                                            <span>Embedding</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="tpsChart"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">Request Count (Last 5 min)</div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="requestsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section Divider -->
+                        <div class="section-divider" style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(148, 163, 184, 0.3) 20%, rgba(148, 163, 184, 0.4) 50%, rgba(148, 163, 184, 0.3) 80%, transparent 100%); margin: 20px 0; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);"></div>
+
+                        <!-- LLM Servers Section -->
+                        <div class="section-header" style="margin-bottom: 16px;">
+                            <div>
+                                <div class="section-title">LLM Inference Servers</div>
+                                <div class="section-subtitle">llama.cpp model servers for SQL, general, code, and embedding tasks</div>
+                            </div>
+                        </div>
+
                         <div class="dashboard-grid">
                             <!-- Server Cards -->
                             <div class="servers-row">
@@ -1858,10 +1969,6 @@
                                             <div class="metric-item">
                                                 <div class="metric-label">Tokens/sec</div>
                                                 <div class="metric-value cyan" id="sqlTPS">--</div>
-                                            </div>
-                                            <div class="metric-item">
-                                                <div class="metric-label">Context</div>
-                                                <div class="metric-value" id="sqlContext">--</div>
                                             </div>
                                             <div class="metric-item">
                                                 <div class="metric-label">Requests</div>
@@ -1916,10 +2023,6 @@
                                                 <div class="metric-value cyan" id="generalTPS">--</div>
                                             </div>
                                             <div class="metric-item">
-                                                <div class="metric-label">Context</div>
-                                                <div class="metric-value" id="generalContext">--</div>
-                                            </div>
-                                            <div class="metric-item">
                                                 <div class="metric-label">Requests</div>
                                                 <div class="metric-value green" id="generalRequests">--</div>
                                             </div>
@@ -1970,10 +2073,6 @@
                                             <div class="metric-item">
                                                 <div class="metric-label">Tokens/sec</div>
                                                 <div class="metric-value cyan" id="codeTPS">--</div>
-                                            </div>
-                                            <div class="metric-item">
-                                                <div class="metric-label">Context</div>
-                                                <div class="metric-value" id="codeContext">--</div>
                                             </div>
                                             <div class="metric-item">
                                                 <div class="metric-label">Requests</div>
@@ -2028,10 +2127,6 @@
                                                 <div class="metric-value cyan" id="embeddingTPS">--</div>
                                             </div>
                                             <div class="metric-item">
-                                                <div class="metric-label">Context</div>
-                                                <div class="metric-value" id="embeddingContext">--</div>
-                                            </div>
-                                            <div class="metric-item">
                                                 <div class="metric-label">Requests</div>
                                                 <div class="metric-value green" id="embeddingRequests">--</div>
                                             </div>
@@ -2044,44 +2139,6 @@
                                 </div>
                             </div>
 
-                            <!-- Performance Charts -->
-                            <div class="charts-section">
-                                <div class="chart-card">
-                                    <div class="chart-header">
-                                        <div class="chart-title">Tokens Per Second (Last 5 min)</div>
-                                        <div class="chart-legend">
-                                            <div class="legend-item">
-                                                <span class="legend-dot" style="background: #3b82f6;"></span>
-                                                <span>SQL</span>
-                                            </div>
-                                            <div class="legend-item">
-                                                <span class="legend-dot" style="background: #10b981;"></span>
-                                                <span>General</span>
-                                            </div>
-                                            <div class="legend-item">
-                                                <span class="legend-dot" style="background: #8b5cf6;"></span>
-                                                <span>Code</span>
-                                            </div>
-                                            <div class="legend-item">
-                                                <span class="legend-dot" style="background: #f59e0b;"></span>
-                                                <span>Embedding</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="chart-container">
-                                        <canvas id="tpsChart"></canvas>
-                                    </div>
-                                </div>
-
-                                <div class="chart-card">
-                                    <div class="chart-header">
-                                        <div class="chart-title">Request Count (Last 5 min)</div>
-                                    </div>
-                                    <div class="chart-container">
-                                        <canvas id="requestsChart"></canvas>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -3055,9 +3112,6 @@ curl -L https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.
         </div>
     </div>
 
-    <script src="../js/auth-client.js"></script>
-    <script src="../js/ewr-components.js"></script>
-    <script src="js/sidebar.js"></script>
     <script src="js/llm-admin.js"></script>
     <script src="/js/sidebar-user.js"></script>
     <script>

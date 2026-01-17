@@ -2978,116 +2978,63 @@ customElements.define('ewr-icon', EwrIcon);
  *
  * Note: Requires sidebar.js to be loaded for PUBLIC_NAV_CONFIG
  */
+/**
+ * EWR-Sidebar Component
+ * Complete user sidebar with brand, navigation, and footer
+ * Uses Shadow DOM for style encapsulation
+ *
+ * @element ewr-sidebar
+ *
+ * @example
+ * <ewr-sidebar></ewr-sidebar>
+ */
 class EwrSidebar extends HTMLElement {
     constructor() {
         super();
+        this.attachShadow({ mode: 'open' });
     }
 
     connectedCallback() {
-        this.className = 'app-sidebar';
-        this.innerHTML = `
-            <style>
-                /* Sidebar brand layout - horizontal with left and right sections */
-                .sidebar-brand {
-                    padding: 12px 14px;
-                    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-                    display: flex;
-                    align-items: stretch;
-                    gap: 12px;
-                    background: rgba(0, 0, 0, 0.2);
-                    flex-shrink: 0;
-                }
-
-                .sidebar-brand-left {
-                    display: flex;
-                    align-items: center;
-                    flex-shrink: 0;
-                }
-
-                .sidebar-brand-right {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                    min-width: 0;
-                }
-
-                .sidebar-user-info {
-                    background: rgba(255, 255, 255, 0.04);
-                    border: 1px solid rgba(255, 255, 255, 0.06);
-                    border-radius: 6px;
-                    padding: 6px 10px;
-                }
-
-                .sidebar-user-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                }
-
-                .sidebar-user-row + .sidebar-user-row {
-                    margin-top: 2px;
-                }
-
-                .sidebar-user-label {
-                    font-size: 8px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    color: #64748b;
-                    min-width: 24px;
-                }
-
-                .sidebar-user-value {
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: #e2e8f0;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-
-                .sidebar-status-wrapper {
-                    /* Container for ewr-website-status */
-                }
-
-                .sidebar-status-wrapper ewr-website-status {
-                    display: block;
-                }
-            </style>
-            <div class="sidebar-brand">
-                <div class="sidebar-brand-left">
-                    <div class="sidebar-logo">EWR</div>
-                </div>
-                <div class="sidebar-brand-right">
-                    <div class="sidebar-user-info">
-                        <div class="sidebar-user-row">
-                            <span class="sidebar-user-label">User</span>
-                            <span class="sidebar-user-value" id="userName">Loading...</span>
-                        </div>
-                        <div class="sidebar-user-row">
-                            <span class="sidebar-user-label">Role</span>
-                            <span class="sidebar-user-value" id="userRole">USER</span>
-                        </div>
-                    </div>
-                    <div class="sidebar-status-wrapper">
-                        <ewr-website-status></ewr-website-status>
-                    </div>
-                </div>
-            </div>
-            <nav class="sidebar-nav"></nav>
-            <div class="sidebar-footer">
-                <ewr-logout-button></ewr-logout-button>
-            </div>
-        `;
-
-        // Initialize navigation after render
+        this.render();
         this.initNavigation();
         this.updateUserInfo();
     }
 
+    render() {
+        this.shadowRoot.innerHTML = `
+            <style>${this.getStyles()}</style>
+            <aside class="app-sidebar" part="sidebar">
+                <div class="sidebar-brand">
+                    <div class="sidebar-logo">EWR</div>
+                    <div class="user-info-card">
+                        <div class="user-info-row">
+                            <span class="user-info-label">User</span>
+                            <span class="sidebar-username" id="userName">Loading...</span>
+                        </div>
+                        <div class="user-info-row">
+                            <span class="user-info-label">Role</span>
+                            <span class="sidebar-username" id="userRole">User</span>
+                        </div>
+                    </div>
+                </div>
+                <nav class="sidebar-nav"></nav>
+                <div class="sidebar-footer">
+                    <ewr-logout-button></ewr-logout-button>
+                </div>
+            </aside>
+        `;
+    }
+
+    $(selector) {
+        return this.shadowRoot.querySelector(selector);
+    }
+
+    $$(selector) {
+        return this.shadowRoot.querySelectorAll(selector);
+    }
+
     initNavigation() {
-        const navContainer = this.querySelector('.sidebar-nav');
+        const navContainer = this.$('.sidebar-nav');
         if (!navContainer) return;
 
         // Use PUBLIC_NAV_CONFIG from sidebar.js if available
@@ -3144,18 +3091,327 @@ class EwrSidebar extends HTMLElement {
             const auth = new AuthClient();
             const user = await auth.getUser();
             if (user) {
+                const userNameEl = this.$('#userName');
+                const userRoleEl = this.$('#userRole');
+                if (userNameEl) userNameEl.textContent = user.username;
+                if (userRoleEl) userRoleEl.textContent = (user.role || 'User').toUpperCase();
+            }
+        } catch (error) {
+            console.error('Failed to update sidebar user info:', error);
+        }
+    }
+
+    getStyles() {
+        return `
+            :host {
+                display: block;
+                width: 240px;
+                height: 100vh;
+                position: fixed;
+                left: 0;
+                top: 0;
+                z-index: 1000;
+            }
+
+            .app-sidebar {
+                width: 240px;
+                height: 100vh;
+                background: linear-gradient(180deg, #1a2332 0%, #0f1419 100%);
+                display: flex;
+                flex-direction: column;
+                border-right: 1px solid rgba(255, 255, 255, 0.06);
+                box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4), 1px 0 0 rgba(255, 255, 255, 0.03);
+            }
+
+            /* Scrollbar styling */
+            .app-sidebar ::-webkit-scrollbar { width: 4px; }
+            .app-sidebar ::-webkit-scrollbar-track { background: transparent; }
+            .app-sidebar ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+            .app-sidebar ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+            /* Brand section */
+            .sidebar-brand {
+                padding: 16px 18px;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                background: rgba(0, 0, 0, 0.2);
+                flex-shrink: 0;
+            }
+
+            .sidebar-logo {
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 800;
+                font-size: 13px;
+                background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 15%, #0ea5e9 30%, #0284c7 50%, #0369a1 70%, #075985 85%, #0c4a6e 100%);
+                color: #ffffff;
+                flex-shrink: 0;
+                letter-spacing: -0.5px;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4), inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                position: relative;
+            }
+
+            .sidebar-logo::before {
+                content: '';
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                border-radius: 7px;
+                background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.2) 45%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0.2) 55%, transparent 100%);
+                pointer-events: none;
+            }
+
+            /* User info card */
+            .user-info-card {
+                flex: 1;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 8px;
+                padding: 8px 12px;
+                min-width: 0;
+            }
+
+            .user-info-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .user-info-row + .user-info-row { margin-top: 4px; }
+
+            .user-info-label {
+                font-size: 9px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+                color: #64748b;
+                min-width: 28px;
+            }
+
+            .sidebar-username {
+                font-size: 12px;
+                font-weight: 600;
+                color: #e2e8f0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 120px;
+            }
+
+            /* Navigation */
+            .sidebar-nav {
+                flex: 1;
+                padding: 12px 0;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+
+            .nav-section {
+                margin-bottom: 24px;
+            }
+
+            .nav-section-title {
+                padding: 8px 20px 6px;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                color: #475569;
+            }
+
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 9px 16px;
+                margin: 1px 8px;
+                color: #94a3b8;
+                text-decoration: none;
+                transition: all 0.15s ease;
+                position: relative;
+                border-radius: 6px;
+                font-size: 13px;
+                cursor: pointer;
+            }
+
+            .nav-item::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 3px;
+                height: 0;
+                background: linear-gradient(180deg, #00d4ff 0%, #0099cc 100%);
+                border-radius: 0 2px 2px 0;
+                transition: height 0.15s ease;
+            }
+
+            .nav-item:hover {
+                background: rgba(255, 255, 255, 0.04);
+                color: #e2e8f0;
+            }
+
+            .nav-item:hover::before { height: 16px; }
+
+            .nav-item.active {
+                background: rgba(0, 212, 255, 0.08);
+                color: #00d4ff;
+            }
+
+            .nav-item.active::before { height: 20px; }
+            .nav-item.active .nav-icon { color: #00d4ff; }
+
+            .nav-icon {
+                width: 18px;
+                height: 18px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                opacity: 0.7;
+                transition: opacity 0.15s ease;
+            }
+
+            .nav-item:hover .nav-icon { opacity: 1; }
+
+            .nav-text {
+                font-size: 13px;
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* Divider */
+            .nav-divider {
+                height: 1px;
+                background: linear-gradient(90deg, transparent 0%, rgba(100, 116, 139, 0.4) 20%, rgba(148, 163, 184, 0.5) 50%, rgba(100, 116, 139, 0.4) 80%, transparent 100%);
+                margin: 12px 16px;
+                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+            }
+
+            /* Footer */
+            .sidebar-footer {
+                padding: 12px 14px;
+                border-top: 1px solid rgba(148, 163, 184, 0.25);
+                margin-top: auto;
+                background: rgba(0, 0, 0, 0.15);
+                flex-shrink: 0;
+            }
+
+            .sidebar-footer ewr-logout-button {
+                display: block;
+                width: 100%;
+            }
+
+            /* Responsive */
+            @media (max-width: 768px) {
+                :host {
+                    transform: translateX(-100%);
+                    transition: transform 0.2s ease;
+                }
+
+                :host(.mobile-open) {
+                    transform: translateX(0);
+                }
+            }
+        `;
+    }
+}
+
+customElements.define('ewr-sidebar', EwrSidebar);
+
+
+/**
+ * EWR-Sidebar-Top Component
+ * Sidebar top section with user info and system status
+ *
+ * Usage:
+ * <ewr-sidebar-top></ewr-sidebar-top>
+ */
+class EwrSidebarTop extends HTMLElement {
+    constructor() {
+        super();
+    }
+
+    connectedCallback() {
+        this.className = 'sidebar-top';
+        this.innerHTML = `
+            <style>
+                .sidebar-top {
+                    padding: 14px 16px;
+                    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+                    background: rgba(0, 0, 0, 0.2);
+                    flex-shrink: 0;
+                }
+
+                .sidebar-user-grid {
+                    display: grid;
+                    grid-template-columns: auto 1fr;
+                    gap: 4px 12px;
+                    font-size: 13px;
+                }
+
+                .sidebar-user-label {
+                    font-weight: 500;
+                    color: #64748b;
+                }
+
+                .sidebar-user-value {
+                    font-weight: 500;
+                    color: #e2e8f0;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .sidebar-top-divider {
+                    height: 1px;
+                    background: linear-gradient(90deg, transparent 0%, #0ea5e9 50%, transparent 100%);
+                    margin: 12px 0 10px 0;
+                }
+            </style>
+            <div class="sidebar-user-grid">
+                <span class="sidebar-user-label">User</span>
+                <span class="sidebar-user-value" id="userName">Loading...</span>
+                <span class="sidebar-user-label">Role</span>
+                <span class="sidebar-user-value" id="userRole">User</span>
+            </div>
+            <div class="sidebar-top-divider"></div>
+            <ewr-website-status></ewr-website-status>
+        `;
+
+        // Load user info
+        this._loadUserInfo();
+    }
+
+    async _loadUserInfo() {
+        try {
+            if (typeof AuthClient === 'undefined') return;
+            const auth = new AuthClient();
+            const user = await auth.getUser();
+            if (user) {
                 const userNameEl = this.querySelector('#userName');
                 const userRoleEl = this.querySelector('#userRole');
                 if (userNameEl) userNameEl.textContent = user.username;
                 if (userRoleEl) userRoleEl.textContent = user.role || 'User';
             }
         } catch (error) {
-            console.error('Failed to update sidebar user info:', error);
+            console.error('Failed to load user info:', error);
         }
     }
 }
 
-customElements.define('ewr-sidebar', EwrSidebar);
+customElements.define('ewr-sidebar-top', EwrSidebarTop);
+
 
 /**
  * EWR-Page-Header Component
@@ -3220,7 +3476,144 @@ class EwrPageHeader extends HTMLElement {
 customElements.define('ewr-page-header', EwrPageHeader);
 
 
-// NOTE: ewr-website-status moved to Shadow DOM component at /js/components/status/ewr-website-status.js
+/**
+ * EWR-Website-Status Component
+ * Displays system status indicator with animated dot and text
+ *
+ * Usage:
+ * <ewr-website-status></ewr-website-status>
+ */
+class EwrWebsiteStatus extends HTMLElement {
+    constructor() {
+        super();
+        this._statusKey = 'connecting';
+        this._statusText = 'Connecting';
+    }
+
+    connectedCallback() {
+        this._render();
+    }
+
+    _render() {
+        const dotClass = this._getDotClass();
+        const textColor = this._getTextColor();
+
+        this.innerHTML = `
+            <style>
+                .ewr-website-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0;
+                    background: transparent;
+                }
+
+                .ewr-status-title {
+                    font-size: 9px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.8px;
+                    color: #64748b;
+                    min-width: 28px;
+                }
+
+                .ewr-status-indicator {
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                }
+
+                .ewr-status-dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                }
+
+                .ewr-status-dot.status-healthy {
+                    background: #10b981;
+                    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+                }
+
+                .ewr-status-dot.status-degraded {
+                    background: #f59e0b;
+                    box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+                }
+
+                .ewr-status-dot.status-error {
+                    background: #ef4444;
+                    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+                }
+
+                .ewr-status-dot.status-connecting {
+                    background: #64748b;
+                    animation: ewrStatusPulse 1.5s ease-in-out infinite;
+                }
+
+                @keyframes ewrStatusPulse {
+                    0%, 100% { opacity: 0.4; }
+                    50% { opacity: 1; }
+                }
+
+                .ewr-status-value {
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+            </style>
+            <div class="ewr-website-status">
+                <span class="ewr-status-title">Status</span>
+                <div class="ewr-status-indicator">
+                    <div class="ewr-status-dot ${dotClass}"></div>
+                    <span class="ewr-status-value" style="color: ${textColor}">${this._statusText}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    _getDotClass() {
+        switch (this._statusKey) {
+            case 'healthy': return 'status-healthy';
+            case 'degraded-llm':
+            case 'degraded': return 'status-degraded';
+            case 'error':
+            case 'offline': return 'status-error';
+            default: return 'status-connecting';
+        }
+    }
+
+    _getTextColor() {
+        switch (this._statusKey) {
+            case 'healthy': return '#10b981';
+            case 'degraded-llm':
+            case 'degraded': return '#f59e0b';
+            case 'error':
+            case 'offline': return '#ef4444';
+            default: return '#64748b';
+        }
+    }
+
+    _updateStatusText() {
+        switch (this._statusKey) {
+            case 'healthy': this._statusText = 'Online'; break;
+            case 'degraded-llm': this._statusText = 'LLM Down'; break;
+            case 'degraded': this._statusText = 'Degraded'; break;
+            case 'error': this._statusText = 'Error'; break;
+            case 'offline': this._statusText = 'Offline'; break;
+            default: this._statusText = 'Connecting';
+        }
+    }
+
+    /**
+     * Update status - called by system-status.js
+     */
+    updateStatus(status, statusKey) {
+        this._statusKey = statusKey;
+        this._updateStatusText();
+        this._render();
+    }
+}
+
+customElements.define('ewr-website-status', EwrWebsiteStatus);
 
 
 /**
@@ -4286,6 +4679,7 @@ class EwrAudioFileList extends HTMLElement {
         const showRefreshBtn = this.getAttribute('show-refresh-btn') === 'true';
         const refreshBtnId = this.getAttribute('refresh-btn-id') || 'refreshBtn';
         const refreshHandler = this.getAttribute('refresh-handler') || '';
+        const collapsed = this.hasAttribute('collapsed');
 
         // Icon SVG map
         const icons = {
@@ -4305,7 +4699,7 @@ class EwrAudioFileList extends HTMLElement {
                     <th style="width: 30px;"></th>
                     <th style="width: 24px;"></th>
                     <th style="min-width: 200px;">Filename</th>
-                    <th style="width: 60px;">Size</th>
+                    <th style="width: 75px;">Size</th>
                     <th style="min-width: 180px;">Status</th>
                     <th style="width: 60px;"></th>
                 </tr>
@@ -4317,7 +4711,7 @@ class EwrAudioFileList extends HTMLElement {
                 <tr>
                     <th style="width: 24px;"></th>
                     <th style="min-width: 200px;">Filename</th>
-                    <th style="width: 70px;">Duration</th>
+                    <th style="width: 75px;">Duration</th>
                     <th style="width: 80px;">Mood</th>
                     <th style="width: 60px;"></th>
                 </tr>
@@ -4334,33 +4728,55 @@ class EwrAudioFileList extends HTMLElement {
         }
 
         this.innerHTML = `
-            <div class="ewr-audio-file-section" id="${sectionId}">
+            <div class="ewr-audio-file-section ${collapsed ? 'collapsed' : ''}" id="${sectionId}">
                 <div class="ewr-audio-file-header">
                     <h3 class="ewr-audio-file-title">${title}</h3>
+                    <button class="ewr-collapse-toggle" type="button">
+                        <span class="toggle-icon">▼</span>
+                    </button>
                 </div>
-                <div class="ewr-audio-file-table-container">
-                    <table class="ewr-audio-file-table" id="${tableId}">
-                        <thead>
-                            ${tableHeaders}
-                        </thead>
-                        <tbody id="${bodyId}">
-                            <tr>
-                                <td colspan="${colCount}">
-                                    <div class="ewr-audio-empty-state">
-                                        <div class="ewr-audio-empty-state-icon">${iconSvg}</div>
-                                        <div class="ewr-audio-empty-state-text">${emptyText}</div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="ewr-audio-file-footer">
-                    <span class="ewr-audio-file-count" id="${countId}">0 files</span>
-                    <div class="ewr-audio-file-footer-buttons">${footerButtons}</div>
+                <div class="ewr-audio-file-content">
+                    <div class="ewr-audio-file-table-container">
+                        <table class="ewr-audio-file-table" id="${tableId}">
+                            <thead>
+                                ${tableHeaders}
+                            </thead>
+                            <tbody id="${bodyId}">
+                                <tr>
+                                    <td colspan="${colCount}">
+                                        <div class="ewr-audio-empty-state">
+                                            <div class="ewr-audio-empty-state-icon">${iconSvg}</div>
+                                            <div class="ewr-audio-empty-state-text">${emptyText}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="ewr-audio-file-footer">
+                        <span class="ewr-audio-file-count" id="${countId}">0 files</span>
+                        <div class="ewr-audio-file-footer-buttons">
+                            ${footerButtons}
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
+
+        // Setup collapse toggle
+        this._setupCollapseToggle(sectionId);
+    }
+
+    _setupCollapseToggle(sectionId) {
+        const toggle = this.querySelector('.ewr-collapse-toggle');
+        const section = this.querySelector('.ewr-audio-file-section');
+
+        if (toggle && section) {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                section.classList.toggle('collapsed');
+            });
+        }
     }
 }
 

@@ -116,8 +116,9 @@ body {
     justify-content: center;
     font-weight: 800;
     font-size: 14px;
-    /* Light blue to dark blue metallic gradient background */
-    background: linear-gradient(
+    /* Transparent background with gradient text */
+    background: transparent;
+    background-image: linear-gradient(
         180deg,
         #7dd3fc 0%,
         #38bdf8 15%,
@@ -127,20 +128,29 @@ body {
         #075985 85%,
         #0c4a6e 100%
     );
-    color: #ffffff;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
     flex-shrink: 0;
     letter-spacing: -0.5px;
-    /* Metallic 3D effect with box shadows */
-    box-shadow:
-        0 1px 2px rgba(0, 0, 0, 0.3),
-        inset 0 1px 1px rgba(255, 255, 255, 0.4),
-        inset 0 -1px 1px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(56, 189, 248, 0.3);
+    border: 1px solid rgba(56, 189, 248, 0.25);
     position: relative;
 }
 
-.user-info-card {
+.sidebar-brand-content {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.sidebar-brand-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #0ea5e9 50%, transparent 100%);
+    margin: 8px 0 6px 0;
+}
+
+.user-info-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
