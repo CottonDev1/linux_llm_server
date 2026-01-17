@@ -465,7 +465,7 @@ function updateUnanalyzedGrid() {
     if (state.unanalyzedFiles.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5">
+                <td colspan="6">
                     <div class="ewr-audio-empty-state">
                         <div class="ewr-audio-empty-state-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -493,6 +493,11 @@ function updateUnanalyzedGrid() {
 
         return `
             <tr class="${expanded ? 'expanded' : ''}" data-file-id="${fileItem.id}">
+                <td style="width: 30px;">
+                    <input type="checkbox" class="file-checkbox"
+                           ${fileItem.selected ? 'checked' : ''}
+                           onchange="toggleFileSelection('${fileItem.id}', this.checked)">
+                </td>
                 <td style="width: 24px;">
                     <span class="expand-indicator" onclick="toggleRowExpansion('${fileItem.id}')">▶</span>
                 </td>
@@ -517,7 +522,7 @@ function updateUnanalyzedGrid() {
                 </td>
             </tr>
             <tr class="ewr-expandable-row ${expanded ? 'expanded' : ''}" data-file-id="${fileItem.id}-expanded">
-                <td colspan="5">
+                <td colspan="6">
                     <div class="ewr-expandable-row-content">
                         <div class="ewr-audio-player-card compact">
                             <div class="ewr-audio-player-card-metadata">
@@ -540,7 +545,7 @@ function updateUnanalyzedGrid() {
 
     // Update counters
     elements.unanalyzedCount.textContent = `${state.unanalyzedFiles.length} files`;
-    updateProcessButton();
+    updateSelectedCount();
 }
 
 function toggleRowExpansion(fileId) {
@@ -558,13 +563,21 @@ function toggleRowExpansion(fileId) {
     updateUnanalyzedGrid();
 }
 
-function updateProcessButton() {
-    const count = state.unanalyzedFiles.length;
+function toggleFileSelection(fileId, selected) {
+    const fileItem = state.unanalyzedFiles.find(f => f.id === fileId);
+    if (fileItem) {
+        fileItem.selected = selected;
+        updateSelectedCount();
+    }
+}
+
+function updateSelectedCount() {
+    const count = state.unanalyzedFiles.filter(f => f.selected).length;
     // Update the button text
     if (!state.isProcessing) {
-        elements.processSelectedBtn.textContent = count > 0 ? `Process All (${count})` : 'Process All';
+        elements.processSelectedBtn.textContent = count > 0 ? `Process Selected (${count})` : 'Process Selected';
     }
-    // Keep button disabled if processing or no files
+    // Keep button disabled if processing or no files selected
     elements.processSelectedBtn.disabled = state.isProcessing || count === 0;
 }
 
@@ -623,14 +636,14 @@ function getStatusColor(status) {
 // ============================================
 
 async function processSelectedFiles() {
-    const filesToProcess = state.unanalyzedFiles;
+    const selectedFiles = state.unanalyzedFiles.filter(f => f.selected);
 
-    if (filesToProcess.length === 0) {
-        showToast('No files to process', 'error');
+    if (selectedFiles.length === 0) {
+        showToast('No files selected', 'error');
         return;
     }
 
-    const totalFiles = filesToProcess.length;
+    const totalFiles = selectedFiles.length;
     let processedCount = 0;
 
     // Set processing flag to keep button disabled
@@ -641,7 +654,7 @@ async function processSelectedFiles() {
     // Add processing counter to the left of the button
     updateProcessingCounter(1, totalFiles);
 
-    for (const fileItem of filesToProcess) {
+    for (const fileItem of selectedFiles) {
         try {
             fileItem.status = 'Processing';
             updateUnanalyzedGrid();
@@ -693,7 +706,7 @@ async function processSelectedFiles() {
     // Clear processing flag and update button state
     state.isProcessing = false;
     clearProcessingCounter();
-    updateProcessButton();
+    updateSelectedCount();
 
     showToast('Processing complete', 'success');
 }

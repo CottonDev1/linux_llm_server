@@ -4298,10 +4298,11 @@ class EwrAudioFileList extends HTMLElement {
 
         // Build table headers based on list type - normalized column widths
         let tableHeaders = '';
-        let colCount = 5;
+        let colCount = 6;
         if (listType === 'unanalyzed') {
             tableHeaders = `
                 <tr>
+                    <th style="width: 30px;"></th>
                     <th style="width: 24px;"></th>
                     <th style="min-width: 200px;">Filename</th>
                     <th style="width: 60px;">Size</th>
@@ -4311,6 +4312,7 @@ class EwrAudioFileList extends HTMLElement {
             `;
         } else {
             // pending type
+            colCount = 5;
             tableHeaders = `
                 <tr>
                     <th style="width: 24px;"></th>
