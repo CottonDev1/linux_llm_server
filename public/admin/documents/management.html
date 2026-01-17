@@ -370,8 +370,8 @@
                 if (docType) params.append('type', docType);
                 if (subject) params.append('subject', subject);
 
-                // Fetch filtered documents using aggregation
-                const aggResponse = await fetch(`http://localhost:8001/documents/aggregate?${params.toString()}`);
+                // Fetch filtered documents using aggregation via proxy
+                const aggResponse = await fetch(`/api/python/documents/aggregate?${params.toString()}`);
                 const aggData = await aggResponse.json();
 
                 if (aggData.success) {
@@ -427,7 +427,7 @@
             contentEl.textContent = 'Loading document content...';
 
             try {
-                const response = await fetch(`http://localhost:8001/documents/by-title?title=${encodeURIComponent(title)}`);
+                const response = await fetch(`/api/python/documents/by-title?title=${encodeURIComponent(title)}`);
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch document: ${response.statusText}`);
@@ -550,7 +550,7 @@
             const documentTitle = currentPreviewDocument.title;
 
             try {
-                const response = await fetch(`http://localhost:8001/documents/by-title?title=${encodeURIComponent(documentTitle)}`, {
+                const response = await fetch(`/api/python/documents/by-title?title=${encodeURIComponent(documentTitle)}`, {
                     method: 'DELETE'
                 });
 

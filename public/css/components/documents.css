@@ -572,3 +572,53 @@
 .ewr-document-grid-item:hover .ewr-doc-tag.tag-subject {
     background: rgba(16, 185, 129, 0.3);
 }
+
+/* ============================================
+   Document Tag Legend
+   Horizontal legend explaining tag colors
+   ============================================ */
+
+.ewr-doc-tag-legend {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 11px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.ewr-doc-tag-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ewr-doc-tag-legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.ewr-doc-tag-legend-swatch.swatch-department {
+    background: #a78bfa;
+    border: 1px solid #c4b5fd;
+    box-shadow: 0 0 4px rgba(167, 139, 250, 0.5);
+}
+
+.ewr-doc-tag-legend-swatch.swatch-type {
+    background: #60a5fa;
+    border: 1px solid #93c5fd;
+    box-shadow: 0 0 4px rgba(96, 165, 250, 0.5);
+}
+
+.ewr-doc-tag-legend-swatch.swatch-subject {
+    background: #34d399;
+    border: 1px solid #6ee7b7;
+    box-shadow: 0 0 4px rgba(52, 211, 153, 0.5);
+}
+
+.ewr-doc-tag-legend-label {
+    color: #e2e8f0;
+    font-weight: 500;
+}

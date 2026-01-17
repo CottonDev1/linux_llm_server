@@ -314,8 +314,8 @@
                 if (subject) params.append('subject', subject);
                 if (search) params.append('search', search);
 
-                // Fetch filtered documents
-                const response = await fetch(`http://localhost:8001/documents/aggregate?${params.toString()}`);
+                // Fetch filtered documents via proxy (works from any host)
+                const response = await fetch(`/api/python/documents/aggregate?${params.toString()}`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -399,7 +399,7 @@
             contentEl.textContent = 'Loading document content...';
 
             try {
-                const response = await fetch(`http://localhost:8001/documents/by-title?title=${encodeURIComponent(title)}`);
+                const response = await fetch(`/api/python/documents/by-title?title=${encodeURIComponent(title)}`);
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch document: ${response.statusText}`);

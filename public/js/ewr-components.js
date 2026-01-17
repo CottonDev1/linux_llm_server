@@ -2536,8 +2536,22 @@ class EwrDocumentList extends HTMLElement {
 
         this.innerHTML = `
             <div class="card-body ewr-document-list-container">
-                <div class="ewr-document-list-header">
+                <div class="ewr-document-list-header" style="position: relative;">
                     <span class="ewr-document-list-title">${title}: <span class="ewr-document-list-count" id="${id}-count">0</span></span>
+                    <div class="ewr-doc-tag-legend">
+                        <div class="ewr-doc-tag-legend-item">
+                            <span class="ewr-doc-tag-legend-swatch swatch-department"></span>
+                            <span class="ewr-doc-tag-legend-label">Department</span>
+                        </div>
+                        <div class="ewr-doc-tag-legend-item">
+                            <span class="ewr-doc-tag-legend-swatch swatch-type"></span>
+                            <span class="ewr-doc-tag-legend-label">Type</span>
+                        </div>
+                        <div class="ewr-doc-tag-legend-item">
+                            <span class="ewr-doc-tag-legend-swatch swatch-subject"></span>
+                            <span class="ewr-doc-tag-legend-label">Subject</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="ewr-document-list-filters" id="${id}-filters" style="display: none;"></div>
                 <div class="ewr-document-list-content" id="${id}-content">
@@ -3822,3 +3836,237 @@ class EwrChatWindow extends HTMLElement {
 }
 
 customElements.define('ewr-chat-window', EwrChatWindow);
+
+/**
+ * EwrAudioFileRow - Audio file row component for processing tables
+ *
+ * Attributes:
+ * - file-id: Unique identifier for the file
+ * - filename: Name of the audio file
+ * - size: File size in MB
+ * - status: Current processing status
+ * - selected: Whether the file is selected (checkbox)
+ * - expanded: Whether the row is expanded
+ * - audio-src: Source URL for the audio player
+ *
+ * Events:
+ * - selection-change: Fired when checkbox changes { fileId, selected }
+ * - expand-toggle: Fired when row expansion toggles { fileId, expanded }
+ * - delete-click: Fired when delete button clicked { fileId, filename }
+ */
+class EwrAudioFileRow extends HTMLElement {
+    constructor() {
+        super();
+        this._statusLog = [];
+        this._metrics = { elapsed: 0, gpu: null };
+    }
+
+    static get observedAttributes() {
+        return ['status', 'selected', 'expanded'];
+    }
+
+    connectedCallback() {
+        this.render();
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (oldValue !== newValue && this.isConnected) {
+            this.render();
+        }
+    }
+
+    get fileId() { return this.getAttribute('file-id') || ''; }
+    get filename() { return this.getAttribute('filename') || ''; }
+    get size() { return this.getAttribute('size') || '0'; }
+    get status() { return this.getAttribute('status') || 'Pending'; }
+    get selected() { return this.getAttribute('selected') === 'true'; }
+    get expanded() { return this.getAttribute('expanded') === 'true'; }
+    get audioSrc() { return this.getAttribute('audio-src') || ''; }
+
+    // Add a status log entry
+    addStatusLog(time, message, type = 'info') {
+        this._statusLog.push({ time, message, type });
+        this._updateStatusDisplay();
+    }
+
+    // Update metrics
+    setMetrics(elapsed, gpu) {
+        this._metrics = { elapsed, gpu };
+        this._updateMetricsDisplay();
+    }
+
+    // Clear status log
+    clearStatusLog() {
+        this._statusLog = [];
+        this._metrics = { elapsed: 0, gpu: null };
+        this._updateStatusDisplay();
+        this._updateMetricsDisplay();
+    }
+
+    _getLogColor(stepType) {
+        const colors = {
+            'init': '#94a3b8', 'load': '#94a3b8', 'transcribe': '#60a5fa',
+            'chunk': '#a78bfa', 'transcribe_done': '#34d399', 'diarize': '#fbbf24',
+            'diarize_done': '#34d399', 'diarize_error': '#f87171', 'summary': '#22d3ee',
+            'metadata': '#a78bfa', 'customer': '#34d399', 'content': '#60a5fa',
+            'llm': '#60a5fa', 'llm_done': '#34d399', 'save': '#4ade80',
+            'error': '#f87171', 'waiting': '#fbbf24', 'info': '#cbd5e1', 'cleanup': '#34d399'
+        };
+        return colors[stepType] || '#e2e8f0';
+    }
+
+    _escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    _updateStatusDisplay() {
+        const logContainer = this.querySelector('.ewr-audio-status-log');
+        if (!logContainer) return;
+
+        logContainer.innerHTML = this._statusLog.length > 0
+            ? this._statusLog.map(log =>
+                `<div class="ewr-audio-log-entry" style="color: ${this._getLogColor(log.type)}; white-space: nowrap; line-height: 1.5; font-weight: 500;">${this._escapeHtml(log.time)} ${this._escapeHtml(log.message)}</div>`
+            ).join('')
+            : `<div style="color: #94a3b8; font-size: 14px;">${this._escapeHtml(this.status)}</div>`;
+
+        // Scroll to bottom
+        setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 10);
+    }
+
+    _updateMetricsDisplay() {
+        let metricsContainer = this.querySelector('.ewr-audio-metrics');
+        const statusCell = this.querySelector('.ewr-status-cell');
+
+        if (this._metrics.elapsed || this._metrics.gpu) {
+            const metricsHtml = `
+                ${this._metrics.elapsed ? `<span style="color: #60a5fa;">⏱️ ${this._metrics.elapsed}s</span>` : ''}
+                ${this._metrics.gpu ? `<span style="color: #10b981;">🎮 ${this._escapeHtml(this._metrics.gpu)}</span>` : ''}
+            `;
+
+            if (metricsContainer) {
+                metricsContainer.innerHTML = metricsHtml;
+            } else if (statusCell) {
+                metricsContainer = document.createElement('div');
+                metricsContainer.className = 'ewr-audio-metrics';
+                metricsContainer.style.cssText = 'display: flex; gap: 16px; margin-top: 6px; font-size: 12px; padding: 4px 8px; background: rgba(59, 130, 246, 0.1); border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.2);';
+                metricsContainer.innerHTML = metricsHtml;
+                statusCell.appendChild(metricsContainer);
+            }
+        } else if (metricsContainer) {
+            metricsContainer.remove();
+        }
+    }
+
+    render() {
+        const fileId = this.fileId;
+        const filename = this.filename;
+        const size = this.size;
+        const selected = this.selected;
+        const expanded = this.expanded;
+        const audioSrc = this.audioSrc;
+
+        // Build status log HTML
+        const statusLogHtml = this._statusLog.length > 0
+            ? this._statusLog.map(log =>
+                `<div class="ewr-audio-log-entry" style="color: ${this._getLogColor(log.type)}; white-space: nowrap; line-height: 1.5; font-weight: 500;">${this._escapeHtml(log.time)} ${this._escapeHtml(log.message)}</div>`
+            ).join('')
+            : `<div style="color: #94a3b8; font-size: 14px;">${this._escapeHtml(this.status)}</div>`;
+
+        // Build metrics HTML
+        const metricsHtml = (this._metrics.elapsed || this._metrics.gpu) ? `
+            <div class="ewr-audio-metrics" style="display: flex; gap: 16px; margin-top: 6px; font-size: 12px; padding: 4px 8px; background: rgba(59, 130, 246, 0.1); border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                ${this._metrics.elapsed ? `<span style="color: #60a5fa;">⏱️ ${this._metrics.elapsed}s</span>` : ''}
+                ${this._metrics.gpu ? `<span style="color: #10b981;">🎮 ${this._escapeHtml(this._metrics.gpu)}</span>` : ''}
+            </div>
+        ` : '';
+
+        this.innerHTML = `
+            <tr class="ewr-audio-row ${expanded ? 'expanded' : ''}" data-file-id="${fileId}">
+                <td class="ewr-checkbox-cell">
+                    <input type="checkbox" class="ewr-file-checkbox" ${selected ? 'checked' : ''}>
+                </td>
+                <td style="width: 30px;">
+                    <span class="ewr-expand-indicator" style="cursor: pointer;">▶</span>
+                </td>
+                <td class="ewr-filename-cell" style="max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" title="${this._escapeHtml(filename)}">${this._escapeHtml(filename)}</td>
+                <td style="width: 70px;">${size}</td>
+                <td class="ewr-status-cell" style="min-width: 350px; max-width: 450px;">
+                    <div class="ewr-audio-status-log" style="max-height: 90px; overflow-y: auto; font-size: 14px; font-family: monospace; background: rgba(0,0,0,0.3); border-radius: 4px; padding: 6px 10px;">
+                        ${statusLogHtml}
+                    </div>
+                    ${metricsHtml}
+                </td>
+                <td style="width: 60px;">
+                    <button class="ewr-delete-file-button">Delete</button>
+                </td>
+            </tr>
+            <tr class="ewr-expandable-row ${expanded ? 'expanded' : ''}" data-file-id="${fileId}-expanded">
+                <td colspan="6">
+                    <div class="ewr-expandable-row-content">
+                        <div class="ewr-audio-player-card compact">
+                            <div class="ewr-audio-player-card-metadata">
+                                <div class="ewr-audio-player-card-metadata-item">
+                                    <div class="ewr-audio-player-card-metadata-label">Filename</div>
+                                    <div class="ewr-audio-player-card-metadata-value">${this._escapeHtml(filename)}</div>
+                                </div>
+                                <div class="ewr-audio-player-card-metadata-item">
+                                    <div class="ewr-audio-player-card-metadata-label">Size</div>
+                                    <div class="ewr-audio-player-card-metadata-value">${size} MB</div>
+                                </div>
+                            </div>
+                            <audio controls preload="metadata" src="${audioSrc}" style="width: 100%; margin-top: 12px;"></audio>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        // Set up event listeners
+        this._setupEventListeners();
+    }
+
+    _setupEventListeners() {
+        // Checkbox change
+        const checkbox = this.querySelector('.ewr-file-checkbox');
+        if (checkbox) {
+            checkbox.addEventListener('change', (e) => {
+                this.setAttribute('selected', e.target.checked ? 'true' : 'false');
+                this.dispatchEvent(new CustomEvent('selection-change', {
+                    detail: { fileId: this.fileId, selected: e.target.checked },
+                    bubbles: true
+                }));
+            });
+        }
+
+        // Expand indicator click
+        const expandIndicator = this.querySelector('.ewr-expand-indicator');
+        const filenameCell = this.querySelector('.ewr-filename-cell');
+        [expandIndicator, filenameCell].forEach(el => {
+            if (el) {
+                el.addEventListener('click', () => {
+                    const newExpanded = this.expanded ? 'false' : 'true';
+                    this.setAttribute('expanded', newExpanded);
+                    this.dispatchEvent(new CustomEvent('expand-toggle', {
+                        detail: { fileId: this.fileId, expanded: newExpanded === 'true' },
+                        bubbles: true
+                    }));
+                });
+            }
+        });
+
+        // Delete button click
+        const deleteBtn = this.querySelector('.ewr-delete-file-button');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                this.dispatchEvent(new CustomEvent('delete-click', {
+                    detail: { fileId: this.fileId, filename: this.filename },
+                    bubbles: true
+                }));
+            });
+        }
+    }
+}
+
+customElements.define('ewr-audio-file-row', EwrAudioFileRow);
