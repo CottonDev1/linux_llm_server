@@ -440,10 +440,18 @@ function generateNavigation(user, categories) {
 
     navHTML += '<div class="nav-divider"></div>';
 
+    // Track if we've added the external links divider
+    let externalLinksDividerAdded = false;
+
     // Generate categories from server data (filtered by location)
     filteredCategories.forEach(category => {
         // Handle external links (like Prefect)
         if (category.externalLink) {
+            // Add divider before the first external link
+            if (!externalLinksDividerAdded) {
+                navHTML += '<div class="nav-divider"></div>';
+                externalLinksDividerAdded = true;
+            }
             const target = category.openInNewTab ? '_blank' : '_self';
             const rel = category.openInNewTab ? 'rel="noopener noreferrer"' : '';
             navHTML += `
