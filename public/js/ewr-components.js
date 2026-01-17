@@ -4327,7 +4327,7 @@ class EwrAudioFileList extends HTMLElement {
         // Build footer buttons
         let footerButtons = '';
         if (showProcessBtn) {
-            footerButtons += `<button class="ewr-button ewr-button-small ewr-button-primary" id="${processBtnId}" disabled>Process Selected</button>`;
+            footerButtons += `<button class="ewr-button ewr-button-small ewr-button-primary" id="${processBtnId}" disabled>Process</button>`;
         }
         if (showRefreshBtn) {
             footerButtons += `<button class="ewr-button ewr-button-small ewr-button-secondary" id="${refreshBtnId}" ${refreshHandler ? `onclick="${refreshHandler}"` : ''}>Refresh</button>`;
@@ -4337,7 +4337,6 @@ class EwrAudioFileList extends HTMLElement {
             <div class="ewr-audio-file-section" id="${sectionId}">
                 <div class="ewr-audio-file-header">
                     <h3 class="ewr-audio-file-title">${title}</h3>
-                    <span class="ewr-audio-file-count" id="${countId}">0 files</span>
                 </div>
                 <div class="ewr-audio-file-table-container">
                     <table class="ewr-audio-file-table" id="${tableId}">
@@ -4357,7 +4356,8 @@ class EwrAudioFileList extends HTMLElement {
                     </table>
                 </div>
                 <div class="ewr-audio-file-footer">
-                    ${footerButtons}
+                    <span class="ewr-audio-file-count" id="${countId}">0 files</span>
+                    <div class="ewr-audio-file-footer-buttons">${footerButtons}</div>
                 </div>
             </div>
         `;

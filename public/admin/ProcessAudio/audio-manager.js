@@ -575,7 +575,7 @@ function updateSelectedCount() {
     const count = state.unanalyzedFiles.filter(f => f.selected).length;
     // Update the button text
     if (!state.isProcessing) {
-        elements.processSelectedBtn.textContent = count > 0 ? `Process Selected (${count})` : 'Process Selected';
+        elements.processSelectedBtn.textContent = 'Process';
     }
     // Keep button disabled if processing or no files selected
     elements.processSelectedBtn.disabled = state.isProcessing || count === 0;
