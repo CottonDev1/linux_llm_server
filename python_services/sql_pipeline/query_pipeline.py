@@ -84,6 +84,7 @@ class QueryPipeline:
         self._llm_service = None
         self._mongodb_service = None
         self._question_rewriter = None
+        self._syntax_guidance = None
 
         log_info("Query Pipeline", "Initialized")
 
@@ -108,6 +109,10 @@ class QueryPipeline:
         if self._syntax_fixer is None:
             from sql_pipeline.services.syntax_fixer import SyntaxFixer
             self._syntax_fixer = SyntaxFixer(rules_service=self._rules_service)
+
+        if not hasattr(self, '_syntax_guidance') or self._syntax_guidance is None:
+            from sql_pipeline.services.syntax_guidance_service import SyntaxGuidanceService
+            self._syntax_guidance = await SyntaxGuidanceService.get_instance()
 
         if self._preprocessor is None:
             from sql_pipeline.services.preprocessor import Preprocessor
@@ -197,11 +202,7 @@ class QueryPipeline:
                 processing_time=time.time() - start_time
             )
 
-        # 3. Rule matching (exact -> similarity -> keyword)
-        matched_rules = await self._find_matching_rules(question, database)
-        logger.info(f"Matched {len(matched_rules)} rules")
-
-        # Check for exact match bypass
+        # 3. Check for exact match first (fast path)
         exact_match = await self._rules_service.find_exact_match(question, database)
         if exact_match and exact_match.example:
             logger.info(f"EXACT MATCH BYPASS: Using SQL from rule '{exact_match.rule_id}'")
@@ -229,16 +230,49 @@ class QueryPipeline:
                 rule_id=exact_match.rule_id,
             )
 
-        # 4. Schema loading (compressed)
-        schema = None
-        if options.include_schema:
-            schema_info = await self._schema_service.get_relevant_schema(
-                database=database,
-                question=question,
-                max_tables=4
-            )
-            schema = self._schema_service.format_schema_for_prompt(schema_info.tables)
-            logger.info(f"Loaded schema with {len(schema_info.tables)} relevant tables")
+        # 4. PARALLEL LOADING: Rules, Schema, and Syntax Guidance
+        # Run these concurrently to minimize latency
+        import asyncio
+
+        async def load_rules():
+            return await self._find_matching_rules(question, database)
+
+        async def load_schema():
+            if options.include_schema:
+                schema_info = await self._schema_service.get_relevant_schema(
+                    database=database,
+                    question=question,
+                    max_tables=4
+                )
+                return self._schema_service.format_schema_for_prompt(schema_info.tables), len(schema_info.tables)
+            return None, 0
+
+        async def load_syntax_guidance():
+            if self._syntax_guidance:
+                return await self._syntax_guidance.load_guidelines()
+            return None
+
+        # Execute all three in parallel
+        logger.info("Starting parallel loading: rules, schema, syntax guidance")
+        rules_result, schema_result, syntax_result = await asyncio.gather(
+            load_rules(),
+            load_schema(),
+            load_syntax_guidance(),
+            return_exceptions=True
+        )
+
+        # Handle results (with error checking)
+        matched_rules = rules_result if not isinstance(rules_result, Exception) else []
+        schema, schema_table_count = schema_result if not isinstance(schema_result, Exception) else (None, 0)
+
+        if isinstance(rules_result, Exception):
+            logger.warning(f"Rules loading failed: {rules_result}")
+        if isinstance(schema_result, Exception):
+            logger.warning(f"Schema loading failed: {schema_result}")
+        if isinstance(syntax_result, Exception):
+            logger.warning(f"Syntax guidance loading failed: {syntax_result}")
+
+        logger.info(f"Parallel loading complete: {len(matched_rules)} rules, {schema_table_count} tables")
 
         # 5. LLM generation
         sql, token_usage = await self._generate_sql(question, database, schema, matched_rules)
@@ -876,11 +910,17 @@ class QueryPipeline:
         Returns:
             Tuple of (Generated SQL query, token_usage dict)
         """
-        # Build prompt
+        # Build prompt with syntax guidance BEFORE generation
         prompt_parts = [
             "You are an expert SQL Server query generator. Generate a T-SQL query for the following question.",
             f"\nDATABASE: {database}",
         ]
+
+        # Add T-SQL syntax guidance to prevent common mistakes
+        if self._syntax_guidance:
+            syntax_guidance = self._syntax_guidance.format_for_prompt(min_priority=7)
+            if syntax_guidance:
+                prompt_parts.append(f"\n{syntax_guidance}")
 
         # Add conversation history for context
         if conversation_history:

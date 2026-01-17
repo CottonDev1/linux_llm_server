@@ -91,41 +91,30 @@ try:
 except ImportError:
     _sql_security_available = False
 
-from prefect_pipelines.document_flow import (
-    document_flow,
-    run_document_flow,
-    detect_type_task,
-    extract_content_task,
-    chunk_document_task,
-    embed_document_task
-)
+# Document flow - thin wrapper around actual services
+try:
+    from prefect_pipelines.document_flow import (
+        document_flow,
+        run_document_flow,
+    )
+    _document_flow_available = True
+except ImportError:
+    _document_flow_available = False
 
-from prefect_pipelines.audio_flow import (
-    audio_flow,
-    run_audio_flow,
-    load_audio_task,
-    transcribe_audio_task,
-    summarize_audio_task,
-    store_audio_task
-)
+# Audio flow - thin wrapper around actual AudioAnalysisService
+try:
+    from prefect_pipelines.audio_flow import (
+        audio_flow,
+        run_audio_flow,
+    )
+    _audio_flow_available = True
+except ImportError:
+    _audio_flow_available = False
 
-# SQL Query flow for natural language to SQL conversion
+# SQL Query flow - thin wrapper around actual QueryPipeline
 try:
     from prefect_pipelines.sql_query_flow import (
         sql_query_flow,
-        run_sql_query_flow,
-        run_sql_query_flow_async,
-        security_validation_task,
-        cache_check_task,
-        rule_matching_task,
-        schema_retrieval_task as sql_schema_retrieval_task,
-        query_generation_task,
-        syntax_fixing_task,
-        column_validation_task,
-        security_sql_validation_task,
-        query_execution_task,
-        result_formatting_task,
-        learning_storage_task
     )
     _sql_query_flow_available = True
 except ImportError:
@@ -241,35 +230,14 @@ __all__ = [
     "full_security_check",
     "log_security_event",
     "SecurityValidationResult",
-    # Document
+    # Document (thin wrapper around actual services)
     "document_flow",
     "run_document_flow",
-    "detect_type_task",
-    "extract_content_task",
-    "chunk_document_task",
-    "embed_document_task",
-    # Audio
+    # Audio (thin wrapper around actual AudioAnalysisService)
     "audio_flow",
     "run_audio_flow",
-    "load_audio_task",
-    "transcribe_audio_task",
-    "summarize_audio_task",
-    "store_audio_task",
-    # SQL Query (natural language to SQL conversion)
+    # SQL Query (thin wrapper around actual QueryPipeline)
     "sql_query_flow",
-    "run_sql_query_flow",
-    "run_sql_query_flow_async",
-    "security_validation_task",
-    "cache_check_task",
-    "rule_matching_task",
-    "sql_schema_retrieval_task",
-    "query_generation_task",
-    "syntax_fixing_task",
-    "column_validation_task",
-    "security_sql_validation_task",
-    "query_execution_task",
-    "result_formatting_task",
-    "learning_storage_task",
     # Agent Learning (conditionally available)
     "run_agent_learning_flow",
     "collect_learning_stats_task",
