@@ -391,9 +391,13 @@ tr.expanded .expand-indicator {
     flex-direction: column;
     height: calc(100vh - 120px);
     gap: 24px;
-    max-width: 2100px;
     margin: 0;
     padding: 0 24px;
+}
+
+/* Constrain all direct children to max-width */
+.ewr-audio-page-container > * {
+    max-width: 800px;
 }
 
 /* Tables column - vertical stacking without shared scroll */
@@ -403,4 +407,5 @@ tr.expanded .expand-indicator {
     gap: 20px;
     flex: 1;
     min-height: 0;
+    max-width: 800px;
 }
