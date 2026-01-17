@@ -32,10 +32,8 @@ function initElements() {
         pollBtn: document.getElementById('pollBtn'),
 
         // Unanalyzed grid
-        selectAllUnanalyzed: document.getElementById('selectAllUnanalyzed'),
         unanalyzedBody: document.getElementById('unanalyzedBody'),
         unanalyzedCount: document.getElementById('unanalyzedCount'),
-        selectedCount: document.getElementById('selectedCount'),
         processSelectedBtn: document.getElementById('processSelectedBtn'),
 
         // Pending grid
@@ -153,11 +151,6 @@ function setupEventListeners() {
     // Directory polling
     if (elements.pollBtn) {
         elements.pollBtn.addEventListener('click', pollDirectory);
-    }
-
-    // Select all checkbox
-    if (elements.selectAllUnanalyzed) {
-        elements.selectAllUnanalyzed.addEventListener('change', handleSelectAll);
     }
 
     // Process button
@@ -472,7 +465,7 @@ function updateUnanalyzedGrid() {
     if (state.unanalyzedFiles.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6">
+                <td colspan="5">
                     <div class="ewr-audio-empty-state">
                         <div class="ewr-audio-empty-state-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -500,17 +493,12 @@ function updateUnanalyzedGrid() {
 
         return `
             <tr class="${expanded ? 'expanded' : ''}" data-file-id="${fileItem.id}">
-                <td class="ewr-checkbox-cell">
-                    <input type="checkbox" class="ewr-file-checkbox"
-                           ${fileItem.selected ? 'checked' : ''}
-                           onchange="toggleFileSelection('${fileItem.id}', this.checked)">
-                </td>
-                <td style="width: 30px;">
+                <td style="width: 24px;">
                     <span class="expand-indicator" onclick="toggleRowExpansion('${fileItem.id}')">▶</span>
                 </td>
-                <td class="filename-cell" onclick="toggleRowExpansion('${fileItem.id}')" style="max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(fileItem.filename)}">${escapeHtml(fileItem.filename)}</td>
-                <td style="width: 70px;">${fileItem.size}</td>
-                <td class="status-cell" style="min-width: 350px; max-width: 450px;">
+                <td class="filename-cell" onclick="toggleRowExpansion('${fileItem.id}')" style="min-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(fileItem.filename)}">${escapeHtml(fileItem.filename)}</td>
+                <td style="width: 60px;">${fileItem.size}</td>
+                <td class="status-cell" style="min-width: 180px;">
                     <div class="status-log-container" style="max-height: 90px; overflow-y: auto; font-size: 14px; font-family: monospace; background: rgba(0,0,0,0.3); border-radius: 4px; padding: 6px 10px;">
                         ${fileItem.statusLog && fileItem.statusLog.length > 0
                             ? fileItem.statusLog.map(log => `<div class="status-log-entry" style="color: ${getLogColorBright(log.type)}; white-space: nowrap; line-height: 1.5; font-weight: 500;">${escapeHtml(log.time)} ${escapeHtml(log.message)}</div>`).join('')
@@ -529,7 +517,7 @@ function updateUnanalyzedGrid() {
                 </td>
             </tr>
             <tr class="ewr-expandable-row ${expanded ? 'expanded' : ''}" data-file-id="${fileItem.id}-expanded">
-                <td colspan="6">
+                <td colspan="5">
                     <div class="ewr-expandable-row-content">
                         <div class="ewr-audio-player-card compact">
                             <div class="ewr-audio-player-card-metadata">
@@ -551,8 +539,8 @@ function updateUnanalyzedGrid() {
     }).join('');
 
     // Update counters
-    elements.unanalyzedCount.textContent = `File count: ${state.unanalyzedFiles.length}`;
-    updateSelectedCount();
+    elements.unanalyzedCount.textContent = `${state.unanalyzedFiles.length} files`;
+    updateProcessButton();
 }
 
 function toggleRowExpansion(fileId) {
@@ -570,27 +558,13 @@ function toggleRowExpansion(fileId) {
     updateUnanalyzedGrid();
 }
 
-function toggleFileSelection(fileId, selected) {
-    const fileItem = state.unanalyzedFiles.find(f => f.id === fileId);
-    if (fileItem) {
-        fileItem.selected = selected;
-        updateSelectedCount();
-    }
-}
-
-function handleSelectAll(e) {
-    const checked = e.target.checked;
-    state.unanalyzedFiles.forEach(f => f.selected = checked);
-    updateUnanalyzedGrid();
-}
-
-function updateSelectedCount() {
-    const count = state.unanalyzedFiles.filter(f => f.selected).length;
-    // Update the button text (no parentheses or count shown)
+function updateProcessButton() {
+    const count = state.unanalyzedFiles.length;
+    // Update the button text
     if (!state.isProcessing) {
-        elements.processSelectedBtn.textContent = 'Process Selected';
+        elements.processSelectedBtn.textContent = count > 0 ? `Process All (${count})` : 'Process All';
     }
-    // Keep button disabled if processing or no files selected
+    // Keep button disabled if processing or no files
     elements.processSelectedBtn.disabled = state.isProcessing || count === 0;
 }
 
@@ -649,14 +623,14 @@ function getStatusColor(status) {
 // ============================================
 
 async function processSelectedFiles() {
-    const selectedFiles = state.unanalyzedFiles.filter(f => f.selected);
+    const filesToProcess = state.unanalyzedFiles;
 
-    if (selectedFiles.length === 0) {
-        showToast('No files selected', 'error');
+    if (filesToProcess.length === 0) {
+        showToast('No files to process', 'error');
         return;
     }
 
-    const totalFiles = selectedFiles.length;
+    const totalFiles = filesToProcess.length;
     let processedCount = 0;
 
     // Set processing flag to keep button disabled
@@ -667,7 +641,7 @@ async function processSelectedFiles() {
     // Add processing counter to the left of the button
     updateProcessingCounter(1, totalFiles);
 
-    for (const fileItem of selectedFiles) {
+    for (const fileItem of filesToProcess) {
         try {
             fileItem.status = 'Processing';
             updateUnanalyzedGrid();
@@ -719,7 +693,7 @@ async function processSelectedFiles() {
     // Clear processing flag and update button state
     state.isProcessing = false;
     clearProcessingCounter();
-    updateSelectedCount();
+    updateProcessButton();
 
     showToast('Processing complete', 'success');
 }

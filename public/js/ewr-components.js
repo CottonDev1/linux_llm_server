@@ -4263,7 +4263,6 @@ customElements.define('ewr-audio-upload', EwrAudioUpload);
  *     section-id="unanalyzedSection"
  *     empty-icon="folder"
  *     empty-text="No files added"
- *     show-checkbox="true"
  *     show-process-btn="true"
  *     process-btn-id="processSelectedBtn">
  * </ewr-audio-file-list>
@@ -4282,7 +4281,6 @@ class EwrAudioFileList extends HTMLElement {
         const sectionId = this.getAttribute('section-id') || `${listType}Section`;
         const emptyIcon = this.getAttribute('empty-icon') || 'folder';
         const emptyText = this.getAttribute('empty-text') || 'No files';
-        const showCheckbox = this.getAttribute('show-checkbox') !== 'false';
         const showProcessBtn = this.getAttribute('show-process-btn') === 'true';
         const processBtnId = this.getAttribute('process-btn-id') || 'processSelectedBtn';
         const showRefreshBtn = this.getAttribute('show-refresh-btn') === 'true';
@@ -4298,17 +4296,17 @@ class EwrAudioFileList extends HTMLElement {
 
         const iconSvg = icons[emptyIcon] || icons['folder'];
 
-        // Build table headers based on list type
+        // Build table headers based on list type - normalized column widths
         let tableHeaders = '';
+        let colCount = 5;
         if (listType === 'unanalyzed') {
             tableHeaders = `
                 <tr>
-                    ${showCheckbox ? '<th style="width: 30px;"><input type="checkbox" class="ewr-file-checkbox" id="selectAll' + listType.charAt(0).toUpperCase() + listType.slice(1) + '" checked></th>' : ''}
                     <th style="width: 24px;"></th>
-                    <th>Filename</th>
-                    <th style="width: 50px;">Size</th>
-                    <th style="min-width: 200px;">Status</th>
-                    <th style="width: 50px;"></th>
+                    <th style="min-width: 200px;">Filename</th>
+                    <th style="width: 60px;">Size</th>
+                    <th style="min-width: 180px;">Status</th>
+                    <th style="width: 60px;"></th>
                 </tr>
             `;
         } else {
@@ -4316,10 +4314,9 @@ class EwrAudioFileList extends HTMLElement {
             tableHeaders = `
                 <tr>
                     <th style="width: 24px;"></th>
-                    <th>Filename</th>
-                    <th style="width: 60px;">Duration</th>
-                    <th style="width: 70px;">Mood</th>
-                    <th style="width: 60px;">Status</th>
+                    <th style="min-width: 200px;">Filename</th>
+                    <th style="width: 70px;">Duration</th>
+                    <th style="width: 80px;">Mood</th>
                     <th style="width: 60px;"></th>
                 </tr>
             `;
@@ -4347,7 +4344,7 @@ class EwrAudioFileList extends HTMLElement {
                         </thead>
                         <tbody id="${bodyId}">
                             <tr>
-                                <td colspan="6">
+                                <td colspan="${colCount}">
                                     <div class="ewr-audio-empty-state">
                                         <div class="ewr-audio-empty-state-icon">${iconSvg}</div>
                                         <div class="ewr-audio-empty-state-text">${emptyText}</div>
