@@ -265,13 +265,8 @@ tr.expanded .expand-indicator {
     border: 1px solid #334155;
     border-radius: 8px;
     overflow: hidden;
-    flex-shrink: 0;
-}
-
-/* Allow sections to grow when they have content */
-.ewr-audio-file-section.has-content {
     flex: 1;
-    min-height: 250px;
+    min-height: 200px;
 }
 
 .ewr-audio-file-header {
@@ -299,6 +294,7 @@ tr.expanded .expand-indicator {
 .ewr-audio-file-table-container {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
 }
 
@@ -387,12 +383,11 @@ tr.expanded .expand-indicator {
     padding: 0 24px;
 }
 
-/* Tables column - vertical stacking */
+/* Tables column - vertical stacking without shared scroll */
 .ewr-audio-tables-column {
     display: flex;
     flex-direction: column;
     gap: 20px;
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
 }
