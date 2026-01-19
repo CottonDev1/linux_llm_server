@@ -2980,8 +2980,7 @@ customElements.define('ewr-icon', EwrIcon);
  */
 /**
  * EWR-Sidebar-Header Component
- * Sidebar header with logo, user info, and system status
- * Uses Shadow DOM for style encapsulation
+ * Sidebar header with user info and system status
  *
  * @element ewr-sidebar-header
  *
@@ -2991,12 +2990,27 @@ customElements.define('ewr-icon', EwrIcon);
 class EwrSidebarHeader extends HTMLElement {
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
         this._statusHandler = this._handleStatusChange.bind(this);
     }
 
     connectedCallback() {
-        this.render();
+        this.className = 'sidebar-header';
+        this.innerHTML = `
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-row">
+                    <span class="sidebar-user-label">User</span>
+                    <span class="sidebar-user-value" id="userName">Loading...</span>
+                </div>
+                <div class="sidebar-user-row">
+                    <span class="sidebar-user-label">Role</span>
+                    <span class="sidebar-user-value" id="userRole">User</span>
+                </div>
+            </div>
+            <div class="header-status" id="systemStatus">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">Connecting...</span>
+            </div>
+        `;
         this.updateUserInfo();
         window.addEventListener('systemStatusChanged', this._statusHandler);
     }
@@ -3005,14 +3019,10 @@ class EwrSidebarHeader extends HTMLElement {
         window.removeEventListener('systemStatusChanged', this._statusHandler);
     }
 
-    $(selector) {
-        return this.shadowRoot.querySelector(selector);
-    }
-
     _handleStatusChange(event) {
         const { statusKey } = event.detail;
-        const statusDot = this.$('#statusDot');
-        const statusText = this.$('#statusText');
+        const statusDot = this.querySelector('#statusDot');
+        const statusText = this.querySelector('#statusText');
 
         if (!statusDot || !statusText) return;
 
@@ -3050,121 +3060,14 @@ class EwrSidebarHeader extends HTMLElement {
             const auth = new AuthClient();
             const user = await auth.getUser();
             if (user) {
-                const userNameEl = this.$('#userName');
-                const userRoleEl = this.$('#userRole');
+                const userNameEl = this.querySelector('#userName');
+                const userRoleEl = this.querySelector('#userRole');
                 if (userNameEl) userNameEl.textContent = user.username;
                 if (userRoleEl) userRoleEl.textContent = (user.role || 'User').toUpperCase();
             }
         } catch (error) {
             console.error('Failed to update sidebar header user info:', error);
         }
-    }
-
-    render() {
-        this.shadowRoot.innerHTML = `
-            <style>${this.getStyles()}</style>
-            <div class="sidebar-header">
-                <div class="sidebar-user-info">
-                    <div class="sidebar-user-row">
-                        <span class="sidebar-user-label">User</span>
-                        <span class="sidebar-user-value" id="userName">Loading...</span>
-                    </div>
-                    <div class="sidebar-user-row">
-                        <span class="sidebar-user-label">Role</span>
-                        <span class="sidebar-user-value" id="userRole">User</span>
-                    </div>
-                </div>
-                <div class="header-status" id="systemStatus">
-                    <div class="status-dot" id="statusDot"></div>
-                    <span class="status-text" id="statusText">Connecting...</span>
-                </div>
-            </div>
-        `;
-    }
-
-    getStyles() {
-        return `
-            :host {
-                display: block;
-                flex-shrink: 0;
-            }
-
-            .sidebar-header {
-                padding: 12px 14px;
-                border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                background: rgba(0, 0, 0, 0.2);
-            }
-
-            .sidebar-user-info {
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 6px;
-                padding: 6px 10px;
-            }
-
-            .sidebar-user-row {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            }
-
-            .sidebar-user-row + .sidebar-user-row { margin-top: 2px; }
-
-            .sidebar-user-label {
-                font-size: 8px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                color: #38bdf8;
-                min-width: 24px;
-            }
-
-            .sidebar-user-value {
-                font-size: 11px;
-                font-weight: 600;
-                color: #e2e8f0;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .header-status {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 6px 10px;
-                background: #475569;
-                border-radius: 6px;
-                border: 1px solid #334155;
-                box-shadow:
-                    inset 0 2px 4px rgba(0, 0, 0, 0.2),
-                    inset 0 1px 2px rgba(0, 0, 0, 0.15),
-                    0 1px 0 rgba(255, 255, 255, 0.05);
-            }
-
-            .status-dot {
-                width: 8px;
-                height: 8px;
-                background: #22c55e;
-                border-radius: 50%;
-                animation: pulse 2s infinite;
-                flex-shrink: 0;
-            }
-
-            @keyframes pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.5; }
-            }
-
-            .status-text {
-                font-size: 11px;
-                font-weight: 600;
-                color: #e8f2ff;
-            }
-        `;
     }
 }
 
@@ -3174,7 +3077,6 @@ customElements.define('ewr-sidebar-header', EwrSidebarHeader);
 /**
  * EWR-Sidebar Component
  * Complete user sidebar with brand, navigation, and footer
- * Uses Shadow DOM for style encapsulation
  *
  * @element ewr-sidebar
  *
@@ -3184,37 +3086,22 @@ customElements.define('ewr-sidebar-header', EwrSidebarHeader);
 class EwrSidebar extends HTMLElement {
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
     }
 
     connectedCallback() {
-        this.render();
+        this.className = 'app-sidebar';
+        this.innerHTML = `
+            <ewr-sidebar-header></ewr-sidebar-header>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <ewr-logout-button></ewr-logout-button>
+            </div>
+        `;
         this.initNavigation();
     }
 
-    render() {
-        this.shadowRoot.innerHTML = `
-            <style>${this.getStyles()}</style>
-            <aside class="app-sidebar" part="sidebar">
-                <ewr-sidebar-header></ewr-sidebar-header>
-                <nav class="sidebar-nav"></nav>
-                <div class="sidebar-footer">
-                    <ewr-logout-button></ewr-logout-button>
-                </div>
-            </aside>
-        `;
-    }
-
-    $(selector) {
-        return this.shadowRoot.querySelector(selector);
-    }
-
-    $$(selector) {
-        return this.shadowRoot.querySelectorAll(selector);
-    }
-
     initNavigation() {
-        const navContainer = this.$('.sidebar-nav');
+        const navContainer = this.querySelector('.sidebar-nav');
         if (!navContainer) return;
 
         // Use PUBLIC_NAV_CONFIG from sidebar.js if available
@@ -3263,191 +3150,6 @@ class EwrSidebar extends HTMLElement {
         let normalizedItem = itemUrl.replace(/\/index\.html$/, '/').replace(/\/$/, '') || '/';
         if (!normalizedItem.startsWith('/')) normalizedItem = '/' + normalizedItem;
         return normalizedCurrent === normalizedItem;
-    }
-
-    getStyles() {
-        return `
-            :host {
-                display: block;
-                width: 240px;
-                height: 100vh;
-                position: fixed;
-                left: 0;
-                top: 0;
-                z-index: 1000;
-            }
-
-            .app-sidebar {
-                width: 240px;
-                height: 100vh;
-                background: linear-gradient(180deg, #1a2332 0%, #0f1419 100%);
-                display: flex;
-                flex-direction: column;
-                border-right: 1px solid rgba(255, 255, 255, 0.06);
-                box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4), 1px 0 0 rgba(255, 255, 255, 0.03);
-            }
-
-            /* Scrollbar styling */
-            .app-sidebar ::-webkit-scrollbar { width: 4px; }
-            .app-sidebar ::-webkit-scrollbar-track { background: transparent; }
-            .app-sidebar ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
-            .app-sidebar ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
-
-            /* Navigation */
-            .sidebar-nav {
-                flex: 1;
-                padding: 12px 0;
-                overflow-y: auto;
-                overflow-x: hidden;
-            }
-
-            .nav-section {
-                margin-bottom: 24px;
-            }
-
-            .nav-section-title {
-                padding: 8px 20px 6px;
-                font-size: 10px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                color: #475569;
-            }
-
-            .nav-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 9px 16px;
-                margin: 1px 8px;
-                color: #94a3b8;
-                text-decoration: none;
-                transition: all 0.15s ease;
-                position: relative;
-                border-radius: 6px;
-                font-size: 13px;
-                cursor: pointer;
-            }
-
-            .nav-item::before {
-                content: '';
-                position: absolute;
-                left: 0;
-                top: 50%;
-                transform: translateY(-50%);
-                width: 3px;
-                height: 0;
-                background: linear-gradient(180deg, #00d4ff 0%, #0099cc 100%);
-                border-radius: 0 2px 2px 0;
-                transition: height 0.15s ease;
-            }
-
-            .nav-item:hover {
-                background: rgba(255, 255, 255, 0.04);
-                color: #e2e8f0;
-            }
-
-            .nav-item:hover::before { height: 16px; }
-
-            .nav-item.active {
-                background: rgba(0, 212, 255, 0.08);
-                color: #00d4ff;
-            }
-
-            .nav-item.active::before { height: 20px; }
-            .nav-item.active .nav-icon { color: #00d4ff; }
-
-            .nav-icon {
-                width: 18px;
-                height: 18px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-                opacity: 0.7;
-                transition: opacity 0.15s ease;
-            }
-
-            .nav-item:hover .nav-icon { opacity: 1; }
-
-            .nav-text {
-                font-size: 13px;
-                font-weight: 500;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            /* Divider */
-            .nav-divider {
-                height: 1px;
-                background: linear-gradient(90deg, transparent 0%, rgba(100, 116, 139, 0.4) 20%, rgba(148, 163, 184, 0.5) 50%, rgba(100, 116, 139, 0.4) 80%, transparent 100%);
-                margin: 12px 16px;
-                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
-            }
-
-            /* Footer */
-            .sidebar-footer {
-                padding: 12px 14px;
-                border-top: 1px solid rgba(148, 163, 184, 0.25);
-                margin-top: auto;
-                background: rgba(0, 0, 0, 0.15);
-                flex-shrink: 0;
-            }
-
-            .sidebar-footer ewr-logout-button {
-                display: block;
-                width: 100%;
-            }
-
-            /* Metallic logout button */
-            .sidebar-footer .ewr-logout-button {
-                width: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 10px 14px;
-                background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 25%, #94a3b8 75%, #64748b 100%);
-                color: #1e293b;
-                border: 1px solid #94a3b8;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.15s ease;
-                box-shadow:
-                    0 2px 4px rgba(0, 0, 0, 0.1),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-            }
-
-            .sidebar-footer .ewr-logout-button:hover {
-                background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 25%, #cbd5e1 75%, #94a3b8 100%);
-                transform: translateY(-1px);
-                box-shadow:
-                    0 3px 8px rgba(0, 0, 0, 0.15),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-                border-color: #64748b;
-            }
-
-            .sidebar-footer .ewr-logout-button:active {
-                background: linear-gradient(180deg, #94a3b8 0%, #64748b 50%, #475569 100%);
-                transform: translateY(0);
-                box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2);
-                color: #f1f5f9;
-            }
-
-            /* Responsive */
-            @media (max-width: 768px) {
-                :host {
-                    transform: translateX(-100%);
-                    transition: transform 0.2s ease;
-                }
-
-                :host(.mobile-open) {
-                    transform: translateX(0);
-                }
-            }
-        `;
     }
 }
 
