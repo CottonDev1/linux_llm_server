@@ -548,6 +548,8 @@
                 <strong>Password requirements:</strong>
                 <ul>
                     <li>At least 8 characters long</li>
+                    <li>At least 1 special character (!@#$%^&*...)</li>
+                    <li>At least 2 numbers</li>
                     <li>Must not be the same as your current password</li>
                 </ul>
             </div>
@@ -720,6 +722,22 @@
             // Validate password length
             if (newPassword.length < 8) {
                 modalError.textContent = 'Password must be at least 8 characters';
+                modalError.classList.add('show');
+                return;
+            }
+
+            // Validate at least 1 special character
+            const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/;
+            if (!specialCharRegex.test(newPassword)) {
+                modalError.textContent = 'Password must contain at least 1 special character';
+                modalError.classList.add('show');
+                return;
+            }
+
+            // Validate at least 2 numbers
+            const numberCount = (newPassword.match(/\d/g) || []).length;
+            if (numberCount < 2) {
+                modalError.textContent = 'Password must contain at least 2 numbers';
                 modalError.classList.add('show');
                 return;
             }

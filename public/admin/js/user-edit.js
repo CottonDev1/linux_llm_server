@@ -167,12 +167,14 @@ function populateForm(user) {
     const roleSelect = document.getElementById('role');
     const isActiveCheckbox = document.getElementById('isActive');
     const monitorAnalysisCheckbox = document.getElementById('monitorAnalysis');
+    const forcePasswordResetCheckbox = document.getElementById('forcePasswordReset');
 
     if (usernameInput) usernameInput.value = user.username || '';
     if (emailInput) emailInput.value = user.email || '';
     if (roleSelect) roleSelect.value = user.role || 'user';
     if (isActiveCheckbox) isActiveCheckbox.checked = user.isActive !== false;
     if (monitorAnalysisCheckbox) monitorAnalysisCheckbox.checked = user.settings?.monitorAnalysis === true;
+    if (forcePasswordResetCheckbox) forcePasswordResetCheckbox.checked = user.forcePasswordReset === true;
 
     // Set up role change protection for admins editing themselves
     const adminWarning = document.getElementById('adminProtectionWarning');
@@ -369,12 +371,14 @@ function initFormHandler() {
         const password = document.getElementById('password').value;
         const isActive = document.getElementById('isActive').checked;
         const monitorAnalysis = document.getElementById('monitorAnalysis')?.checked || false;
+        const forcePasswordReset = document.getElementById('forcePasswordReset')?.checked || false;
 
         // Build update data for user info
         const updateData = {
             email: email || undefined,
             role,
-            isActive
+            isActive,
+            forcePasswordReset
         };
 
         // Add password if provided

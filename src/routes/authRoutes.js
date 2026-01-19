@@ -624,6 +624,18 @@ router.get('/sql-connection-settings', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Password must be at least 8 characters' });
       }
 
+      // Validate at least 1 special character
+      const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/;
+      if (!specialCharRegex.test(newPassword)) {
+        return res.status(400).json({ error: 'Password must contain at least 1 special character' });
+      }
+
+      // Validate at least 2 numbers
+      const numberCount = (newPassword.match(/\d/g) || []).length;
+      if (numberCount < 2) {
+        return res.status(400).json({ error: 'Password must contain at least 2 numbers' });
+      }
+
       const user = await ewraiDatabase.getUserById(req.user.id);
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
