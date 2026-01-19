@@ -275,7 +275,7 @@ class HybridRetriever:
                 cursor = collection.find(
                     {"content": {"$exists": True, "$ne": ""}},
                     {"_id": 1, "content": 1, "title": 1, "parent_id": 1,
-                     "source_file": 1, "department": 1, "type": 1,
+                     "source_file": 1, "department": 1, "type": 1, "subject": 1,
                      "chunk_index": 1, "total_chunks": 1, "metadata": 1}
                 )
 
@@ -304,6 +304,7 @@ class HybridRetriever:
                         "source_file": doc.get("source_file"),
                         "department": doc.get("department"),
                         "type": doc.get("type"),
+                        "subject": doc.get("subject"),
                         "chunk_index": doc.get("chunk_index", 0),
                         "total_chunks": doc.get("total_chunks", 1),
                         "metadata": doc.get("metadata", {}),
@@ -345,6 +346,39 @@ class HybridRetriever:
         tokens = [t for t in text.split() if t and len(t) > 1]
         return tokens
 
+    def _matches_filters(self, doc_data: Dict[str, Any], filters: Dict[str, Any]) -> bool:
+        """
+        Check if a document matches all specified filters.
+
+        Args:
+            doc_data: Document data dictionary
+            filters: Filter criteria dictionary
+
+        Returns:
+            True if document matches all filters, False otherwise
+        """
+        if not filters:
+            return True
+
+        if "project" in filters:
+            doc_project = doc_data.get("metadata", {}).get("project")
+            if doc_project != filters["project"]:
+                return False
+
+        if "department" in filters:
+            if doc_data.get("department") != filters["department"]:
+                return False
+
+        if "type" in filters:
+            if doc_data.get("type") != filters["type"]:
+                return False
+
+        if "subject" in filters:
+            if doc_data.get("subject") != filters["subject"]:
+                return False
+
+        return True
+
     async def _vector_search(
         self,
         query: str,
@@ -368,7 +402,7 @@ class HybridRetriever:
             # Generate query embedding
             query_embedding = await self._embedding_service.generate_embedding(query)
 
-            # Build filter query for MongoDB
+            # Build filter query for MongoDB (pre-filtering at database level)
             filter_query = None
             if filters:
                 filter_query = {}
@@ -378,6 +412,8 @@ class HybridRetriever:
                     filter_query["department"] = filters["department"]
                 if "type" in filters:
                     filter_query["type"] = filters["type"]
+                if "subject" in filters:
+                    filter_query["subject"] = filters["subject"]
 
             # Perform vector search
             results = await self._mongodb_service._vector_search(
@@ -419,12 +455,12 @@ class HybridRetriever:
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[RetrievedDoc]:
         """
-        Perform BM25 keyword search.
+        Perform BM25 keyword search with pre-filtering for efficiency.
 
         Args:
             query: Search query
             limit: Maximum results
-            filters: Optional metadata filters
+            filters: Optional metadata filters (applied BEFORE scoring)
 
         Returns:
             List of RetrievedDoc with bm25_score populated
@@ -439,30 +475,42 @@ class HybridRetriever:
             if not query_tokens:
                 return []
 
-            # Get BM25 scores
+            # PRE-FILTER: Build set of valid document indices BEFORE scoring
+            # This avoids wasting computation on documents that will be filtered out
+            valid_indices = None
+            if filters:
+                valid_indices = set()
+                for idx, doc_id in enumerate(self._bm25_doc_ids):
+                    doc_data = self._bm25_doc_map.get(doc_id, {})
+                    if self._matches_filters(doc_data, filters):
+                        valid_indices.add(idx)
+
+                # Early exit if no documents match filters
+                if not valid_indices:
+                    logger.debug(f"BM25 pre-filter: No documents match filters {filters}")
+                    return []
+
+                logger.debug(f"BM25 pre-filter: {len(valid_indices)}/{len(self._bm25_doc_ids)} docs match filters")
+
+            # Get BM25 scores for all documents
             scores = self._bm25_index.get_scores(query_tokens)
 
-            # Get top-k indices
-            scored_indices = [(i, s) for i, s in enumerate(scores) if s > 0]
+            # Build scored indices list - only include pre-filtered documents
+            if valid_indices is not None:
+                # Only consider documents that passed the filter
+                scored_indices = [(i, scores[i]) for i in valid_indices if scores[i] > 0]
+            else:
+                # No filters - consider all documents
+                scored_indices = [(i, s) for i, s in enumerate(scores) if s > 0]
+
+            # Sort by score descending
             scored_indices.sort(key=lambda x: x[1], reverse=True)
 
-            # Apply filters and limit
+            # Build result documents (limit applied here)
             docs = []
-            for rank, (idx, score) in enumerate(scored_indices):
-                if len(docs) >= limit:
-                    break
-
+            for rank, (idx, score) in enumerate(scored_indices[:limit]):
                 doc_id = self._bm25_doc_ids[idx]
                 doc_data = self._bm25_doc_map.get(doc_id, {})
-
-                # Apply filters
-                if filters:
-                    if "project" in filters and doc_data.get("metadata", {}).get("project") != filters["project"]:
-                        continue
-                    if "department" in filters and doc_data.get("department") != filters["department"]:
-                        continue
-                    if "type" in filters and doc_data.get("type") != filters["type"]:
-                        continue
 
                 docs.append(RetrievedDoc(
                     document_id=doc_data.get("parent_id", doc_id),

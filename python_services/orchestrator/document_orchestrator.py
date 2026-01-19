@@ -1344,6 +1344,22 @@ Respond with JSON: {{"grade": "relevant|ambiguous|irrelevant", "score": 0.0-1.0,
 
         logger.info(f"Triggering corrective retrieval (attempt {state.correction_attempts})")
 
+        # Build filter query from request filters to maintain user's scope
+        filter_query = None
+        if state.request.filters:
+            filter_query = {}
+            if "department" in state.request.filters:
+                filter_query["department"] = state.request.filters["department"]
+            if "type" in state.request.filters:
+                filter_query["type"] = state.request.filters["type"]
+            if "subject" in state.request.filters:
+                filter_query["subject"] = state.request.filters["subject"]
+            if "project" in state.request.filters:
+                filter_query["project"] = state.request.filters["project"]
+            # Only use filter_query if it has any filters
+            if not filter_query:
+                filter_query = None
+
         # Use expanded queries if available
         if state.query_analysis and state.query_analysis.expanded_queries:
             for expanded in state.query_analysis.expanded_queries:
@@ -1354,6 +1370,7 @@ Respond with JSON: {{"grade": "relevant|ambiguous|irrelevant", "score": 0.0-1.0,
                         query_vector=query_embedding,
                         limit=3,
                         threshold=self.config.min_similarity_threshold * 0.8,  # Lower threshold
+                        filter_query=filter_query,  # Respect user filters in corrective retrieval
                     )
 
                     # Add new documents that aren't already in results
