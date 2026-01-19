@@ -103,9 +103,12 @@ export async function loadDatabase() {
                 });
             }
 
-            // Show a message to the user
-            showMessage(document.getElementById('connectionMessage'), 'warning',
-                'Schema analysis must be performed prior to querying database. Use the Extract Schema feature.');
+            // Show error popup to the user
+            showErrorPopup(
+                'Schema analysis must be performed prior to querying database.',
+                'Schema Required',
+                'Use the "Extract Schema" feature to analyze the database structure before querying.'
+            );
 
             console.log('Schema check: schemas NOT found, all fields disabled');
             updateUIState();
