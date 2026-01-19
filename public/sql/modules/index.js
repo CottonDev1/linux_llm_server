@@ -46,7 +46,6 @@ import {
 // Connection Manager
 import {
     saveConnectionSettings,
-    saveSettingsToDatabase,
     loadSavedConnectionSettings,
     validateConnectionFields,
     updateConnectionStatus as updateConnectionStatusConnection,
@@ -187,7 +186,6 @@ window.state = state;
 
 // Connection management
 window.saveConnectionSettings = saveConnectionSettings;
-window.saveSettingsToDatabase = saveSettingsToDatabase;
 window.loadSavedConnectionSettings = loadSavedConnectionSettings;
 window.testConnection = testConnection;
 window.toggleAuthFields = toggleAuthFields;
@@ -407,7 +405,6 @@ export {
 
     // Connection
     saveConnectionSettings,
-    saveSettingsToDatabase,
     loadSavedConnectionSettings,
     validateConnectionFields,
     testConnection,

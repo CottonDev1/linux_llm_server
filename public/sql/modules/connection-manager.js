@@ -183,14 +183,6 @@ export async function loadSavedConnectionSettings() {
 }
 
 /**
- * @deprecated Use saveConnectionSettings() instead
- * Kept for backwards compatibility with existing onclick handlers
- */
-export async function saveSettingsToDatabase() {
-    return saveConnectionSettings();
-}
-
-/**
  * Validate connection fields
  * Currently a no-op as Connect button is always enabled - validation happens on click
  *
