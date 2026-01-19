@@ -461,6 +461,15 @@ export function addErrorMessage(errorText, failedSql = null, originalQuestion = 
     // Parse and format the error message for better user understanding
     const formattedError = formatErrorMessage(errorText);
 
+    // Check if this is a connection error - don't show feedback for connection issues
+    const errorLower = errorText.toLowerCase();
+    const isConnectionError = errorLower.includes('connection') ||
+                              errorLower.includes('timeout') ||
+                              errorLower.includes('network') ||
+                              errorLower.includes('econnrefused') ||
+                              errorLower.includes('enotfound') ||
+                              errorLower.includes('no response received');
+
     // Build AI explanation block if available
     let aiExplanationBlock = '';
     if (aiExplanation) {
@@ -496,8 +505,14 @@ export function addErrorMessage(errorText, failedSql = null, originalQuestion = 
         `;
     }
 
-    // Simple feedback buttons for errors
+    // Feedback buttons - only show for non-connection errors
     const feedbackContainerId = `feedback-${errorId}`;
+    const feedbackButtonsHtml = isConnectionError ? '' : `
+        <div id="${feedbackContainerId}" class="feedback-buttons">
+            <button class="feedback-btn-icon" data-message-id="${errorId}" data-feedback="positive" title="Helpful">👍</button>
+            <button class="feedback-btn-icon" data-message-id="${errorId}" data-feedback="negative" title="Not helpful">👎</button>
+        </div>
+    `;
 
     messageDiv.innerHTML = `
         ${aiExplanationBlock}
@@ -515,29 +530,28 @@ export function addErrorMessage(errorText, failedSql = null, originalQuestion = 
             ` : ''}
         </div>
         ${sqlBlock}
-        <div id="${feedbackContainerId}" class="feedback-buttons">
-            <button class="feedback-btn-icon" data-message-id="${errorId}" data-feedback="positive" title="Helpful">👍</button>
-            <button class="feedback-btn-icon" data-message-id="${errorId}" data-feedback="negative" title="Not helpful">👎</button>
-        </div>
+        ${feedbackButtonsHtml}
     `;
 
     chatMessages.appendChild(messageDiv);
     scrollToBottom();
 
-    // Attach feedback button event listeners
-    const feedbackButtons = messageDiv.querySelectorAll('.feedback-btn-icon');
-    feedbackButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const feedbackType = this.dataset.feedback;
-            const msgId = this.dataset.messageId;
+    // Attach feedback button event listeners (only if not a connection error)
+    if (!isConnectionError) {
+        const feedbackButtons = messageDiv.querySelectorAll('.feedback-btn-icon');
+        feedbackButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const feedbackType = this.dataset.feedback;
+                const msgId = this.dataset.messageId;
 
-            if (feedbackType === 'positive') {
-                handlePositiveFeedback(question, failedSql, msgId, this);
-            } else {
-                handleNegativeFeedback(question, failedSql, msgId, this);
-            }
+                if (feedbackType === 'positive') {
+                    handlePositiveFeedback(question, failedSql, msgId, this);
+                } else {
+                    handleNegativeFeedback(question, failedSql, msgId, this);
+                }
+            });
         });
-    });
+    }
 
     // Add to history
     addToChatHistory({ type: 'error', text: errorText, sql: failedSql, question, time });
