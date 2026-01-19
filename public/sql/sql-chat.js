@@ -1,3 +1,12 @@
+/**
+ * @deprecated This file is superseded by the modular architecture in ./modules/
+ * The HTML page loads modules/index.js which imports from individual modules.
+ * This file is kept for reference only and is NOT loaded by index.html.
+ *
+ * For connection settings, see: modules/connection-manager.js
+ * For main entry point, see: modules/index.js
+ */
+
 // API Configuration - Python service for SQL pipeline
 const SQL_API_BASE = 'http://localhost:8001';  // Python FastAPI service
 

@@ -14,16 +14,24 @@ import { SQL_API_BASE, state, resetAppState } from './sql-chat-state.js';
 import { showMessage, hideConnectionMessage, showErrorPopup, updateUIState } from './ui-manager.js';
 
 /**
- * Save connection settings to localStorage with encrypted password
- * Uses CryptoUtils for secure password storage
+ * Save connection settings to SQLite database via API
+ * Uses CryptoUtils for secure password encryption before storage
+ * Falls back to localStorage if database is unavailable
  *
  * @async
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>} True if saved successfully
  */
 export async function saveConnectionSettings() {
+    const connectionMessage = document.getElementById('connectionMessage');
     const userStr = localStorage.getItem('user');
     const userId = userStr ? JSON.parse(userStr).id || 'default' : 'default';
-    const connectionMessage = document.getElementById('connectionMessage');
+    const token = localStorage.getItem('accessToken');
+
+    // Validate user is logged in
+    if (!token || userId === 'default') {
+        showMessage(connectionMessage, 'error', 'Please log in to save settings');
+        return false;
+    }
 
     // Get password and encrypt it
     const password = document.getElementById('password').value;
@@ -44,59 +52,86 @@ export async function saveConnectionSettings() {
         authType: document.getElementById('authType').value,
         domain: document.getElementById('domain').value,
         username: document.getElementById('username').value,
-        encryptedPassword: encryptedPassword, // Encrypted password
+        encryptedPassword: encryptedPassword,
         trustCert: document.getElementById('trustCert').checked,
         encrypt: document.getElementById('encrypt').checked
     };
 
-    localStorage.setItem(`sqlConnectionSettings_${userId}`, JSON.stringify(settings));
+    // Save to SQLite database (primary storage)
+    try {
+        const response = await fetch('/api/auth/sql-connection-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(settings)
+        });
 
-    // Show success message
-    const originalHtml = connectionMessage.innerHTML;
-    connectionMessage.innerHTML = '<div class="message success">Connection settings saved (including encrypted password)</div>';
-    setTimeout(() => {
-        connectionMessage.innerHTML = originalHtml;
-    }, 3000);
+        const result = await response.json();
 
-    console.log('Connection settings saved for user:', userId);
+        if (result.success) {
+            // Also cache in localStorage for offline/quick access
+            localStorage.setItem(`sqlConnectionSettings_${userId}`, JSON.stringify(settings));
+            showMessage(connectionMessage, 'success', 'Connection settings saved');
+            setTimeout(() => hideConnectionMessage(), 3000);
+            console.log('Connection settings saved to database for user:', userId);
+            return true;
+        } else {
+            showMessage(connectionMessage, 'error', result.error || 'Failed to save settings');
+            return false;
+        }
+    } catch (error) {
+        console.error('Failed to save settings to database:', error);
+        // Fallback to localStorage only
+        localStorage.setItem(`sqlConnectionSettings_${userId}`, JSON.stringify(settings));
+        showMessage(connectionMessage, 'info', 'Settings saved locally (server unavailable)');
+        setTimeout(() => hideConnectionMessage(), 3000);
+        return true;
+    }
 }
 
 /**
- * Load saved connection settings from database first, then localStorage as fallback
+ * Load saved connection settings from SQLite database (primary), localStorage (fallback)
  * Automatically decrypts saved passwords if CryptoUtils is available
  *
  * @async
- * @returns {Promise<void>}
+ * @returns {Promise<{loaded: boolean, source: string|null}>} Load status and source
  */
 export async function loadSavedConnectionSettings() {
     const userStr = localStorage.getItem('user');
     const userId = userStr ? JSON.parse(userStr).id || 'default' : 'default';
+    const token = localStorage.getItem('accessToken');
     let settings = null;
+    let source = null;
 
-    // Try loading from database first
-    try {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
+    // Try loading from SQLite database first (primary storage)
+    if (token && userId !== 'default') {
+        try {
             const response = await fetch('/api/auth/sql-connection-settings', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const result = await response.json();
             if (result.success && result.settings) {
                 settings = result.settings;
-                console.log('Loaded settings from database');
+                source = 'database';
+                console.log('Connection settings loaded from SQLite database');
             }
+        } catch (e) {
+            console.warn('Failed to load settings from database:', e.message);
         }
-    } catch (e) {
-        console.warn('Failed to load settings from database:', e.message);
+    } else if (!token) {
+        console.log('No auth token - will check localStorage cache');
     }
 
-    // Fallback to localStorage
+    // Fallback to localStorage cache
     if (!settings) {
         const savedSettings = localStorage.getItem(`sqlConnectionSettings_${userId}`);
         if (savedSettings) {
             try {
                 settings = JSON.parse(savedSettings);
-                console.log('Loaded settings from localStorage');
+                source = 'localStorage';
+                console.log('Connection settings loaded from localStorage cache');
             } catch (e) {
                 console.error('Failed to parse localStorage settings:', e);
             }
@@ -132,81 +167,27 @@ export async function loadSavedConnectionSettings() {
             // Store database preference for after connection
             if (settings.database) {
                 window._savedDatabasePreference = settings.database;
+                console.log('Saved database preference:', settings.database);
             }
 
-            console.log('Applied saved connection settings for user:', userId);
+            console.log(`Applied connection settings for user ${userId} from ${source}`);
+            return { loaded: true, source };
         } catch (e) {
             console.error('Failed to apply saved connection settings:', e);
+            return { loaded: false, source: null };
         }
     }
+
+    console.log('No saved connection settings found');
+    return { loaded: false, source: null };
 }
 
 /**
- * Save connection settings to the server database
- * @async
- * @returns {Promise<void>}
+ * @deprecated Use saveConnectionSettings() instead
+ * Kept for backwards compatibility with existing onclick handlers
  */
 export async function saveSettingsToDatabase() {
-    const connectionMessage = document.getElementById('connectionMessage');
-    const userStr = localStorage.getItem('user');
-    const userId = userStr ? JSON.parse(userStr).id || 'default' : 'default';
-
-    // Get password and encrypt it
-    const password = document.getElementById('password').value;
-    let encryptedPassword = null;
-
-    if (password && window.CryptoUtils && CryptoUtils.isSupported()) {
-        try {
-            encryptedPassword = await CryptoUtils.encrypt(password, userId);
-        } catch (e) {
-            console.error('Failed to encrypt password:', e);
-        }
-    }
-
-    const settings = {
-        server: document.getElementById('server').value,
-        database: document.getElementById('database').value,
-        authType: document.getElementById('authType').value,
-        domain: document.getElementById('domain').value,
-        username: document.getElementById('username').value,
-        encryptedPassword: encryptedPassword,
-        trustCert: document.getElementById('trustCert').checked,
-        encrypt: document.getElementById('encrypt').checked
-    };
-
-    try {
-        const token = localStorage.getItem('accessToken');
-        if (!token) {
-            showMessage(connectionMessage, 'error', 'Please log in to save settings');
-            return;
-        }
-
-        const response = await fetch('/api/auth/sql-connection-settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(settings)
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            // Also save to localStorage as backup
-            localStorage.setItem(`sqlConnectionSettings_${userId}`, JSON.stringify(settings));
-            showMessage(connectionMessage, 'success', 'Settings saved to database');
-            setTimeout(() => hideConnectionMessage(), 3000);
-        } else {
-            showMessage(connectionMessage, 'error', result.error || 'Failed to save settings');
-        }
-    } catch (error) {
-        console.error('Failed to save settings to database:', error);
-        // Fallback to localStorage
-        await saveConnectionSettings();
-        showMessage(connectionMessage, 'info', 'Settings saved locally (server unavailable)');
-        setTimeout(() => hideConnectionMessage(), 3000);
-    }
+    return saveConnectionSettings();
 }
 
 /**
@@ -708,7 +689,8 @@ export async function clearQueryCache() {
 
 /**
  * Save current connection settings as default
- * Persists settings to both server-side storage and localStorage backup
+ * Requires successful connection before saving
+ * Delegates to saveConnectionSettings() which saves to SQLite database
  *
  * @async
  * @returns {Promise<void>}
@@ -722,84 +704,6 @@ export async function saveAsDefault() {
         return;
     }
 
-    try {
-        const connectionConfig = getConnectionConfig();
-
-        // Show loading state
-        showMessage(connectionMessage, 'info', 'Saving connection settings...');
-
-        // Get current user info
-        const userStr = localStorage.getItem('user');
-        const userName = userStr ? JSON.parse(userStr).username || 'default' : 'default';
-
-        // Gather all settings from the form
-        const screenSettings = {
-            server: document.getElementById('server').value,
-            database: document.getElementById('database').value,
-            authType: document.getElementById('authType').value,
-            domain: document.getElementById('domain').value,
-            username: document.getElementById('username').value,
-            trustCert: document.getElementById('trustCert').checked,
-            encrypt: document.getElementById('encrypt').checked
-        };
-
-        // Try to save to SQL database first
-        try {
-            const sqlResponse = await fetch('/api/sql/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userName,
-                    pageName: 'sql-chat',
-                    settings: screenSettings,
-                    connectionConfig
-                })
-            });
-
-            const sqlResult = await sqlResponse.json();
-            if (sqlResult.success) {
-                console.log('Settings saved to SQL database');
-            } else {
-                console.warn('Could not save to SQL database:', sqlResult.error);
-            }
-        } catch (sqlError) {
-            console.warn('SQL settings save failed, continuing with other methods:', sqlError.message);
-        }
-
-        // Also try the general settings endpoint
-        const response = await fetch('/api/settings/sql-connection', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(connectionConfig)
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            showMessage(connectionMessage, 'success', 'Connection settings saved as default');
-
-            // Also save to localStorage as backup
-            await saveConnectionSettings();
-
-            setTimeout(() => {
-                hideConnectionMessage();
-            }, 3000);
-        } else {
-            // Fallback - save to localStorage only
-            await saveConnectionSettings();
-            showMessage(connectionMessage, 'success', 'Settings saved locally');
-
-            setTimeout(() => {
-                hideConnectionMessage();
-            }, 3000);
-        }
-    } catch (error) {
-        // Last resort - save to localStorage
-        await saveConnectionSettings();
-        showMessage(connectionMessage, 'info', 'Settings saved locally (server unavailable)');
-
-        setTimeout(() => {
-            hideConnectionMessage();
-        }, 3000);
-    }
+    // Delegate to unified save function (saves to SQLite + localStorage cache)
+    await saveConnectionSettings();
 }
