@@ -65,6 +65,14 @@ export async function loadDatabase() {
             // Lock connection fields to prevent changes during active session
             disableConnectionFields(true);
 
+            // Also disable all inputs/selects in the ewr-filter-panel
+            const filterPanel = document.getElementById('connectionCollapsible');
+            if (filterPanel) {
+                filterPanel.querySelectorAll('input, select').forEach(el => {
+                    el.disabled = true;
+                });
+            }
+
             console.log('Schema check: schemas found, connection fields locked');
             updateUIState();
         } else {
@@ -84,11 +92,22 @@ export async function loadDatabase() {
                 chatInput.placeholder = 'Schema analysis must be performed prior to querying database';
             }
 
+            // Lock all inputs and selects in the filter panel
+            disableConnectionFields(true);
+
+            // Also disable all inputs/selects in the ewr-filter-panel
+            const filterPanel = document.getElementById('connectionCollapsible');
+            if (filterPanel) {
+                filterPanel.querySelectorAll('input, select').forEach(el => {
+                    el.disabled = true;
+                });
+            }
+
             // Show a message to the user
             showMessage(document.getElementById('connectionMessage'), 'warning',
                 'Schema analysis must be performed prior to querying database. Use the Extract Schema feature.');
 
-            console.log('Schema check: schemas NOT found, chat disabled');
+            console.log('Schema check: schemas NOT found, all fields disabled');
             updateUIState();
         }
 
