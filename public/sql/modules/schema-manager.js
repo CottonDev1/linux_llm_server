@@ -9,7 +9,7 @@
  */
 
 import { SQL_API_BASE, state } from './sql-chat-state.js';
-import { getConnectionConfig } from './connection-manager.js';
+import { getConnectionConfig, disableConnectionFields } from './connection-manager.js';
 import { showMessage, updateUIState, showErrorPopup, updateConnectionStatus } from './ui-manager.js';
 
 /**
@@ -61,19 +61,34 @@ export async function loadDatabase() {
                 schemaStatus.textContent = 'Schemas located';
                 schemaStatus.className = 'ewr-status-pill success visible';
             }
-            console.log('Schema check: schemas found, status updated');
+
+            // Lock connection fields to prevent changes during active session
+            disableConnectionFields(true);
+
+            console.log('Schema check: schemas found, connection fields locked');
             updateUIState();
         } else {
-            // Schema doesn't exist - still enable chat but show warning
-            state.app.databaseLoaded = true;
+            // Schema doesn't exist - keep chat DISABLED until schema analysis is performed
+            state.app.databaseLoaded = false;
             state.app.currentDatabase = database;
             state.app.schemaStats = null;
 
             if (schemaStatus) {
-                schemaStatus.textContent = 'Schemas not found';
+                schemaStatus.textContent = 'Schema analysis required';
                 schemaStatus.className = 'ewr-status-pill warning visible';
             }
-            console.log('Schema check: schemas NOT found, warning shown');
+
+            // Show message in chat area explaining why it's disabled
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.placeholder = 'Schema analysis must be performed prior to querying database';
+            }
+
+            // Show a message to the user
+            showMessage(document.getElementById('connectionMessage'), 'warning',
+                'Schema analysis must be performed prior to querying database. Use the Extract Schema feature.');
+
+            console.log('Schema check: schemas NOT found, chat disabled');
             updateUIState();
         }
 

@@ -361,12 +361,13 @@ export async function testConnection() {
 /**
  * Helper to disable/enable connection form fields
  * Called when connected (disable) or cleared (enable)
+ * When disabled, fields become read-only to prevent mid-session changes
  *
  * @param {boolean} disable - Whether to disable (true) or enable (false) the fields
  * @returns {void}
  */
 export function disableConnectionFields(disable) {
-    const fields = ['server', 'authType', 'domain', 'username', 'password', 'trustCert', 'encrypt'];
+    const fields = ['server', 'database', 'authType', 'domain', 'username', 'password', 'trustCert', 'encrypt', 'integratedAuth'];
     fields.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = disable;
