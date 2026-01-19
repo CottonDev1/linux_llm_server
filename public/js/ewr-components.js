@@ -2979,6 +2979,199 @@ customElements.define('ewr-icon', EwrIcon);
  * Note: Requires sidebar.js to be loaded for PUBLIC_NAV_CONFIG
  */
 /**
+ * EWR-Sidebar-Header Component
+ * Sidebar header with logo, user info, and system status
+ * Uses Shadow DOM for style encapsulation
+ *
+ * @element ewr-sidebar-header
+ *
+ * @example
+ * <ewr-sidebar-header></ewr-sidebar-header>
+ */
+class EwrSidebarHeader extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this._statusHandler = this._handleStatusChange.bind(this);
+    }
+
+    connectedCallback() {
+        this.render();
+        this.updateUserInfo();
+        window.addEventListener('systemStatusChanged', this._statusHandler);
+    }
+
+    disconnectedCallback() {
+        window.removeEventListener('systemStatusChanged', this._statusHandler);
+    }
+
+    $(selector) {
+        return this.shadowRoot.querySelector(selector);
+    }
+
+    _handleStatusChange(event) {
+        const { statusKey } = event.detail;
+        const statusDot = this.$('#statusDot');
+        const statusText = this.$('#statusText');
+
+        if (!statusDot || !statusText) return;
+
+        switch (statusKey) {
+            case 'healthy':
+                statusDot.style.background = '#10b981';
+                statusText.textContent = 'System Online';
+                statusText.style.color = '#10b981';
+                break;
+            case 'degraded-llm':
+                statusDot.style.background = '#f59e0b';
+                statusText.textContent = 'LLM Unavailable';
+                statusText.style.color = '#f59e0b';
+                break;
+            case 'degraded':
+                statusDot.style.background = '#f59e0b';
+                statusText.textContent = 'Degraded';
+                statusText.style.color = '#f59e0b';
+                break;
+            case 'error':
+                statusDot.style.background = '#ef4444';
+                statusText.textContent = event.detail.status?.error || 'Error';
+                statusText.style.color = '#ef4444';
+                break;
+            default:
+                statusDot.style.background = '#ef4444';
+                statusText.textContent = 'Offline';
+                statusText.style.color = '#ef4444';
+        }
+    }
+
+    async updateUserInfo() {
+        try {
+            if (typeof AuthClient === 'undefined') return;
+            const auth = new AuthClient();
+            const user = await auth.getUser();
+            if (user) {
+                const userNameEl = this.$('#userName');
+                const userRoleEl = this.$('#userRole');
+                if (userNameEl) userNameEl.textContent = user.username;
+                if (userRoleEl) userRoleEl.textContent = (user.role || 'User').toUpperCase();
+            }
+        } catch (error) {
+            console.error('Failed to update sidebar header user info:', error);
+        }
+    }
+
+    render() {
+        this.shadowRoot.innerHTML = `
+            <style>${this.getStyles()}</style>
+            <div class="sidebar-header">
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-row">
+                        <span class="sidebar-user-label">User</span>
+                        <span class="sidebar-user-value" id="userName">Loading...</span>
+                    </div>
+                    <div class="sidebar-user-row">
+                        <span class="sidebar-user-label">Role</span>
+                        <span class="sidebar-user-value" id="userRole">User</span>
+                    </div>
+                </div>
+                <div class="header-status" id="systemStatus">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span class="status-text" id="statusText">Connecting...</span>
+                </div>
+            </div>
+        `;
+    }
+
+    getStyles() {
+        return `
+            :host {
+                display: block;
+                flex-shrink: 0;
+            }
+
+            .sidebar-header {
+                padding: 12px 14px;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            .sidebar-user-info {
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 6px;
+                padding: 6px 10px;
+            }
+
+            .sidebar-user-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .sidebar-user-row + .sidebar-user-row { margin-top: 2px; }
+
+            .sidebar-user-label {
+                font-size: 8px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: #38bdf8;
+                min-width: 24px;
+            }
+
+            .sidebar-user-value {
+                font-size: 11px;
+                font-weight: 600;
+                color: #e2e8f0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .header-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 10px;
+                background: #475569;
+                border-radius: 6px;
+                border: 1px solid #334155;
+                box-shadow:
+                    inset 0 2px 4px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 2px rgba(0, 0, 0, 0.15),
+                    0 1px 0 rgba(255, 255, 255, 0.05);
+            }
+
+            .status-dot {
+                width: 8px;
+                height: 8px;
+                background: #22c55e;
+                border-radius: 50%;
+                animation: pulse 2s infinite;
+                flex-shrink: 0;
+            }
+
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+
+            .status-text {
+                font-size: 11px;
+                font-weight: 600;
+                color: #e8f2ff;
+            }
+        `;
+    }
+}
+
+customElements.define('ewr-sidebar-header', EwrSidebarHeader);
+
+
+/**
  * EWR-Sidebar Component
  * Complete user sidebar with brand, navigation, and footer
  * Uses Shadow DOM for style encapsulation
@@ -2997,26 +3190,13 @@ class EwrSidebar extends HTMLElement {
     connectedCallback() {
         this.render();
         this.initNavigation();
-        this.updateUserInfo();
     }
 
     render() {
         this.shadowRoot.innerHTML = `
             <style>${this.getStyles()}</style>
             <aside class="app-sidebar" part="sidebar">
-                <div class="sidebar-brand">
-                    <div class="sidebar-logo">EWR</div>
-                    <div class="user-info-card">
-                        <div class="user-info-row">
-                            <span class="user-info-label">User</span>
-                            <span class="sidebar-username" id="userName">Loading...</span>
-                        </div>
-                        <div class="user-info-row">
-                            <span class="user-info-label">Role</span>
-                            <span class="sidebar-username" id="userRole">User</span>
-                        </div>
-                    </div>
-                </div>
+                <ewr-sidebar-header></ewr-sidebar-header>
                 <nav class="sidebar-nav"></nav>
                 <div class="sidebar-footer">
                     <ewr-logout-button></ewr-logout-button>
@@ -3085,22 +3265,6 @@ class EwrSidebar extends HTMLElement {
         return normalizedCurrent === normalizedItem;
     }
 
-    async updateUserInfo() {
-        try {
-            if (typeof AuthClient === 'undefined') return;
-            const auth = new AuthClient();
-            const user = await auth.getUser();
-            if (user) {
-                const userNameEl = this.$('#userName');
-                const userRoleEl = this.$('#userRole');
-                if (userNameEl) userNameEl.textContent = user.username;
-                if (userRoleEl) userRoleEl.textContent = (user.role || 'User').toUpperCase();
-            }
-        } catch (error) {
-            console.error('Failed to update sidebar user info:', error);
-        }
-    }
-
     getStyles() {
         return `
             :host {
@@ -3128,82 +3292,6 @@ class EwrSidebar extends HTMLElement {
             .app-sidebar ::-webkit-scrollbar-track { background: transparent; }
             .app-sidebar ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
             .app-sidebar ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
-
-            /* Brand section */
-            .sidebar-brand {
-                padding: 16px 18px;
-                border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                background: rgba(0, 0, 0, 0.2);
-                flex-shrink: 0;
-            }
-
-            .sidebar-logo {
-                width: 36px;
-                height: 36px;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 800;
-                font-size: 13px;
-                background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 15%, #0ea5e9 30%, #0284c7 50%, #0369a1 70%, #075985 85%, #0c4a6e 100%);
-                color: #ffffff;
-                flex-shrink: 0;
-                letter-spacing: -0.5px;
-                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4), inset 0 -1px 1px rgba(0, 0, 0, 0.2);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                position: relative;
-            }
-
-            .sidebar-logo::before {
-                content: '';
-                position: absolute;
-                top: 0; left: 0; right: 0; bottom: 0;
-                border-radius: 7px;
-                background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.2) 45%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0.2) 55%, transparent 100%);
-                pointer-events: none;
-            }
-
-            /* User info card */
-            .user-info-card {
-                flex: 1;
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 8px;
-                padding: 8px 12px;
-                min-width: 0;
-            }
-
-            .user-info-row {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .user-info-row + .user-info-row { margin-top: 4px; }
-
-            .user-info-label {
-                font-size: 9px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.8px;
-                color: #64748b;
-                min-width: 28px;
-            }
-
-            .sidebar-username {
-                font-size: 12px;
-                font-weight: 600;
-                color: #e2e8f0;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                max-width: 120px;
-            }
 
             /* Navigation */
             .sidebar-nav {
@@ -3312,6 +3400,42 @@ class EwrSidebar extends HTMLElement {
                 width: 100%;
             }
 
+            /* Metallic logout button */
+            .sidebar-footer .ewr-logout-button {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 10px 14px;
+                background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 25%, #94a3b8 75%, #64748b 100%);
+                color: #1e293b;
+                border: 1px solid #94a3b8;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                box-shadow:
+                    0 2px 4px rgba(0, 0, 0, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            }
+
+            .sidebar-footer .ewr-logout-button:hover {
+                background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 25%, #cbd5e1 75%, #94a3b8 100%);
+                transform: translateY(-1px);
+                box-shadow:
+                    0 3px 8px rgba(0, 0, 0, 0.15),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+                border-color: #64748b;
+            }
+
+            .sidebar-footer .ewr-logout-button:active {
+                background: linear-gradient(180deg, #94a3b8 0%, #64748b 50%, #475569 100%);
+                transform: translateY(0);
+                box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2);
+                color: #f1f5f9;
+            }
+
             /* Responsive */
             @media (max-width: 768px) {
                 :host {
@@ -3415,7 +3539,7 @@ customElements.define('ewr-sidebar-top', EwrSidebarTop);
 
 /**
  * EWR-Page-Header Component
- * Standard page header with title, subtitle, status indicator, and logout button
+ * Standard page header with title and subtitle
  *
  * Usage:
  * <ewr-page-header
@@ -3439,12 +3563,6 @@ class EwrPageHeader extends HTMLElement {
                     <div>
                         <h1 class="header-title">${title}</h1>
                         ${subtitle ? `<p class="header-subtitle">${subtitle}</p>` : ''}
-                    </div>
-                </div>
-                <div class="header-right">
-                    <div class="header-status" id="systemStatus">
-                        <div class="status-dot" id="statusDot"></div>
-                        <span class="status-text" id="statusText" style="color: #e8f2ff;">Connecting...</span>
                     </div>
                 </div>
             </div>
@@ -3633,101 +3751,7 @@ class EwrAdminSidebar extends HTMLElement {
     connectedCallback() {
         this.className = 'app-sidebar';
         this.innerHTML = `
-            <style>
-                /* Sidebar brand layout - horizontal with left and right sections */
-                .sidebar-brand {
-                    padding: 12px 14px;
-                    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-                    display: flex;
-                    align-items: stretch;
-                    gap: 12px;
-                    background: rgba(0, 0, 0, 0.2);
-                    flex-shrink: 0;
-                }
-
-                .sidebar-brand-left {
-                    display: flex;
-                    align-items: center;
-                    flex-shrink: 0;
-                }
-
-                .sidebar-brand-right {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                    min-width: 0;
-                }
-
-                .sidebar-user-info {
-                    background: rgba(255, 255, 255, 0.04);
-                    border: 1px solid rgba(255, 255, 255, 0.06);
-                    border-radius: 6px;
-                    padding: 6px 10px;
-                }
-
-                .sidebar-user-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                }
-
-                .sidebar-user-row + .sidebar-user-row {
-                    margin-top: 2px;
-                }
-
-                .sidebar-user-label {
-                    font-size: 8px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    color: #64748b;
-                    min-width: 24px;
-                }
-
-                .sidebar-user-value {
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: #e2e8f0;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-
-                .sidebar-status-wrapper {
-                    /* Container for ewr-website-status */
-                }
-
-                .sidebar-status-wrapper ewr-website-status {
-                    display: block;
-                }
-
-                /* Override website-status styling for sidebar context */
-                .sidebar-status-wrapper .website-status {
-                    margin-top: 0;
-                    padding: 3px 8px;
-                }
-            </style>
-            <div class="sidebar-brand">
-                <div class="sidebar-brand-left">
-                    <div class="sidebar-logo">EWR</div>
-                </div>
-                <div class="sidebar-brand-right">
-                    <div class="sidebar-user-info">
-                        <div class="sidebar-user-row">
-                            <span class="sidebar-user-label">User</span>
-                            <span class="sidebar-user-value" id="userName">Loading...</span>
-                        </div>
-                        <div class="sidebar-user-row">
-                            <span class="sidebar-user-label">Role</span>
-                            <span class="sidebar-user-value" id="userRole">USER</span>
-                        </div>
-                    </div>
-                    <div class="sidebar-status-wrapper">
-                        <ewr-website-status></ewr-website-status>
-                    </div>
-                </div>
-            </div>
+            <ewr-sidebar-header></ewr-sidebar-header>
             <nav class="sidebar-nav">
                 <!-- Navigation will be dynamically generated by admin sidebar.js -->
             </nav>
